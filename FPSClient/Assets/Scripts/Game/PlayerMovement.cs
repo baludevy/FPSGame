@@ -24,7 +24,7 @@ public class PlayerMovement : MonoBehaviour {
     //Movement
     public float moveSpeed = 4500;
     public float runSpeed = 20;
-    public bool grounded, cancellingGrounded;
+    public bool grounded, wasGrounded, cancellingGrounded;
     public LayerMask whatIsGround;
 
     public float counterMovement = 0.175f;
@@ -93,10 +93,6 @@ public class PlayerMovement : MonoBehaviour {
         CameraShake();
     }
 
-    private void LateUpdate() {
-        WallRunning();
-    }
-
     private void Update() {
         fallSpeed = rb.velocity.y;
         lastMoveSpeed = VectorExtensions.XZVector(rb.velocity);
@@ -130,7 +126,7 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     public void Movement() {
-        rb.AddForce(Vector3.down * Time.deltaTime * 12.5f);
+        rb.AddForce(Vector3.down * NetworkSettings.tickTime * 12.5f);
         Vector2 mag = FindVelRelativeToLook();
 
         float xMag = mag.x;
@@ -145,7 +141,7 @@ public class PlayerMovement : MonoBehaviour {
         float maxSpeed = runSpeed;
 
         if (crouching && grounded && readyToJump) {
-            rb.AddForce(Vector3.down * Time.deltaTime * 3000f);
+            rb.AddForce(Vector3.down * NetworkSettings.tickTime * 3000f);
             return;
         }
 
@@ -178,8 +174,9 @@ public class PlayerMovement : MonoBehaviour {
             multiplierV = 0.3f;
         }
 
-        rb.AddForce(orientation.transform.forward * (y * moveSpeed * Time.deltaTime * multiplier * multiplierV));
-        rb.AddForce(orientation.transform.right * (x * moveSpeed * Time.deltaTime * multiplier));
+        rb.AddForce(orientation.transform.forward *
+                    (y * moveSpeed * NetworkSettings.tickTime * multiplier * multiplierV));
+        rb.AddForce(orientation.transform.right * (x * moveSpeed * NetworkSettings.tickTime * multiplier));
 
         SpeedLines();
     }
@@ -211,6 +208,63 @@ public class PlayerMovement : MonoBehaviour {
         }
 
         // psEmission.rateOverTimeMultiplier = rateOverTimeMultiplier;
+    }
+
+    public void CheckGrounded() {
+        wasGrounded = grounded;
+        
+        RaycastHit hit;
+
+        grounded = Physics.Raycast(
+            transform.position,
+            Vector3.down,
+            out hit,
+            playerHeight * 0.5f + 0.2f,
+            whatIsGround
+        );
+        
+        surfing = grounded && IsSurf(hit.normal);
+        normalVector = hit.normal;
+
+        if (!wasGrounded && grounded) {
+            MoveCamera.Instance.BobOnce(new Vector3(0f, fallSpeed, 0f));
+        }
+    }
+
+    public void CheckWalls() {
+        RaycastHit hit;
+
+        Vector3 origin = transform.position;
+
+        bool foundWall =
+            Physics.Raycast(origin, orientation.right, out hit, 1f, whatIsGround) ||
+            Physics.Raycast(origin, -orientation.right, out hit, 1f, whatIsGround) ||
+            Physics.Raycast(origin, orientation.forward, out hit, 1f, whatIsGround) ||
+            Physics.Raycast(origin, -orientation.forward, out hit, 1f, whatIsGround);
+
+        if (!foundWall) {
+            wallRunning = false;
+            return;
+        }
+
+        if (!IsWall(hit.normal)) {
+            wallRunning = false;
+            return;
+        }
+
+        wallNormalVector = hit.normal;
+
+        if (!grounded && readyToWallrun) {
+            if (!wallRunning) {
+                rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+                rb.AddForce(Vector3.up * 15, ForceMode.Impulse);
+            }
+
+            wallRunning = true;
+        }
+        else {
+            wallRunning = false;
+        }
     }
 
     private void CameraShake() {
@@ -267,19 +321,20 @@ public class PlayerMovement : MonoBehaviour {
 
         //Slow down sliding
         if (crouching) {
-            rb.AddForce(moveSpeed * Time.deltaTime * -rb.velocity.normalized * slideCounterMovement);
+            rb.AddForce(moveSpeed * NetworkSettings.tickTime * -rb.velocity.normalized * slideCounterMovement);
             return;
         }
 
         //Counter movement
         if (Math.Abs(mag.x) > threshold && Math.Abs(x) < 0.05f || (mag.x < -threshold && x > 0) ||
             (mag.x > threshold && x < 0)) {
-            rb.AddForce(moveSpeed * orientation.transform.right * Time.deltaTime * -mag.x * counterMovement);
+            rb.AddForce(moveSpeed * orientation.transform.right * NetworkSettings.tickTime * -mag.x * counterMovement);
         }
 
         if (Math.Abs(mag.y) > threshold && Math.Abs(y) < 0.05f || (mag.y < -threshold && y > 0) ||
             (mag.y > threshold && y < 0)) {
-            rb.AddForce(moveSpeed * orientation.transform.forward * Time.deltaTime * -mag.y * counterMovement);
+            rb.AddForce(moveSpeed * orientation.transform.forward * NetworkSettings.tickTime * -mag.y *
+                        counterMovement);
         }
 
         //Limit diagonal running. This will also cause a full stop if sliding fast and un-crouching, so not optimal.
@@ -359,20 +414,16 @@ public class PlayerMovement : MonoBehaviour {
         readyToWallrun = true;
     }
 
-    private void WallRunning() {
+    public void WallRunning() {
         if (wallRunning) {
-            rb.AddForce(-wallNormalVector * Time.deltaTime * moveSpeed);
+            rb.AddForce(-wallNormalVector * NetworkSettings.tickTime * moveSpeed);
             if (!isCrouching) {
-                rb.AddForce(Vector3.up * Time.deltaTime * rb.mass * 100f * wallRunGravity);
+                rb.AddForce(Vector3.up * NetworkSettings.tickTime * rb.mass * 100f * wallRunGravity);
             }
             else {
-                rb.AddForce(Vector3.up * Time.deltaTime * rb.mass * 100f * (wallRunGravity * 0.5f));
+                rb.AddForce(Vector3.up * NetworkSettings.tickTime * rb.mass * 100f * (wallRunGravity * 0.5f));
             }
         }
-    }
-
-    private bool IsFloor(Vector3 v) {
-        return Vector3.Angle(Vector3.up, v) < maxSlopeAngle;
     }
 
     private bool IsSurf(Vector3 v) {
@@ -389,118 +440,4 @@ public class PlayerMovement : MonoBehaviour {
         return Math.Abs(90f - Vector3.Angle(Vector3.up, v)) < 0.1f;
     }
 
-    private bool IsRoof(Vector3 v) {
-        return v.y == -1f;
-    }
-
-    private void StartWallRun(Vector3 normal) {
-        if (!grounded && readyToWallrun) {
-            wallNormalVector = normal;
-
-            if (!wallRunning) {
-                rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-                rb.AddForce(Vector3.up * 15, ForceMode.Impulse);
-            }
-
-            wallRunning = true;
-        }
-    }
-
-    private void OnCollisionEnter(Collision other) {
-        int layer = other.gameObject.layer;
-        Vector3 normal = other.contacts[0].normal;
-        if ((int)whatIsGround != ((int)whatIsGround | (1 << layer))) {
-            return;
-        }
-
-        if (IsFloor(normal)) {
-            MoveCamera.Instance.BobOnce(new Vector3(0f, fallSpeed, 0f));
-        }
-    }
-
-    private void OnCollisionStay(Collision other) {
-        int layer = other.gameObject.layer;
-        if ((int)whatIsGround != ((int)whatIsGround | (1 << layer))) {
-            return;
-        }
-
-        for (int i = 0; i < other.contactCount; i++) {
-            Vector3 normal = other.contacts[i].normal;
-            if (IsFloor(normal)) {
-                if (wallRunning) {
-                    wallRunning = false;
-                }
-
-                grounded = true;
-                normalVector = normal;
-                cancellingGrounded = false;
-                CancelInvoke("StopGrounded");
-            }
-
-            if (IsWall(normal) && layer == LayerMask.NameToLayer("Ground")) {
-                StartWallRun(normal);
-                cancellingWall = false;
-                CancelInvoke("StopWall");
-            }
-
-            if (IsSurf(normal)) {
-                surfing = true;
-                cancellingSurf = false;
-                CancelInvoke("StopSurf");
-            }
-
-            IsRoof(normal);
-        }
-
-        if (!cancellingGrounded) {
-            cancellingGrounded = true;
-            Invoke("StopGrounded", Time.deltaTime * 3);
-        }
-
-        if (!cancellingWall) {
-            cancellingWall = true;
-            Invoke("StopWall", Time.deltaTime * 3);
-        }
-
-        if (!cancellingSurf) {
-            cancellingSurf = true;
-            Invoke("StopSurf", Time.deltaTime * 3);
-        }
-    }
-
-    private void StopGrounded() {
-        grounded = false;
-    }
-
-    private void StopWall() {
-        wallRunning = false;
-    }
-
-    private void StopSurf() {
-        surfing = false;
-    }
-
-    public Vector3 GetVelocity() {
-        return rb.velocity;
-    }
-
-    public Rigidbody GetRb() {
-        return rb;
-    }
-
-    public Collider GetPlayerCollider() {
-        return playerCollider;
-    }
-
-    public Vector3 HitPoint() {
-        return playerCam.transform.position + playerCam.transform.forward * 100f;
-    }
-
-    public bool IsGrounded() {
-        return grounded;
-    }
-
-    public bool IsCrouching() {
-        return crouching;
-    }
 }

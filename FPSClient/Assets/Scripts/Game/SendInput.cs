@@ -52,8 +52,8 @@ public class SendInput : MonoBehaviour {
 
         int bufferSize = NetworkSettings.inputBufferSize;
 
-        if (TickManager.tick == 0) return;
-        int lastCompletedTick = TickManager.tick - 1;
+        if (TickTimer.tick == 0) return;
+        int lastCompletedTick = TickTimer.tick - 1;
 
         int firstUnsents = lastSentTick + 1;
 
