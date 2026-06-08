@@ -47,6 +47,7 @@ public class ServerSend {
     public static void Welcome(int toClient) {
         using (Packet packet = new Packet((int)ServerPackets.welcome)) {
             packet.Write(toClient);
+            packet.Write(NetworkManager.tick);
 
             SendTCPData(toClient, packet);
         }

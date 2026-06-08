@@ -96,8 +96,7 @@ public class PlayerMovement : MonoBehaviour {
     private void Update() {
         fallSpeed = rb.velocity.y;
         lastMoveSpeed = VectorExtensions.XZVector(rb.velocity);
-        // MyInput();
-        // Look();
+        Look();
     }
 
     private void MyInput() {
@@ -119,6 +118,13 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     public void SetInputs(float x, float y, bool jumping, bool crouching) {
+        if (crouching && !this.crouching) {
+            PlayerMovement.Instance.StartCrouch();
+        }
+        else if (!crouching && this.crouching) {
+            PlayerMovement.Instance.StopCrouch();
+        }
+        
         this.x = x;
         this.y = y;
         this.jumping = jumping;

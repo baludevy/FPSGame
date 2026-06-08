@@ -3,10 +3,13 @@ using UnityEngine;
 
 public class ClientHandle {
     public static void Welcome(Packet packet) {
-        byte myId = packet.ReadByte();
+        int myId = packet.ReadInt();
+        int tick = packet.ReadInt();
 
         Client.Instance.myId = myId;
         Client.IsConnected = true;
+
+        TickTimer.tick = tick;
         
         ClientSend.WelcomeReceived();
         NetworkUIManager.Instance.DisableConnectUI();

@@ -34,6 +34,6 @@ public class ServerHandle {
         
         Player player = Server.clients[fromClient].player;
         
-        Debug.Log(inputs.Count);
+        player.inputQueue.AddInputsToQueue(inputs);
     }
 }
