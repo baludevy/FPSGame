@@ -7,17 +7,11 @@ using Vector3 = UnityEngine.Vector3;
 
 public class PlayerMovement : MonoBehaviour {
     //Assingables
-    public Transform playerCam;
     public Transform orientation;
 
     //Other
     private Rigidbody rb;
-
-    //Rotation and look
-    private float xRotation;
-    private float sensitivity = 50f;
-    private float sensMultiplier = 1f;
-
+    
     //Movement
     public float moveSpeed = 4500;
     public float runSpeed = 20;
@@ -61,25 +55,17 @@ public class PlayerMovement : MonoBehaviour {
     private float playerHeight;
     private float slideSlowdown;
 
-    //Effects
-    public ParticleSystem ps;
-    private ParticleSystem.EmissionModule psEmission;
-
     //Other
     private float fallSpeed;
     private Vector3 lastMoveSpeed;
     private Collider playerCollider;
 
-    public static PlayerMovement Instance { get; private set; }
-
     private void Awake() {
-        Instance = this;
         rb = GetComponent<Rigidbody>();
         playerHeight = GetComponent<CapsuleCollider>().bounds.size.y;
     }
 
     private void Start() {
-        psEmission = ps.emission;
         playerCollider = GetComponent<Collider>();
 
         readyToJump = true;
@@ -90,16 +76,17 @@ public class PlayerMovement : MonoBehaviour {
         fallSpeed = rb.velocity.y;
     }
     
-    public void SetInputs(float x, float y, bool jumping, bool crouching) {
+    public void SetInputs(float x, float y, Quaternion orientation, bool jumping, bool crouching) {
         if (crouching && !this.crouching) {
-            PlayerMovement.Instance.StartCrouch();
+            StartCrouch();
         }
         else if (!crouching && this.crouching) {
-            PlayerMovement.Instance.StopCrouch();
+            StopCrouch();
         }
         
         this.x = x;
         this.y = y;
+        // this.orientation.rotation = orientation;
         this.jumping = jumping;
         this.crouching = crouching;
     }
@@ -156,8 +143,6 @@ public class PlayerMovement : MonoBehaviour {
         rb.AddForce(orientation.transform.forward *
                     (y * moveSpeed * NetworkSettings.tickTime * multiplier * multiplierV));
         rb.AddForce(orientation.transform.right * (x * moveSpeed * NetworkSettings.tickTime * multiplier));
-
-        SpeedLines();
     }
 
     public void StartCrouch() {
@@ -174,20 +159,6 @@ public class PlayerMovement : MonoBehaviour {
         transform.position = new Vector3(transform.position.x, transform.position.y + 0.5f, transform.position.z);
     }
 
-    private void SpeedLines() {
-        float viewAngleFactor = Vector3.Angle(rb.velocity, playerCam.transform.forward) * 0.5f;
-        if (viewAngleFactor < 1f) {
-            viewAngleFactor = 1f;
-        }
-
-        float rateOverTimeMultiplier = rb.velocity.magnitude / viewAngleFactor;
-
-        if (grounded && !wallRunning) {
-            rateOverTimeMultiplier = 0f;
-        }
-
-        // psEmission.rateOverTimeMultiplier = rateOverTimeMultiplier;
-    }
 
     public void CheckGrounded() {
         wasGrounded = grounded;
@@ -309,51 +280,6 @@ public class PlayerMovement : MonoBehaviour {
         float xMag = magnitue * Mathf.Cos(v * Mathf.Deg2Rad);
 
         return new Vector2(xMag, yMag);
-    }
-
-    private void FindWallRunRotation() {
-        if (!wallRunning) {
-            wallRunRotation = 0f;
-            return;
-        }
-
-        _ = new Vector3(0f, playerCam.transform.rotation.y, 0f).normalized;
-        new Vector3(0f, 0f, 1f);
-        float wallAngle = 0f;
-        float cameraAngle = playerCam.transform.rotation.eulerAngles.y;
-
-        if (Math.Abs(wallNormalVector.x - 1f) < 0.1f) {
-            wallAngle = 90f;
-        }
-        else if (Math.Abs(wallNormalVector.x - -1f) < 0.1f) {
-            wallAngle = 270f;
-        }
-        else if (Math.Abs(wallNormalVector.z - 1f) < 0.1f) {
-            wallAngle = 0f;
-        }
-        else if (Math.Abs(wallNormalVector.z - -1f) < 0.1f) {
-            wallAngle = 180f;
-        }
-
-        wallAngle = Vector3.SignedAngle(new Vector3(0f, 0f, 1f), wallNormalVector, Vector3.up);
-        float wallAngleDiff = Mathf.DeltaAngle(cameraAngle, wallAngle);
-        wallRunRotation = (0f - wallAngleDiff / 90f) * 7.5f;
-        if (!readyToWallrun) {
-            return;
-        }
-
-        if ((Mathf.Abs(wallRunRotation) < 4f && y > 0f && Math.Abs(x) < 0.1f) ||
-            (Mathf.Abs(wallRunRotation) > 22f && y < 0f && Math.Abs(x) < 0.1f)) {
-            if (!cancelling) {
-                cancelling = true;
-                CancelInvoke("CancelWallrun");
-                Invoke("CancelWallrun", 0.2f);
-            }
-        }
-        else {
-            cancelling = false;
-            CancelInvoke("CancelWallrun");
-        }
     }
 
     private void CancelWallrun() {

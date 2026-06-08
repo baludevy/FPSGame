@@ -9,7 +9,7 @@ public class ClientHandle {
         Client.Instance.myId = myId;
         Client.IsConnected = true;
 
-        TickTimer.tick = tick;
+        TickTimer.tick = tick + 100;
         
         ClientSend.WelcomeReceived();
         NetworkUIManager.Instance.DisableConnectUI();

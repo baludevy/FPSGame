@@ -9,6 +9,7 @@ public class Player : MonoBehaviour {
     public string username;
 
     public InputQueue inputQueue;
+    public PlayerMovement movement;
 
     public void Initialize(int id, string username) {
         this.id = id;

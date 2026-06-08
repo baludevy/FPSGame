@@ -1,8 +1,12 @@
-﻿public class PlayerInput {
+﻿using UnityEngine;
+
+public class PlayerInput {
     public int tick;
 
     public float x;
     public float y;
+
+    public Quaternion orientation;
 
     public bool jumping;
     public bool crouching;

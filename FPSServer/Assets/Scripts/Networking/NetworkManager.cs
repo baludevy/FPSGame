@@ -23,29 +23,41 @@ public class NetworkManager : MonoBehaviour {
 
     private void Update() {
         timer += Time.deltaTime;
-        while (timer >= NetworkSettings.tickTime)
-        {
+        while (timer >= NetworkSettings.tickTime) {
             timer -= NetworkSettings.tickTime;
 
-            // ProcessTick();
+            ProcessTick();
             tick++;
         }
     }
 
-    private void FixedUpdate() {
+    private void ProcessTick() {
         ThreadManager.UpdateMain();
-        
+
         //Forward physics simulation by one step
-        Physics.Simulate(NetworkSettings.tickTime);
+
 
         foreach (Client client in Server.clients.Values) {
             if (client.player != null) {
+                PlayerInput input = client.player.inputQueue.GetInputFromQueue(tick % NetworkSettings.inputBufferSize);
+
+                if (input != null)
+                    client.player.movement.SetInputs(input.x, input.y, input.orientation, input.jumping,
+                        input.crouching);
+
+                client.player.movement.CheckGrounded();
+                client.player.movement.CheckWalls();
+                client.player.movement.Movement();
+                client.player.movement.WallRunning();
+
                 ServerSend.PlayerPosition(client.player.id, client.player.transform.position);
             }
         }
-        
+
+        Physics.Simulate(NetworkSettings.tickTime);
+
         // Debug.Log(movementPacketsReceivedInTick);
-        
+
         movementPacketsReceivedInTick = 0;
     }
 

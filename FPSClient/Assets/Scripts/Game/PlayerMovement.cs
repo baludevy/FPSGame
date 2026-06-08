@@ -96,7 +96,7 @@ public class PlayerMovement : MonoBehaviour {
     private void Update() {
         fallSpeed = rb.velocity.y;
         lastMoveSpeed = VectorExtensions.XZVector(rb.velocity);
-        Look();
+        // Look();
     }
 
     private void MyInput() {
