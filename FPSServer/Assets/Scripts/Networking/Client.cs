@@ -7,7 +7,7 @@ public class Client : MonoBehaviour {
     private static int dataBufferSize = 4096;
 
     public int id;
-    private Player player;
+    public Player player;
     public TCP tcp;
     public UDP udp;
 
@@ -58,7 +58,7 @@ public class Client : MonoBehaviour {
             try {
                 int byteLength = _stream.EndRead(result);
                 if (byteLength <= 0) {
-                    Server.Clients[_id].Disconnect();
+                    Server.clients[_id].Disconnect();
                     return;
                 }
 
@@ -68,8 +68,11 @@ public class Client : MonoBehaviour {
                 _receivedData.Reset(HandleData(data));
                 _stream.BeginRead(_receiveBuffer, 0, dataBufferSize, ReceiveCallback, null);
             }
+            catch (ObjectDisposedException) {
+            
+            }
             catch (Exception ex) {
-                Server.Clients[_id].Disconnect();
+                Server.clients[_id].Disconnect();
 
                 Debug.LogException(ex);
             }
@@ -158,7 +161,7 @@ public class Client : MonoBehaviour {
 
         Debug.Log($"Spawned player {player.id}.");
 
-        foreach (Client client in Server.Clients.Values) {
+        foreach (Client client in Server.clients.Values) {
             if (client.player != null) {
                 if (client.id != id) {
                     ServerSend.SpawnPlayer(id, client.player);
@@ -166,7 +169,7 @@ public class Client : MonoBehaviour {
             }
         }
 
-        foreach (Client client in Server.Clients.Values) {
+        foreach (Client client in Server.clients.Values) {
             if (client.player != null) {
                 ServerSend.SpawnPlayer(client.id, player);
             }

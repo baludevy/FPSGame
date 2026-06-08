@@ -17,8 +17,11 @@ public class GameManager : MonoBehaviour {
     public GameObject playerPrefab;
 
     private void Awake() {
-        Application.targetFrameRate = 170;
         Instance = this;
+    }
+
+    private void Start() {
+        QualitySettings.vSyncCount = 1;
     }
 
     public void SpawnPlayer(int id, string username, Vector3 position, Quaternion rotation) {

@@ -239,6 +239,7 @@ public class Client : MonoBehaviour {
         packetHandlers = new Dictionary<int, PacketHandler>() {
             { (int)ServerPackets.welcome, ClientHandle.Welcome },
             { (int)ServerPackets.spawnPlayer, ClientHandle.SpawnPlayer },
+            { (int)ServerPackets.playerPosition, ClientHandle.PlayerPosition },
         };
     }
 
@@ -250,5 +251,8 @@ public class Client : MonoBehaviour {
         udp.socket.Close();
 
         // disconnect on main thread
+        ThreadManager.ExecuteOnMainThread(() => {
+            NetworkUIManager.Instance.EnableConnectUI();
+        });
     }
 }

@@ -6,8 +6,8 @@ using UnityEngine;
 
 public class Server {
     public static int MaxPlayers { get; set; }
-    private static int Port { get; set; }
-    public static Dictionary<int, Client> Clients = new Dictionary<int, Client>();
+    private static int port { get; set; }
+    public static Dictionary<int, Client> clients = new Dictionary<int, Client>();
 
     public delegate void packetHandler(int fromClient, Packet packet);
 
@@ -18,18 +18,18 @@ public class Server {
 
     public static void Start(int maxPlayers, int port) {
         MaxPlayers = maxPlayers;
-        Port = port;
+        Server.port = port;
         
         InitializeServerData();
 
-        _tcpListener = new TcpListener(IPAddress.Any, Port);
+        _tcpListener = new TcpListener(IPAddress.Any, Server.port);
         _tcpListener.Start();
         _tcpListener.BeginAcceptTcpClient(TcpConnectCallback, null);
         
-        _udpListener = new UdpClient(Port);
+        _udpListener = new UdpClient(Server.port);
         _udpListener.BeginReceive(UDPReceiveCallback, null);
         
-        Debug.Log($"Server started on port {Port}.");
+        Debug.Log($"Server started on port {Server.port}.");
     }
 
     private static void TcpConnectCallback(IAsyncResult result) {
@@ -37,8 +37,8 @@ public class Server {
         _tcpListener.BeginAcceptTcpClient(TcpConnectCallback, null);
 
         for (int i = 1; i <= MaxPlayers; i++) {
-            if (Clients[i].tcp.Socket == null) {
-                Clients[i].tcp.Connect(client);
+            if (clients[i].tcp.Socket == null) {
+                clients[i].tcp.Connect(client);
                 return;
             }
         }
@@ -63,15 +63,18 @@ public class Server {
                     return;
                 }
 
-                if (Clients[clientId].udp.EndPoint == null) {
-                    Clients[clientId].udp.Connect(clientEndPoint);
+                if (clients[clientId].udp.EndPoint == null) {
+                    clients[clientId].udp.Connect(clientEndPoint);
                     return;
                 }
 
-                if (Clients[clientId].udp.EndPoint.ToString() == clientEndPoint.ToString()) {
-                    Clients[clientId].udp.HandleData(packet);
+                if (clients[clientId].udp.EndPoint.ToString() == clientEndPoint.ToString()) {
+                    clients[clientId].udp.HandleData(packet);
                 }
             }
+        }
+        catch (ObjectDisposedException) {
+            
         }
         catch (Exception ex) {
             Debug.LogException(ex);
@@ -91,11 +94,12 @@ public class Server {
     
     private static void InitializeServerData() {
         for (int i = 1; i <= MaxPlayers; i++) {
-            Clients.Add(i, new Client(i));
+            clients.Add(i, new Client(i));
         }
 
         packetHandlers = new Dictionary<int, packetHandler> {
             { (int)ClientPackets.welcomeReceived, ServerHandle.WelcomeReceived },
+            { (int)ClientPackets.playerPosition, ServerHandle.PlayerPosition },
         };
     }
     

@@ -1,11 +1,10 @@
 {
   "dependencies": {
-    "com.daniel-geo.unityhackatime": {
-      "version": "https://github.com/daniel-geo/unity-hackatime.git#package",
+    "com.hestia.hackatime": {
+      "version": "file:C:/Users/balu/Downloads/com.hestia.hackatime@dbf2978b89",
       "depth": 0,
-      "source": "git",
-      "dependencies": {},
-      "hash": "5ac210a9a287428cb876ce9ea4ef14fe31e115b7"
+      "source": "local",
+      "dependencies": {}
     },
     "com.unity.editorcoroutines": {
       "version": "1.0.0",

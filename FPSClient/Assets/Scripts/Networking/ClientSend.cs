@@ -1,4 +1,6 @@
-﻿public class ClientSend {
+﻿using UnityEngine;
+
+public class ClientSend {
     private static void SendTCPData(Packet packet) {
         packet.WriteLength();
 
@@ -19,6 +21,14 @@
                 ? NetworkUIManager.Instance.usernameField.text
                 : $"Player{Client.Instance.myId}");
             SendTCPData(packet);
+        }
+    }
+
+    public static void PlayerPosition(Vector3 position) {
+        using (Packet packet = new Packet((int)ClientPackets.playerPosition)) {
+            packet.Write(position);
+            
+            SendUDPData(packet);
         }
     }
 }

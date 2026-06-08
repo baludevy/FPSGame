@@ -11,6 +11,12 @@ public class ServerHandle {
                 $"Player \"{username}\" (id: {fromClient}) has assumed the wrong client id ({clientIdCheck})!");
         }
         
-        Server.Clients[fromClient].SendIntoGame(username);
+        Server.clients[fromClient].SendIntoGame(username);
+    }
+
+    public static void PlayerPosition(int fromClient, Packet packet) {
+        Vector3 position = packet.ReadVector3();
+
+        Server.clients[fromClient].player.transform.position = position;
     }
 }

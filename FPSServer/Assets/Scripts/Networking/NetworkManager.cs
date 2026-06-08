@@ -31,6 +31,12 @@ public class NetworkManager : MonoBehaviour {
 
     private void ProcessTick() {
         ThreadManager.UpdateMain();
+
+        foreach (Client client in Server.clients.Values) {
+            if (client.player != null) {
+                ServerSend.PlayerPosition(client.player.id, client.player.transform.position);
+            }
+        }
     }
 
     private void OnApplicationQuit() {

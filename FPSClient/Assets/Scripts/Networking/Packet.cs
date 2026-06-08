@@ -9,11 +9,13 @@ using UnityEngine;
 public enum ServerPackets {
     welcome = 1,
     spawnPlayer,
+    playerPosition
 }
 
 /// <summary>Sent from client to server.</summary>
 public enum ClientPackets {
     welcomeReceived = 1,
+    playerPosition,
 }
 
 public class Packet : IDisposable {

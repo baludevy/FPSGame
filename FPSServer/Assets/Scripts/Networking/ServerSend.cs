@@ -1,13 +1,15 @@
-﻿public class ServerSend {
+﻿using UnityEngine;
+
+public class ServerSend {
     private static void SendTCPData(int toClient, Packet packet) {
         packet.WriteLength();
-        Server.Clients[toClient].tcp.SendData(packet);
+        Server.clients[toClient].tcp.SendData(packet);
     }
 
     private static void SendTCPDataToAll(Packet packet) {
         packet.WriteLength();
         for (int i = 1; i <= Server.MaxPlayers; i++) {
-            Server.Clients[i].tcp.SendData(packet);
+            Server.clients[i].tcp.SendData(packet);
         }
     }
 
@@ -15,20 +17,20 @@
         packet.WriteLength();
         for (int i = 1; i <= Server.MaxPlayers; i++) {
             if (i != exceptClient) {
-                Server.Clients[i].tcp.SendData(packet);
+                Server.clients[i].tcp.SendData(packet);
             }
         }
     }
 
     private static void SendUDPData(int toClient, Packet packet) {
         packet.WriteLength();
-        Server.Clients[toClient].udp.SendData(packet);
+        Server.clients[toClient].udp.SendData(packet);
     }
 
     private static void SendUDPDataToAll(Packet packet) {
         packet.WriteLength();
         for (int i = 1; i <= Server.MaxPlayers; i++) {
-            Server.Clients[i].udp.SendData(packet);
+            Server.clients[i].udp.SendData(packet);
         }
     }
 
@@ -36,7 +38,7 @@
         packet.WriteLength();
         for (int i = 1; i <= Server.MaxPlayers; i++) {
             if (i != exceptClient) {
-                Server.Clients[i].udp.SendData(packet);
+                Server.clients[i].udp.SendData(packet);
             }
         }
     }
@@ -51,13 +53,22 @@
     }
     
     public static void SpawnPlayer(int toClient, Player player) {
-        using (Packet _packet = new Packet((int)ServerPackets.spawnPlayer)) {
-            _packet.Write(player.id);
-            _packet.Write(player.username);
-            _packet.Write(player.transform.position);
-            _packet.Write(player.transform.rotation);
+        using (Packet packet = new Packet((int)ServerPackets.spawnPlayer)) {
+            packet.Write(player.id);
+            packet.Write(player.username);
+            packet.Write(player.transform.position);
+            packet.Write(player.transform.rotation);
 
-            SendTCPData(toClient, _packet);
+            SendTCPData(toClient, packet);
+        }
+    }
+
+    public static void PlayerPosition(int id, Vector3 position) {
+        using (Packet packet = new Packet((int)ServerPackets.playerPosition)) {
+            packet.Write(id);
+            packet.Write(position);
+            
+            SendTCPDataToAllExcept(id, packet);
         }
     }
 }
