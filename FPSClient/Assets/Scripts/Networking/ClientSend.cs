@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 public class ClientSend {
     private static void SendTCPData(Packet packet) {
@@ -24,9 +25,17 @@ public class ClientSend {
         }
     }
 
-    public static void PlayerPosition(Vector3 position) {
-        using (Packet packet = new Packet((int)ClientPackets.playerPosition)) {
-            packet.Write(position);
+    public static void PlayerInput(List<PlayerInput> inputs) {
+        using (Packet packet = new Packet((int)ClientPackets.playerInput)) {
+            packet.Write(inputs.Count);
+            
+            foreach (PlayerInput input in inputs) {
+                packet.Write(input.tick);
+                packet.Write(input.x);
+                packet.Write(input.y);
+                packet.Write(input.crouching);
+                packet.Write(input.jumping);
+            }
             
             SendUDPData(packet);
         }

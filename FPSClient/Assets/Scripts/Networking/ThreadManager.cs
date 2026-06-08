@@ -6,11 +6,7 @@ public class ThreadManager : MonoBehaviour {
     private static readonly List<Action> executeOnMainThread = new List<Action>();
     private static readonly List<Action> executeCopiedOnMainThread = new List<Action>();
     private static bool actionToExecuteOnMainThread = false;
-
-    private void Update() {
-        UpdateMain();
-    }
-
+    
     /// <summary>Sets an action to be executed on the main thread.</summary>
     /// <param name="_action">The action to be executed on the main thread.</param>
     public static void ExecuteOnMainThread(Action _action) {

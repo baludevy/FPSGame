@@ -2822,6 +2822,7 @@ GameObject:
   - component: {fileID: 3286993561959308973}
   - component: {fileID: 6894953828135802274}
   - component: {fileID: 316666422998045112}
+  - component: {fileID: 3119952534548067594}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -2932,7 +2933,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   playerCam: {fileID: 9024498760287833430}
   orientation: {fileID: 6204896519706765736}
-  moveSpeed: 4500
+  moveSpeed: 4000
   runSpeed: 20
   grounded: 0
   cancellingGrounded: 0
@@ -2943,7 +2944,7 @@ MonoBehaviour:
   maxSlopeAngle: 35
   slideForce: 500
   slideCounterMovement: 0.2
-  jumpForce: 350
+  jumpForce: 400
   cameraRot: {x: 0, y: 0, z: 0}
   ps: {fileID: 1454358791885693695}
 --- !u!54 &316666422998045112
@@ -2973,6 +2974,19 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 112
   m_CollisionDetection: 2
+--- !u!114 &3119952534548067594
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8021040066418238910}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4694a40895384dabba160d12b73afad2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lastSentTick: 0
 --- !u!1 &8367968698419170208
 GameObject:
   m_ObjectHideFlags: 0

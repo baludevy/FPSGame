@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Threading;
-using EZCameraShake;
 using UnityEngine;
-using Quaternion = UnityEngine.Quaternion;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 
@@ -87,10 +84,6 @@ public class PlayerMovement : MonoBehaviour {
 
         readyToJump = true;
         wallNormalVector = Vector3.up;
-
-        CursorManager.DisableCursor();
-
-        CameraShake();
     }
 
     private void LateUpdate() {
@@ -99,29 +92,8 @@ public class PlayerMovement : MonoBehaviour {
 
     private void Update() {
         fallSpeed = rb.velocity.y;
-        lastMoveSpeed = VectorExtensions.XZVector(rb.velocity);
-        // MyInput();
-        // Look();
     }
-
-    private void MyInput() {
-        float x = Input.GetAxisRaw("Horizontal");
-        float y = Input.GetAxisRaw("Vertical");
-
-        bool jumping = Input.GetButton("Jump");
-        bool crouching = Input.GetButton("Crouch");
-
-        PlayerMovement.Instance.SetInputs(x, y, jumping, crouching);
-
-        if (Input.GetButtonDown("Crouch")) {
-            PlayerMovement.Instance.StartCrouch();
-        }
-
-        if (Input.GetButtonUp("Crouch")) {
-            PlayerMovement.Instance.StopCrouch();
-        }
-    }
-
+    
     public void SetInputs(float x, float y, bool jumping, bool crouching) {
         this.x = x;
         this.y = y;
@@ -210,14 +182,7 @@ public class PlayerMovement : MonoBehaviour {
             rateOverTimeMultiplier = 0f;
         }
 
-        // psEmission.rateOverTimeMultiplier = rateOverTimeMultiplier;
-    }
-
-    private void CameraShake() {
-        float shakeStrength = rb.velocity.magnitude / 12f;
-
-        CameraShaker.Instance.ShakeOnce(shakeStrength, 0.025f * shakeStrength, 0.25f, 0.2f);
-        Invoke("CameraShake", 0.2f);
+        psEmission.rateOverTimeMultiplier = rateOverTimeMultiplier;
     }
 
     private void ResetJump() => readyToJump = true;
@@ -245,23 +210,7 @@ public class PlayerMovement : MonoBehaviour {
             }
         }
     }
-
-    public void Look() {
-        float x = Input.GetAxis("Mouse X") * sensitivity * Time.fixedDeltaTime * sensMultiplier;
-        float y = Input.GetAxis("Mouse Y") * sensitivity * Time.fixedDeltaTime * sensMultiplier;
-
-        desiredX = playerCam.transform.localRotation.eulerAngles.y + x;
-        xRotation -= y;
-        xRotation = Mathf.Clamp(xRotation, -90f, 90f);
-
-        FindWallRunRotation();
-        actualWallRotation = Mathf.SmoothDamp(actualWallRotation, wallRunRotation, ref wallRotationVel, 0.2f);
-
-        cameraRot = new Vector3(xRotation, desiredX, actualWallRotation);
-        playerCam.transform.localRotation = Quaternion.Euler(xRotation, desiredX, actualWallRotation);
-        orientation.transform.localRotation = Quaternion.Euler(0f, desiredX, 0f);
-    }
-
+    
     private void CounterMovement(float x, float y, Vector2 mag) {
         if (!grounded || jumping) return;
 
@@ -411,10 +360,6 @@ public class PlayerMovement : MonoBehaviour {
         Vector3 normal = other.contacts[0].normal;
         if ((int)whatIsGround != ((int)whatIsGround | (1 << layer))) {
             return;
-        }
-
-        if (IsFloor(normal)) {
-            MoveCamera.Instance.BobOnce(new Vector3(0f, fallSpeed, 0f));
         }
     }
 

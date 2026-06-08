@@ -3,8 +3,8 @@ using System.Net;
 using System.Net.Sockets;
 using UnityEngine;
 
-public class Client : MonoBehaviour {
-    private static int dataBufferSize = 4096;
+public class Client {
+    private static int dataBufferSize = NetworkSettings.dataBufferSize;
 
     public int id;
     public Player player;
@@ -137,10 +137,24 @@ public class Client : MonoBehaviour {
             Server.SendUDPData(EndPoint, packet);
         }
 
-        public void HandleData(Packet packetData) {
+        public void HandleData(Packet packetData)
+        {
             int packetLength = packetData.ReadInt();
             byte[] packetBytes = packetData.ReadBytes(packetLength);
+            
+            //Check if packet is an input packet, if it is, dont dispatch it to the main thread
+            
+            using (Packet packet = new Packet(packetBytes)) {
+                int packetId = packet.ReadInt();
+                
+                int inputPacket = (int)ClientPackets.playerInput;
 
+                if (packetId == inputPacket) {
+                    Server.packetHandlers[packetId](_id, packet);
+                    return; 
+                }
+            }
+            
             ThreadManager.ExecuteOnMainThread(() => {
                 using (Packet packet = new Packet(packetBytes)) {
                     int packetId = packet.ReadInt();

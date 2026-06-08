@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 public class ServerHandle {
     public static void WelcomeReceived(int fromClient, Packet packet) {
@@ -14,9 +15,25 @@ public class ServerHandle {
         Server.clients[fromClient].SendIntoGame(username);
     }
 
-    public static void PlayerPosition(int fromClient, Packet packet) {
-        Vector3 position = packet.ReadVector3();
+    public static void PlayerInput(int fromClient, Packet packet) {
+        int inputCount = packet.ReadInt();
 
-        Server.clients[fromClient].player.transform.position = position;
+        List<PlayerInput> inputs = new List<PlayerInput>();
+
+        for (int i = 0; i < inputCount; i++) {
+            PlayerInput input = new PlayerInput {
+                tick = packet.ReadInt(),
+                x = packet.ReadFloat(),
+                y = packet.ReadFloat(),
+                jumping = packet.ReadBool(),
+                crouching = packet.ReadBool(),
+            };
+            
+            inputs.Add(input);
+        }
+        
+        Player player = Server.clients[fromClient].player;
+        
+        Debug.Log(inputs.Count);
     }
 }
