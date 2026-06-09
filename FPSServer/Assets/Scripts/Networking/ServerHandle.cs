@@ -15,6 +15,20 @@ public class ServerHandle {
         Server.clients[fromClient].SendIntoGame(username);
     }
 
+    public static void MeasureRTT(int fromClient, Packet packet)
+    {
+        long timestamp = packet.ReadLong();
+
+        ServerSend.MeasureRTT(fromClient, timestamp);
+    }
+
+    public static void SyncTick(int fromClient, Packet packet) {
+
+        long timestamp = packet.ReadLong();
+
+        ServerSend.SyncTick(fromClient, timestamp);
+    }
+
     public static void PlayerInput(int fromClient, Packet packet) {
         int inputCount = packet.ReadInt();
 

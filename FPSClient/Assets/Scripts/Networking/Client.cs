@@ -26,11 +26,11 @@ public class Client : MonoBehaviour {
     private void Awake() {
         Instance = this;
     }
-    
+
     private void Start() {
         tcp = new TCP();
     }
-    
+
     private void OnApplicationQuit() {
         Disconnect();
     }
@@ -75,7 +75,6 @@ public class Client : MonoBehaviour {
         }
 
         private void ReceiveCallback(IAsyncResult result) {
-
             try {
                 int byteLength = _stream.EndRead(result);
                 if (byteLength <= 0) {
@@ -84,16 +83,15 @@ public class Client : MonoBehaviour {
 
                 byte[] data = new byte[byteLength];
                 Array.Copy(_receiveBuffer, data, byteLength);
-                
+
                 _receivedData.Reset(HandleData(data));
                 _stream.BeginRead(_receiveBuffer, 0, dataBufferSize, ReceiveCallback, null);
             }
             catch (ObjectDisposedException) {
-                
             }
             catch (Exception ex) {
                 Disconnect();
-                
+
                 Debug.LogException(ex);
             }
         }
@@ -123,17 +121,28 @@ public class Client : MonoBehaviour {
 
             while (packetLength > 0 && packetLength <= _receivedData.UnreadLength()) {
                 byte[] packetBytes = _receivedData.ReadBytes(packetLength);
+                
+                byte[] capturedBytes = packetBytes;
 
-                ThreadManager.ExecuteOnMainThread(() => {
-                    using (Packet packet = new Packet(packetBytes)) {
-                        int packetId = packet.ReadInt();
-
+                using (Packet packet = new Packet(capturedBytes)) {
+                    int packetId = packet.ReadInt();
+                    
+                    if (packetId == (int)ClientPackets.measureRtt || packetId == (int)ClientPackets.syncTick) {
                         packetHandlers[packetId](packet);
                     }
-                });
-
+                    else {
+                        ThreadManager.ExecuteOnMainThread(() => {
+                            using (Packet mainThreadPacket = new Packet(capturedBytes)) {
+                                int mainPacketId = mainThreadPacket.ReadInt();
+                                if (packetHandlers.TryGetValue(mainPacketId, out PacketHandler handler)) {
+                                    handler(mainThreadPacket);
+                                }
+                            }
+                        });
+                    }
+                }
+                
                 packetLength = 0;
-
                 if (_receivedData.UnreadLength() >= 4) {
                     packetLength = _receivedData.ReadInt();
                     if (packetLength <= 0) {
@@ -204,7 +213,6 @@ public class Client : MonoBehaviour {
                 HandleData(data);
             }
             catch (ObjectDisposedException) {
-                
             }
             catch (Exception ex) {
                 Debug.LogException(ex);
@@ -214,16 +222,22 @@ public class Client : MonoBehaviour {
         }
 
         private static void HandleData(byte[] data) {
-            using (Packet packet = new Packet(data)) {
-                int packetLength = packet.ReadInt();
-                data = packet.ReadBytes(packetLength);
-            }
+            /* using (Packet packet = new Packet(data))
+            {
+                int packetId = packet.ReadInt();
+
+                if (packetId == (int)ServerPackets.)
+                {
+                    packetHandlers[packetId](packet);
+                    return;
+                }
+            } */
 
             ThreadManager.ExecuteOnMainThread(() => {
-                using (Packet packet = new Packet(data)) {
-                    int packetId = packet.ReadInt();
-                    packetHandlers[packetId](packet);
-                }
+                using Packet packet = new Packet(data);
+
+                int packetId = packet.ReadInt();
+                packetHandlers[packetId](packet);
             });
         }
 
@@ -234,10 +248,12 @@ public class Client : MonoBehaviour {
             socket = null;
         }
     }
-    
+
     private void InitializeClientData() {
         packetHandlers = new Dictionary<int, PacketHandler>() {
             { (int)ServerPackets.welcome, ClientHandle.Welcome },
+            { (int)ServerPackets.measureRtt, ClientHandle.MeasureRTT },
+            { (int)ServerPackets.syncTick, ClientHandle.SyncTick },
             { (int)ServerPackets.spawnPlayer, ClientHandle.SpawnPlayer },
             { (int)ServerPackets.playerPosition, ClientHandle.PlayerPosition },
         };
@@ -251,8 +267,6 @@ public class Client : MonoBehaviour {
         udp.socket.Close();
 
         // disconnect on main thread
-        ThreadManager.ExecuteOnMainThread(() => {
-            NetworkUIManager.Instance.EnableConnectUI();
-        });
+        ThreadManager.ExecuteOnMainThread(() => { NetworkUIManager.Instance.EnableConnectUI(); });
     }
 }

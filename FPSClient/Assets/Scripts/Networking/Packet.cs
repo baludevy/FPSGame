@@ -8,6 +8,8 @@ using UnityEngine;
 /// 
 public enum ServerPackets {
     welcome = 1,
+    measureRtt,
+    syncTick,
     spawnPlayer,
     playerPosition
 }
@@ -15,7 +17,9 @@ public enum ServerPackets {
 /// <summary>Sent from client to server.</summary>
 public enum ClientPackets {
     welcomeReceived = 1,
-    playerInput,
+    measureRtt,
+    syncTick,
+    playerInput
 }
 
 public class Packet : IDisposable {

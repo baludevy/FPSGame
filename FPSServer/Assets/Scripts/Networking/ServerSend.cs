@@ -47,11 +47,32 @@ public class ServerSend {
     public static void Welcome(int toClient) {
         using (Packet packet = new Packet((int)ServerPackets.welcome)) {
             packet.Write(toClient);
-            packet.Write(NetworkManager.tick);
 
             SendTCPData(toClient, packet);
         }
     }
+
+    public static void MeasureRTT(int toClient, long timestamp)
+    {
+        using (Packet packet = new Packet((int)ServerPackets.measureRtt))
+        {
+            packet.Write(timestamp);
+            
+            SendTCPData(toClient, packet);
+        }
+    }
+    
+    public static void SyncTick(int toClient, long timestamp)
+    {
+        using (Packet packet = new Packet((int)ServerPackets.syncTick))
+        {
+            packet.Write(timestamp);
+            packet.Write(NetworkManager.tick);
+            
+            SendTCPData(toClient, packet);
+        }
+    }
+
     
     public static void SpawnPlayer(int toClient, Player player) {
         using (Packet packet = new Packet((int)ServerPackets.spawnPlayer)) {

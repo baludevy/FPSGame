@@ -99,6 +99,8 @@ public class Server {
 
         packetHandlers = new Dictionary<int, packetHandler> {
             { (int)ClientPackets.welcomeReceived, ServerHandle.WelcomeReceived },
+            { (int)ClientPackets.measureRtt, ServerHandle.MeasureRTT },
+            { (int)ClientPackets.syncTick, ServerHandle.SyncTick },
             { (int)ClientPackets.playerInput, ServerHandle.PlayerInput },
         };
     }

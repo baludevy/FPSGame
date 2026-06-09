@@ -1,7 +1,10 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using UnityEngine;
 
 public class TickTimer : MonoBehaviour {
+    public static TickTimer Instance;
+    
     private static readonly float timeScale = 1f;
     public static int tick;
 
@@ -10,7 +13,12 @@ public class TickTimer : MonoBehaviour {
     private double currentTime;
 
     private double timer;
-    
+
+    public static bool doTick;
+
+    private void Awake() {
+        Instance = this;
+    }
 
     private void Update() {
         double newTime = GetTime();
@@ -29,17 +37,19 @@ public class TickTimer : MonoBehaviour {
         if (PlayerMovement.Instance != null && tick - 1 > SendInput.Instance.lastSentTick)
             SendInput.Instance.SendPlayerInputs();
     }
-    
+
     public double GetTime() {
         return stopwatch.Elapsed.TotalSeconds;
     }
-    
+
     private void ProcessTick() {
         ThreadManager.UpdateMain();
 
+        if (!doTick) return;
+
         // tickInvoker.Step();
 
-        if (PlayerMovement.Instance != null ) {
+        if (PlayerMovement.Instance != null) {
             PlayerInput input = SendInput.Instance.GatherInput(tick);
 
             PlayerMovement.Instance.SetInputs(
@@ -53,5 +63,10 @@ public class TickTimer : MonoBehaviour {
         }
 
         Physics.Simulate(NetworkSettings.tickTime);
+    }
+
+    public void AddTicks(int ticksToAdd) {
+        tick += ticksToAdd;
+        accumulator += ticksToAdd * NetworkSettings.tickTime;
     }
 }

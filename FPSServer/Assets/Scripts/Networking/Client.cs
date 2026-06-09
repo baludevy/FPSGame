@@ -92,11 +92,27 @@ public class Client {
 
             while (packetLength > 0 && packetLength <= _receivedData.UnreadLength()) {
                 byte[] packetBytes = _receivedData.ReadBytes(packetLength);
-                ThreadManager.ExecuteOnMainThread(() => {
-                    using Packet packet = new Packet(packetBytes);
+                byte[] capturedBytes = packetBytes;
+            
+                using (Packet packet = new Packet(capturedBytes))
+                {
                     int packetId = packet.ReadInt();
-                    Server.packetHandlers[packetId](_id, packet);
-                });
+                    
+                    if (packetId == (int)ClientPackets.measureRtt || packetId == (int)ClientPackets.syncTick)
+                    {
+                        Server.packetHandlers[packetId](_id, packet);
+                    }
+                    else
+                    {
+                        ThreadManager.ExecuteOnMainThread(() =>
+                        {
+                            using Packet p = new Packet(capturedBytes);
+
+                            int id = p.ReadInt();
+                            Server.packetHandlers[id](_id, p);
+                        });
+                    }
+                }
 
                 packetLength = 0;
 
@@ -141,22 +157,19 @@ public class Client {
         {
             int packetLength = packetData.ReadInt();
             byte[] packetBytes = packetData.ReadBytes(packetLength);
+            byte[] capturedBytes = packetBytes;
             
-            //Check if packet is an input packet, if it is, dont dispatch it to the main thread
-            
-            using (Packet packet = new Packet(packetBytes)) {
+            using (Packet packet = new Packet(capturedBytes)) {
                 int packetId = packet.ReadInt();
-                
-                int inputPacket = (int)ClientPackets.playerInput;
 
-                if (packetId == inputPacket) {
+                if (packetId == (int)ClientPackets.playerInput) {
                     Server.packetHandlers[packetId](_id, packet);
                     return; 
                 }
             }
             
             ThreadManager.ExecuteOnMainThread(() => {
-                using (Packet packet = new Packet(packetBytes)) {
+                using (Packet packet = new Packet(capturedBytes)) {
                     int packetId = packet.ReadInt();
                     Server.packetHandlers[packetId](_id, packet);
                 }
