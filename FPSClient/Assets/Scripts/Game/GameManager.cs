@@ -37,8 +37,6 @@ public class GameManager : MonoBehaviour {
         player.GetComponent<PlayerManager>().id = id;
         player.GetComponent<PlayerManager>().username = username;
         players.Add(id, player.GetComponent<PlayerManager>());
-        
-        RTTManager.SendRTTRequest();
     }
 
     private void OnApplicationQuit() {

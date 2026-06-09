@@ -162,7 +162,7 @@ public class Client {
             using (Packet packet = new Packet(capturedBytes)) {
                 int packetId = packet.ReadInt();
 
-                if (packetId == (int)ClientPackets.playerInput) {
+                if (packetId == (int)ClientPackets.measureRtt || packetId == (int)ClientPackets.syncTick) {
                     Server.packetHandlers[packetId](_id, packet);
                     return; 
                 }

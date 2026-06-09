@@ -68,7 +68,7 @@ public class ServerSend {
         {
             packet.Write(timestamp);
             packet.Write(NetworkManager.tick);
-            
+
             SendTCPData(toClient, packet);
         }
     }

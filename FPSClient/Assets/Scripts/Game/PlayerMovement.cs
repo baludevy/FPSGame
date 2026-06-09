@@ -244,7 +244,7 @@ public class PlayerMovement : MonoBehaviour {
         surfing = grounded && IsSurf(hit.normal);
         normalVector = hit.normal;
 
-        if (!wasGrounded && grounded) {
+        if (!wasGrounded && grounded && MoveCamera.Instance != null) {
             MoveCamera.Instance.BobOnce(new Vector3(0f, fallSpeed, 0f));
         }
     }

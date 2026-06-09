@@ -29,28 +29,7 @@ public class ClientHandle {
         long timestamp = packet.ReadLong();
         int serverTick = packet.ReadInt();
 
-        long now = DateTime.UtcNow.Ticks;
-
-        double rttMs = (now - timestamp) / (double)TimeSpan.TicksPerMillisecond;
-
-        double oneWaySeconds = (rttMs * 0.5) / 1000.0;
-
-        int latencyTicks = Mathf.CeilToInt(
-            (float)(oneWaySeconds / NetworkSettings.tickTime)
-        );
-
-        int desiredTick = serverTick + latencyTicks + 1;
-
-        TickTimer.tick = desiredTick;
-
-        Debug.Log(
-            $"RTT={rttMs:F1}ms | " +
-            $"Server={serverTick} | " +
-            $"Client={TickTimer.tick} | "
-        );
-
-
-        TickTimer.doTick = true;
+        RTTManager.SyncTick(timestamp, serverTick);
     }
 
     public static void SpawnPlayer(Packet packet) {

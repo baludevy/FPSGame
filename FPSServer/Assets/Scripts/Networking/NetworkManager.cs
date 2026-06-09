@@ -9,8 +9,6 @@ public class NetworkManager : MonoBehaviour {
 
     public GameObject playerPrefab;
 
-    public int movementPacketsReceivedInTick;
-
     private void Awake() {
         Instance = this;
     }
@@ -39,23 +37,17 @@ public class NetworkManager : MonoBehaviour {
 
         foreach (Client client in Server.clients.Values) {
             if (client.player != null) {
-                PlayerInput input = client.player.inputQueue.GetInputFromQueue(tick % NetworkSettings.inputBufferSize);
+                PlayerInput input = client.player.inputQueue.GetInputFromQueue(tick);
 
                 if (input != null)
                     client.player.movement.SetInputs(input.x, input.y, input.orientation, input.jumping,
                         input.crouching);
 
                 client.player.movement.Tick();
-
-                ServerSend.PlayerPosition(client.player.id, client.player.transform.position);
             }
         }
 
         Physics.Simulate(NetworkSettings.tickTime);
-
-        // Debug.Log(movementPacketsReceivedInTick);
-
-        movementPacketsReceivedInTick = 0;
     }
 
     private void OnApplicationQuit() {

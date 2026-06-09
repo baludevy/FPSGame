@@ -222,16 +222,21 @@ public class Client : MonoBehaviour {
         }
 
         private static void HandleData(byte[] data) {
-            /* using (Packet packet = new Packet(data))
+            using (Packet packet = new Packet(data)) {
+                int packetLength = packet.ReadInt();
+                data = packet.ReadBytes(packetLength);
+            }
+            
+            using (Packet packet = new Packet(data))
             {
                 int packetId = packet.ReadInt();
 
-                if (packetId == (int)ServerPackets.)
+                if (packetId == (int)ServerPackets.syncTick)
                 {
                     packetHandlers[packetId](packet);
                     return;
                 }
-            } */
+            }
 
             ThreadManager.ExecuteOnMainThread(() => {
                 using Packet packet = new Packet(data);
