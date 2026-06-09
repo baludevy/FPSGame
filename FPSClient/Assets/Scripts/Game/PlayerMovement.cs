@@ -75,7 +75,6 @@ public class PlayerMovement : MonoBehaviour {
     private float fallSpeed;
     private Vector3 lastMoveSpeed;
     private CapsuleCollider playerCollider;
-
     public static PlayerMovement Instance { get; private set; }
 
     private void Awake() {
@@ -132,10 +131,10 @@ public class PlayerMovement : MonoBehaviour {
 
     public void SetInputs(float x, float y, bool jumping, bool crouching) {
         if (crouching && !this.crouching) {
-            // PlayerMovement.Instance.StartCrouch();
+            PlayerMovement.Instance.StartCrouch();
         }
         else if (!crouching && this.crouching) {
-            // PlayerMovement.Instance.StopCrouch();
+            PlayerMovement.Instance.StopCrouch();
         }
 
         this.x = x;

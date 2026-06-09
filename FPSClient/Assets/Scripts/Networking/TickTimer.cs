@@ -10,7 +10,7 @@ public class TickTimer : MonoBehaviour {
     public static int tick;
 
     private readonly Stopwatch stopwatch = Stopwatch.StartNew();
-    private double accumulator;
+    public double accumulator;
     private double currentTime;
 
     private double timer;

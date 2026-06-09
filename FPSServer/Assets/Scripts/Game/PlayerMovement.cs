@@ -92,10 +92,10 @@ public class PlayerMovement : MonoBehaviour {
 
     public void SetInputs(float x, float y, float orientation, bool jumping, bool crouching) {
         if (crouching && !this.crouching) {
-            // StartCrouch();
+            StartCrouch();
         }
         else if (!crouching && this.crouching) {
-            // StopCrouch();
+            StopCrouch();
         }
 
         this.x = x;
@@ -161,7 +161,7 @@ public class PlayerMovement : MonoBehaviour {
 
     public void StartCrouch() {
         transform.localScale = crouchScale;
-        transform.localPosition = new Vector3(transform.position.x, transform.position.y - 0.5f, transform.position.z);
+        // transform.localPosition = new Vector3(transform.position.x, transform.position.y - 0.5f, transform.position.z);
 
         if (rb.velocity.magnitude > 0.1f && grounded)
             rb.AddForce(orientation.forward * 400f);
@@ -169,7 +169,7 @@ public class PlayerMovement : MonoBehaviour {
 
     public void StopCrouch() {
         transform.localScale = playerScale;
-        transform.localPosition = new Vector3(transform.position.x, transform.position.y - 0.5f, transform.position.z);
+        // transform.localPosition = new Vector3(transform.position.x, transform.position.y - 0.5f, transform.position.z);
     }
 
     public void CheckGrounded() {

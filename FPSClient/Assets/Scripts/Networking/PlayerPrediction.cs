@@ -1,21 +1,52 @@
 ﻿using UnityEngine;
+using UnityEngine.Serialization;
 
 public class PlayerPrediction : MonoBehaviour {
     private const float positionErrorThreshold = 0.0000001f;
     public static PlayerPrediction Instance;
 
     private readonly bool[] hasPositionHistory = new bool[NetworkSettings.inputBufferSize];
-
     private readonly Vector3[] positionHistory = new Vector3[NetworkSettings.inputBufferSize];
+    
+    public Transform visualPlayer;
+    private Vector3 lastPredictedPos;
+    private Vector3 currentPredictedPos;
 
     private void Awake() {
         Instance = this;
     }
 
+    private void Start() {
+        if (visualPlayer != null) {
+            lastPredictedPos = transform.position;
+            currentPredictedPos = transform.position;
+            visualPlayer.position = transform.position;
+        }
+    }
+    
+    private void Update()
+    {
+        if (visualPlayer == null)
+            return;
+        
+        float interpolationFactor =
+            (float)TickTimer.Instance.accumulator / NetworkSettings.tickTime;
+
+        interpolationFactor = Mathf.Clamp01(interpolationFactor);
+
+        visualPlayer.position = Vector3.Lerp(
+            lastPredictedPos,
+            currentPredictedPos,
+            interpolationFactor
+        );
+
+        visualPlayer.rotation = transform.rotation;
+    }
+
     public void PredictState(PlayerInput input) {
         int i = input.tick % NetworkSettings.inputBufferSize;
 
-        // Debug.Log($"Performing prediction on tick: {input.currentTick} with x:{input.x()} y:{input.y()}");
+        lastPredictedPos = currentPredictedPos;
 
         PlayerMovement.Instance.SetInputs(input.x, input.y, input.jumping, input.crouching);
         PlayerMovement.Instance.AdvanceLogic();
@@ -24,11 +55,11 @@ public class PlayerPrediction : MonoBehaviour {
 
         positionHistory[i] = PlayerMovement.Instance.transform.position;
         hasPositionHistory[i] = true;
+
+        currentPredictedPos = PlayerMovement.Instance.transform.position;
     }
 
     public void CompareServerState(PlayerState playerState, int tick) {
-        // if (PlayerMovement.Instance == null || tick > NetworkManager.inputTick) return;
-
         int index = tick % NetworkSettings.inputBufferSize;
 
         if (!hasPositionHistory[index]) return;
@@ -38,12 +69,13 @@ public class PlayerPrediction : MonoBehaviour {
         float errorSqrMag = (playerState.position - prePosition).sqrMagnitude;
         if (errorSqrMag > positionErrorThreshold) {
             Debug.Log($"Desync by {errorSqrMag}");
-            
             SynchronizeMovement(playerState, tick);
         }
     }
 
     private void SynchronizeMovement(PlayerState playerState, int tick) {
+        lastPredictedPos = playerState.position;
+
         PlayerMovement.Instance.rb.position = playerState.position;
         PlayerMovement.Instance.rb.velocity = playerState.velocity;
         
@@ -68,5 +100,7 @@ public class PlayerPrediction : MonoBehaviour {
             positionHistory[cacheIndex] = PlayerMovement.Instance.transform.position;
             hasPositionHistory[cacheIndex] = true;
         }
+
+        currentPredictedPos = PlayerMovement.Instance.transform.position;
     }
 }
