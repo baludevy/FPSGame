@@ -231,7 +231,7 @@ public class Client : MonoBehaviour {
             {
                 int packetId = packet.ReadInt();
 
-                if (packetId == (int)ServerPackets.syncTick)
+                if (packetId == (int)ServerPackets.syncTick || packetId == (int)ServerPackets.worldSnapshot)
                 {
                     packetHandlers[packetId](packet);
                     return;
@@ -260,7 +260,7 @@ public class Client : MonoBehaviour {
             { (int)ServerPackets.measureRtt, ClientHandle.MeasureRTT },
             { (int)ServerPackets.syncTick, ClientHandle.SyncTick },
             { (int)ServerPackets.spawnPlayer, ClientHandle.SpawnPlayer },
-            { (int)ServerPackets.playerPosition, ClientHandle.PlayerPosition },
+            { (int)ServerPackets.worldSnapshot, ClientHandle.WorldSnapshot },
         };
     }
 

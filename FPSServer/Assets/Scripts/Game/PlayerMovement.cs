@@ -10,7 +10,7 @@ public class PlayerMovement : MonoBehaviour {
     public Transform orientation;
 
     //Other
-    private Rigidbody rb;
+    public Rigidbody rb;
 
     //Movement
     public float moveSpeed = 4500;
@@ -80,7 +80,7 @@ public class PlayerMovement : MonoBehaviour {
         fallSpeed = rb.velocity.y;
     }
 
-    public void Tick() {
+    public void AdvanceLogic() {
         tickInvoker.Step();
 
         CheckGrounded();

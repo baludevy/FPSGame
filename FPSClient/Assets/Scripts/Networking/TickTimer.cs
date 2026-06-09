@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Diagnostics;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 public class TickTimer : MonoBehaviour {
     public static TickTimer Instance;
     
-    private static readonly float timeScale = 1f;
+    public static float timeScale = 1f;
     public static int tick;
 
     private readonly Stopwatch stopwatch = Stopwatch.StartNew();
@@ -52,17 +53,8 @@ public class TickTimer : MonoBehaviour {
         if (PlayerMovement.Instance != null) {
             PlayerInput input = SendInput.Instance.GatherInput(tick);
 
-            PlayerMovement.Instance.SetInputs(
-                input.x,
-                input.y,
-                input.jumping,
-                input.crouching
-            );
-
-            PlayerMovement.Instance.Tick();
+            PlayerPrediction.Instance.PredictState(input);
         }
-
-        Physics.Simulate(NetworkSettings.tickTime);
     }
 
     public void AddTicks(int ticksToAdd) {

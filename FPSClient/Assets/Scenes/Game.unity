@@ -1447,6 +1447,8 @@ GameObject:
   - component: {fileID: 1509272762}
   - component: {fileID: 1509272763}
   - component: {fileID: 1509272764}
+  - component: {fileID: 1509272765}
+  - component: {fileID: 1509272766}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -1522,6 +1524,38 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b4e333503b547f9b426fc7592097d21, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1509272765
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1509272759}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a74c3e4d551450c94f47576e06032b3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1509272766
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1509272759}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b78436a76d64bb5928b733b7a98b0d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetBufferSlack: 0
+  threshold: 1
+  normalTimescale: 1
+  minTimescale: 0.8
+  maxTimescale: 1.2
+  sensitivity: 0.01
+  maxScaleDeviation: 0.1
+  smoothSpeed: 8
 --- !u!1 &1600548773
 GameObject:
   m_ObjectHideFlags: 0

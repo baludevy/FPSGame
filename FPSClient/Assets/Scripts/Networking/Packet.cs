@@ -11,7 +11,7 @@ public enum ServerPackets {
     measureRtt,
     syncTick,
     spawnPlayer,
-    playerPosition
+    worldSnapshot,
 }
 
 /// <summary>Sent from client to server.</summary>

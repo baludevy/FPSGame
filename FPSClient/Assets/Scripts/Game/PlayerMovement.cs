@@ -13,7 +13,7 @@ public class PlayerMovement : MonoBehaviour {
     public Transform orientation;
 
     //Other
-    private Rigidbody rb;
+    public Rigidbody rb;
 
     private readonly TickInvoker tickInvoker = new();
 
@@ -102,7 +102,7 @@ public class PlayerMovement : MonoBehaviour {
         Look();
     }
 
-    public void Tick() {
+    public void AdvanceLogic() {
         tickInvoker.Step();
 
         CheckGrounded();

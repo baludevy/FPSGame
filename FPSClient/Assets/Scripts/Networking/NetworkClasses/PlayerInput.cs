@@ -10,7 +10,4 @@ public class PlayerInput {
 
     public bool jumping;
     public bool crouching;
-
-
-    
 }

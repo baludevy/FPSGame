@@ -38,12 +38,6 @@ public class RTTManager : MonoBehaviour {
 
         TickTimer.tick = desiredTick;
 
-        Debug.Log(
-            $"RTT={rttMs:F1}ms | " +
-            $"Server={serverTick} | " +
-            $"Client={TickTimer.tick} | "
-        );
-
         TickTimer.doTick = true;
     }
 }

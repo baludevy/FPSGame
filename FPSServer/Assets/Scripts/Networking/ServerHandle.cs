@@ -31,6 +31,8 @@ public class ServerHandle {
     public static void PlayerInput(int fromClient, Packet packet) {
         int inputCount = packet.ReadInt();
 
+        double timestamp = packet.ReadDouble();
+        
         List<PlayerInput> inputs = new List<PlayerInput>();
 
         for (int i = 0; i < inputCount; i++) {
@@ -48,6 +50,6 @@ public class ServerHandle {
         
         Player player = Server.clients[fromClient].player;
         
-        player.inputQueue.AddInputsToQueue(inputs);
+        player.InputBuffer.AddInputsToQueue(inputs, timestamp);
     }
 }

@@ -3,6 +3,7 @@
     public const int dataBufferSize = 4096;
     public const int tickRate = 64;
     public const float tickTime = 1f / tickRate;
-    public const int inputBufferSize = 128;
+    public const int inputBufferSize = 1024;
     public const int inputRedundancy = 1;
+    public const int targetBufferSlack = 2;
 }

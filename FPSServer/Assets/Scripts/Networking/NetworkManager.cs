@@ -37,17 +37,49 @@ public class NetworkManager : MonoBehaviour {
 
         foreach (Client client in Server.clients.Values) {
             if (client.player != null) {
-                PlayerInput input = client.player.inputQueue.GetInputFromQueue(tick);
+                PlayerInput input = client.player.InputBuffer.GetInputFromQueue(tick);
 
                 if (input != null)
                     client.player.movement.SetInputs(input.x, input.y, input.orientation, input.jumping,
                         input.crouching);
 
-                client.player.movement.Tick();
+                client.player.movement.AdvanceLogic();
             }
         }
 
         Physics.Simulate(NetworkSettings.tickTime);
+        
+        foreach (Client client in Server.clients.Values) {
+            if (client.player != null) {
+                SendWorldSnapshot(client.player.id);
+            }
+        }
+    }
+
+    private void SendWorldSnapshot(int toClient) {
+        WorldSnapshot snapshot = new WorldSnapshot();
+
+        Player toPlayer = Server.clients[toClient].player;
+
+        snapshot.serverTick = tick;
+        snapshot.bufferSlack = toPlayer.InputBuffer.GetBufferSlack();
+        
+        foreach (Client client in Server.clients.Values) {
+            Player player = client.player;
+
+            if (player != null) {
+                PlayerState playerState = new PlayerState {
+                    id = player.id,
+                    position = player.transform.position,
+                    velocity = player.movement.rb.velocity,
+                    orientation = player.movement.orientation.transform.eulerAngles.y,
+                };
+            
+                snapshot.playerStates.Add(playerState);
+            }
+        }
+        
+        ServerSend.WorldSnapshot(toClient, snapshot);
     }
 
     private void OnApplicationQuit() {

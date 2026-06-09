@@ -85,12 +85,21 @@ public class ServerSend {
         }
     }
 
-    public static void PlayerPosition(int id, Vector3 position) {
-        using (Packet packet = new Packet((int)ServerPackets.playerPosition)) {
-            packet.Write(id);
-            packet.Write(position);
-            
-            SendTCPDataToAllExcept(id, packet);
+    public static void WorldSnapshot(int toClient, WorldSnapshot snapshot) {
+        using (Packet packet = new Packet((int)ServerPackets.worldSnapshot)) {
+            packet.Write(snapshot.serverTick);
+            packet.Write(snapshot.bufferSlack);
+
+            packet.Write(snapshot.playerStates.Count);
+
+            foreach (PlayerState state in snapshot.playerStates) {
+                packet.Write(state.id);
+                packet.Write(state.position);
+                packet.Write(state.velocity);
+                packet.Write(state.orientation);
+            }
+
+            SendUDPData(toClient, packet);
         }
     }
 }

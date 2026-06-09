@@ -8,14 +8,14 @@ public class Player : MonoBehaviour {
     public int id;
     public string username;
 
-    public InputQueue inputQueue;
+    public InputBuffer InputBuffer;
     public PlayerMovement movement;
 
     public void Initialize(int id, string username) {
         this.id = id;
         this.username = username; 
         
-        inputQueue = new InputQueue();
-        inputQueue.Initialize();
+        InputBuffer = new InputBuffer();
+        InputBuffer.Initialize();
     }
 }
