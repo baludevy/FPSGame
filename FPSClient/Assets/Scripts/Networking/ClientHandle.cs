@@ -20,13 +20,13 @@ public class ClientHandle {
     }
 
     public static void MeasureRTT(Packet packet) {
-        long timestamp = packet.ReadLong();
+        double timestamp = packet.ReadDouble();
 
         RTTManager.ReceiveRTTResponse(timestamp);
     }
 
     public static void SyncTick(Packet packet) {
-        long timestamp = packet.ReadLong();
+        double timestamp = packet.ReadDouble();
         int serverTick = packet.ReadInt();
 
         RTTManager.SyncTick(timestamp, serverTick);

@@ -52,7 +52,7 @@ public class ServerSend {
         }
     }
 
-    public static void MeasureRTT(int toClient, long timestamp)
+    public static void MeasureRTT(int toClient, double timestamp)
     {
         using (Packet packet = new Packet((int)ServerPackets.measureRtt))
         {
@@ -62,7 +62,7 @@ public class ServerSend {
         }
     }
     
-    public static void SyncTick(int toClient, long timestamp)
+    public static void SyncTick(int toClient, double timestamp)
     {
         using (Packet packet = new Packet((int)ServerPackets.syncTick))
         {

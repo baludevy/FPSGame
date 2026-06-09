@@ -17,14 +17,13 @@ public class ServerHandle {
 
     public static void MeasureRTT(int fromClient, Packet packet)
     {
-        long timestamp = packet.ReadLong();
+        double timestamp = packet.ReadDouble();
 
         ServerSend.MeasureRTT(fromClient, timestamp);
     }
 
     public static void SyncTick(int fromClient, Packet packet) {
-
-        long timestamp = packet.ReadLong();
+        double timestamp = packet.ReadDouble();
 
         ServerSend.SyncTick(fromClient, timestamp);
     }

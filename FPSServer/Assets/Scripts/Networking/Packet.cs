@@ -135,6 +135,12 @@ public class Packet : IDisposable {
         buffer.AddRange(BitConverter.GetBytes(_value));
     }
 
+    /// <summary>Adds a double to the packet.</summary>
+    /// <param name="_value">The long to add.</param>
+    public void Write(double _value) {
+        buffer.AddRange(BitConverter.GetBytes(_value));
+    }
+
     /// <summary>Adds a float to the packet.</summary>
     /// <param name="_value">The float to add.</param>
     public void Write(float _value) {
@@ -265,6 +271,22 @@ public class Packet : IDisposable {
         }
         else {
             throw new Exception("Could not read value of type 'long'!");
+        }
+    }
+
+    /// <summary>Reads a double from the packet.</summary>
+    /// <param name="_moveReadPos">Whether or not to move the buffer's read position.</param>
+    public double ReadDouble(bool _moveReadPos = true) {
+        if (buffer.Count > readPos) {
+            double _value = BitConverter.ToDouble(readableBuffer, readPos);
+            if (_moveReadPos) {
+                readPos += 8;
+            }
+
+            return _value;
+        }
+        else {
+            throw new Exception("Could not read value of type 'double'!");
         }
     }
 

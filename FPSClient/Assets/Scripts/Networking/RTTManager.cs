@@ -2,34 +2,36 @@
 using UnityEngine;
 
 public class RTTManager : MonoBehaviour {
-    private static long sentTimestamp;
-    public static float CurrentRTT { get; private set; }
+    private static double timestamp;
+
+    public static float currentRtt;
 
     public static void SendRTTRequest() {
-        sentTimestamp = DateTime.UtcNow.Ticks;
-        ClientSend.MeasureRTT(sentTimestamp);
+        timestamp = TickTimer.Instance.GetTime();
+        ClientSend.MeasureRTT(timestamp);
     }
 
     public static void SendSyncTickRequest() {
-        sentTimestamp = DateTime.UtcNow.Ticks;
-        ClientSend.SyncTick(sentTimestamp);
+        timestamp = TickTimer.Instance.GetTime();
+        ClientSend.SyncTick(timestamp);
     }
 
-    public static void ReceiveRTTResponse(long originalTimestamp) {
-        long receivedTimestamp = DateTime.UtcNow.Ticks;
+    public static void ReceiveRTTResponse(double originalTimestamp) {
+        double receivedTimestamp = TickTimer.Instance.GetTime();
 
-        CurrentRTT = (receivedTimestamp - originalTimestamp) / TimeSpan.TicksPerMillisecond;
+        currentRtt = (float)((receivedTimestamp - originalTimestamp) * 1000.0);
 
-        Debug.Log($"RTT: {CurrentRTT} ms");
+        Debug.Log($"RTT: {currentRtt} ms");
     }
 
-    public static void SyncTick(long timestamp, int serverTick) {
-        long now = DateTime.UtcNow.Ticks;
+    public static void SyncTick(double timestamp, int serverTick) {
+        double now = TickTimer.Instance.GetTime();
 
-        double rttMs = (now - timestamp) / (double)TimeSpan.TicksPerMillisecond;
+        double rttMs = (now - timestamp) * 1000.0;
+        currentRtt = (float)rttMs;
 
         int latencyTicks = Mathf.CeilToInt(
-            (float)(rttMs / 1000.00 / NetworkSettings.tickTime)
+            (float)(rttMs / 2.0 / 1000.00 / NetworkSettings.tickTime)
         );
 
         int desiredTick = serverTick + latencyTicks + 2;
@@ -41,7 +43,7 @@ public class RTTManager : MonoBehaviour {
             $"Server={serverTick} | " +
             $"Client={TickTimer.tick} | "
         );
-        
+
         TickTimer.doTick = true;
     }
 }

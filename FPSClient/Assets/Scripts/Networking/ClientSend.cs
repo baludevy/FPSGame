@@ -25,7 +25,7 @@ public class ClientSend {
         }
     }
 
-    public static void MeasureRTT(long timestamp) {
+    public static void MeasureRTT(double timestamp) {
         using (Packet packet = new Packet((int)ClientPackets.measureRtt)) {
             packet.Write(timestamp);
             
@@ -33,7 +33,7 @@ public class ClientSend {
         }
     }
     
-    public static void SyncTick(long timestamp) {
+    public static void SyncTick(double timestamp) {
         using (Packet packet = new Packet((int)ClientPackets.syncTick)) {
             packet.Write(timestamp);
 
