@@ -6,7 +6,7 @@ public class PlayerInput {
     public float x;
     public float y;
 
-    public Quaternion orientation;
+    public float orientation;
 
     public bool jumping;
     public bool crouching;

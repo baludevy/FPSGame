@@ -49,10 +49,7 @@ public class TickTimer : MonoBehaviour {
                 input.crouching
             );
 
-            PlayerMovement.Instance.CheckGrounded();
-            PlayerMovement.Instance.CheckWalls();
-            PlayerMovement.Instance.WallRunning();
-            PlayerMovement.Instance.Movement();
+            PlayerMovement.Instance.Tick();
         }
 
         Physics.Simulate(NetworkSettings.tickTime);

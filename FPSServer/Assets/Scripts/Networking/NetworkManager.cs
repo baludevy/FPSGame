@@ -45,10 +45,7 @@ public class NetworkManager : MonoBehaviour {
                     client.player.movement.SetInputs(input.x, input.y, input.orientation, input.jumping,
                         input.crouching);
 
-                client.player.movement.CheckGrounded();
-                client.player.movement.CheckWalls();
-                client.player.movement.Movement();
-                client.player.movement.WallRunning();
+                client.player.movement.Tick();
 
                 ServerSend.PlayerPosition(client.player.id, client.player.transform.position);
             }

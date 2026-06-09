@@ -25,6 +25,7 @@ public class ServerHandle {
                 tick = packet.ReadInt(),
                 x = packet.ReadFloat(),
                 y = packet.ReadFloat(),
+                orientation = packet.ReadFloat(),
                 jumping = packet.ReadBool(),
                 crouching = packet.ReadBool(),
             };

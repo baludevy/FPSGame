@@ -33,6 +33,7 @@ public class ClientSend {
                 packet.Write(input.tick);
                 packet.Write(input.x);
                 packet.Write(input.y);
+                packet.Write(input.orientation);
                 packet.Write(input.jumping);
                 packet.Write(input.crouching);
             }

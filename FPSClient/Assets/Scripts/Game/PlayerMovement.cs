@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Threading;
 using EZCameraShake;
 using UnityEngine;
 using Quaternion = UnityEngine.Quaternion;
@@ -15,6 +14,8 @@ public class PlayerMovement : MonoBehaviour {
 
     //Other
     private Rigidbody rb;
+
+    private readonly TickInvoker tickInvoker = new();
 
     //Rotation and look
     private float xRotation;
@@ -32,14 +33,14 @@ public class PlayerMovement : MonoBehaviour {
     public float maxSlopeAngle = 35f;
 
     //Crouch & Slide
-    private Vector3 crouchScale = new Vector3(1, 0.5f, 1);
-    private Vector3 playerScale;
+    private Vector3 crouchScale = new Vector3(1, 1f, 1);
+    private Vector3 playerScale = new Vector3(1f, 1.5f, 1);
     public float slideForce = 400;
     public float slideCounterMovement = 0.2f;
 
     //Jumping
     private bool readyToJump = true;
-    private float jumpCooldown = 0.25f;
+    private int jumpCooldown = 15;
     public float jumpForce = 550f;
 
     //Wallrunning & Surfing
@@ -50,6 +51,8 @@ public class PlayerMovement : MonoBehaviour {
     private float wallRunGravity;
     private float actualWallRotation;
     private float wallRotationVel;
+    private int cancelWallrunTimer = -1;
+    private int wallrunCooldown = 10;
 
     //Input
     private float x, y;
@@ -71,7 +74,7 @@ public class PlayerMovement : MonoBehaviour {
     //Other
     private float fallSpeed;
     private Vector3 lastMoveSpeed;
-    private Collider playerCollider;
+    private CapsuleCollider playerCollider;
 
     public static PlayerMovement Instance { get; private set; }
 
@@ -83,7 +86,7 @@ public class PlayerMovement : MonoBehaviour {
 
     private void Start() {
         psEmission = ps.emission;
-        playerCollider = GetComponent<Collider>();
+        playerCollider = GetComponent<CapsuleCollider>();
 
         readyToJump = true;
         wallNormalVector = Vector3.up;
@@ -96,7 +99,17 @@ public class PlayerMovement : MonoBehaviour {
     private void Update() {
         fallSpeed = rb.velocity.y;
         lastMoveSpeed = VectorExtensions.XZVector(rb.velocity);
-        // Look();
+        Look();
+    }
+
+    public void Tick() {
+        tickInvoker.Step();
+
+        CheckGrounded();
+        CheckWalls();
+        FindWallRunRotation();
+        WallRunning();
+        Movement();
     }
 
     private void MyInput() {
@@ -119,12 +132,12 @@ public class PlayerMovement : MonoBehaviour {
 
     public void SetInputs(float x, float y, bool jumping, bool crouching) {
         if (crouching && !this.crouching) {
-            PlayerMovement.Instance.StartCrouch();
+            // PlayerMovement.Instance.StartCrouch();
         }
         else if (!crouching && this.crouching) {
-            PlayerMovement.Instance.StopCrouch();
+            // PlayerMovement.Instance.StopCrouch();
         }
-        
+
         this.x = x;
         this.y = y;
         this.jumping = jumping;
@@ -188,17 +201,16 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     public void StartCrouch() {
-        transform.localScale = new Vector3(1f, 1, 1f);
-        transform.position = new Vector3(transform.position.x, transform.position.y - 0.5f, transform.position.z);
+        transform.localScale = crouchScale;
+        // transform.localPosition = new Vector3(transform.position.x, transform.position.y - 0.5f, transform.position.z);
 
-        if (rb.velocity.magnitude > 0.1f && grounded) {
-            rb.AddForce(orientation.transform.forward * 400f);
-        }
+        if (rb.velocity.magnitude > 0.1f && grounded)
+            rb.AddForce(orientation.forward * 400f);
     }
 
     public void StopCrouch() {
-        transform.localScale = new Vector3(1f, 1.5f, 1f);
-        transform.position = new Vector3(transform.position.x, transform.position.y + 0.5f, transform.position.z);
+        transform.localScale = playerScale;
+        // transform.localPosition = new Vector3(transform.position.x, transform.position.y - 0.5f, transform.position.z);
     }
 
     private void SpeedLines() {
@@ -218,7 +230,7 @@ public class PlayerMovement : MonoBehaviour {
 
     public void CheckGrounded() {
         wasGrounded = grounded;
-        
+
         RaycastHit hit;
 
         grounded = Physics.Raycast(
@@ -228,7 +240,7 @@ public class PlayerMovement : MonoBehaviour {
             playerHeight * 0.5f + 0.2f,
             whatIsGround
         );
-        
+
         surfing = grounded && IsSurf(hit.normal);
         normalVector = hit.normal;
 
@@ -299,7 +311,7 @@ public class PlayerMovement : MonoBehaviour {
                 rb.AddForce(wallNormalVector * jumpForce * 3f);
             }
 
-            Invoke("ResetJump", jumpCooldown);
+            tickInvoker.Invoke(ResetJump, jumpCooldown);
             if (wallRunning) {
                 wallRunning = false;
             }
@@ -314,7 +326,6 @@ public class PlayerMovement : MonoBehaviour {
         xRotation -= y;
         xRotation = Mathf.Clamp(xRotation, -90f, 90f);
 
-        FindWallRunRotation();
         actualWallRotation = Mathf.SmoothDamp(actualWallRotation, wallRunRotation, ref wallRotationVel, 0.2f);
 
         cameraRot = new Vector3(xRotation, desiredX, actualWallRotation);
@@ -400,18 +411,19 @@ public class PlayerMovement : MonoBehaviour {
             (Mathf.Abs(wallRunRotation) > 22f && y < 0f && Math.Abs(x) < 0.1f)) {
             if (!cancelling) {
                 cancelling = true;
-                CancelInvoke("CancelWallrun");
-                Invoke("CancelWallrun", 0.2f);
+                tickInvoker.Cancel(cancelWallrunTimer);
+                cancelWallrunTimer =
+                    tickInvoker.Invoke(CancelWallrun, wallrunCooldown);
             }
         }
         else {
             cancelling = false;
-            CancelInvoke("CancelWallrun");
+            tickInvoker.Cancel(CancelWallrun);
         }
     }
 
     private void CancelWallrun() {
-        Invoke("GetReadyToWallrun", 0.1f);
+        tickInvoker.Invoke(GetReadyToWallrun, wallrunCooldown);
         rb.AddForce(wallNormalVector * 600f);
         readyToWallrun = false;
     }
@@ -445,5 +457,4 @@ public class PlayerMovement : MonoBehaviour {
     private bool IsWall(Vector3 v) {
         return Math.Abs(90f - Vector3.Angle(Vector3.up, v)) < 0.1f;
     }
-
 }

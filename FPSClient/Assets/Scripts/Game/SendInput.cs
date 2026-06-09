@@ -36,7 +36,7 @@ public class SendInput : MonoBehaviour {
             tick = tick,
             x = x,
             y = y,
-            orientation = PlayerMovement.Instance.orientation.rotation,
+            orientation = PlayerMovement.Instance.orientation.eulerAngles.y,
             crouching = crouching,
             jumping = jumping
         };
