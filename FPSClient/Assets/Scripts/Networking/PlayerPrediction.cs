@@ -11,6 +11,9 @@ public class PlayerPrediction : MonoBehaviour {
     public Transform visualPlayer;
     private Vector3 lastPredictedPos;
     private Vector3 currentPredictedPos;
+    
+    private Vector3 visualOffset = Vector3.zero;
+    public float visualCatchupSpeed = 15f;
 
     private void Awake() {
         Instance = this;
@@ -29,17 +32,22 @@ public class PlayerPrediction : MonoBehaviour {
         if (visualPlayer == null)
             return;
         
-        float interpolationFactor =
-            (float)TickTimer.Instance.accumulator / NetworkSettings.tickTime;
-
+        if (visualOffset.sqrMagnitude > 0.0001f) {
+            visualOffset = Vector3.Lerp(visualOffset, Vector3.zero, Time.deltaTime * visualCatchupSpeed);
+        } else {
+            visualOffset = Vector3.zero;
+        }
+        
+        float interpolationFactor = (float)TickTimer.Instance.accumulator / NetworkSettings.tickTime;
         interpolationFactor = Mathf.Clamp01(interpolationFactor);
-
-        visualPlayer.position = Vector3.Lerp(
+        
+        Vector3 interpolatedPos = Vector3.Lerp(
             lastPredictedPos,
             currentPredictedPos,
             interpolationFactor
         );
-
+        
+        visualPlayer.position = interpolatedPos + visualOffset;
         visualPlayer.rotation = transform.rotation;
     }
 
@@ -74,7 +82,7 @@ public class PlayerPrediction : MonoBehaviour {
     }
 
     private void SynchronizeMovement(PlayerState playerState, int tick) {
-        lastPredictedPos = playerState.position;
+        Vector3 predictedPosBeforeSync = currentPredictedPos;
 
         PlayerMovement.Instance.rb.position = playerState.position;
         PlayerMovement.Instance.rb.velocity = playerState.velocity;
@@ -88,7 +96,7 @@ public class PlayerPrediction : MonoBehaviour {
             PlayerInput input = SendInput.Instance.inputHistory[cacheIndex];
 
             if (input == null || input.tick != i) {
-                Debug.Log("fuck");
+                Debug.LogWarning("Missing input history during reconciliation!");
                 break;
             }
 
@@ -100,7 +108,13 @@ public class PlayerPrediction : MonoBehaviour {
             positionHistory[cacheIndex] = PlayerMovement.Instance.transform.position;
             hasPositionHistory[cacheIndex] = true;
         }
-
+        
         currentPredictedPos = PlayerMovement.Instance.transform.position;
+        
+        Vector3 correctionDelta = currentPredictedPos - predictedPosBeforeSync;
+        
+        lastPredictedPos += correctionDelta;
+        
+        visualOffset -= correctionDelta;
     }
 }

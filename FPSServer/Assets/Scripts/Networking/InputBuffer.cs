@@ -3,23 +3,29 @@ using UnityEngine;
 
 public class InputBuffer {
     private PlayerInput[] inputQueue;
+    private PlayerInput lastValidInput; 
 
     public double latestTimestamp;
 
     public void Initialize() {
         inputQueue = new PlayerInput[NetworkSettings.inputBufferSize];
+        lastValidInput = new PlayerInput(); 
     }
 
     public PlayerInput GetInputFromQueue(int tick) {
         PlayerInput input = inputQueue[tick % NetworkSettings.inputBufferSize];
 
-        if (input == null) return new PlayerInput();
-
-        if (input.tick != tick) return new PlayerInput();
+        if (input != null && input.tick == tick) {
+            lastValidInput = input;
+            return input;
+        }
         
-        // Debug.Log($"pulled input from queue, tick: {tick} arrived: {input.arrivedTick}");
+        Debug.Log("returnign fallback input");
 
-        return input;
+        PlayerInput fallbackInput = new PlayerInput();
+        fallbackInput.tick = tick;
+        
+        return fallbackInput;
     }
 
     public void AddInputsToQueue(List<PlayerInput> inputs, double timestamp) {

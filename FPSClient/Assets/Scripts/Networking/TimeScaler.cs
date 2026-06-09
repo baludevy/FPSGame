@@ -4,7 +4,7 @@ public class TimeScaler : MonoBehaviour
 {
     public static TimeScaler Instance { get; private set; }
     
-    [SerializeField] private int targetBufferSlack = 1;
+    private int targetBufferSlack => NetworkSettings.targetBufferSlack;
     [SerializeField] private int threshold = 1;
     
     [SerializeField] private float normalTimescale = 1f;
