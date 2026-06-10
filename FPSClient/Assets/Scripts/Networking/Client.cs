@@ -215,7 +215,7 @@ public class Client : MonoBehaviour {
             catch (ObjectDisposedException) {
             }
             catch (Exception ex) {
-                    Debug.LogException(ex);
+                Debug.LogException(ex);
 
                 Disconnect();
             }
@@ -231,7 +231,7 @@ public class Client : MonoBehaviour {
             {
                 int packetId = packet.ReadInt();
 
-                if (packetId == (int)ServerPackets.syncTick || packetId == (int)ServerPackets.worldSnapshot)
+                if (packetId == (int)ServerPackets.syncTick)
                 {
                     packetHandlers[packetId](packet);
                     return;

@@ -38,8 +38,10 @@ public class SnapshotManager : MonoBehaviour {
                 PlayerPrediction.CompareServerState(state, snapshot.serverTick);
                 continue;
             }
+            
+            PlayerManager player = GameManager.players[state.id];
 
-            GameManager.players[state.id].transform.position = state.position;
+            if (player != null) player.transform.position = state.position;
         }
     }
 }

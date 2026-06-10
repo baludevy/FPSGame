@@ -7,14 +7,23 @@ using Vector3 = UnityEngine.Vector3;
 
 public class PlayerMovement : MonoBehaviour {
     //Assingables
+    public Transform playerCam;
     public Transform orientation;
 
     //Other
     public Rigidbody rb;
+    public ParticleSystem ps;
+
+    public TickInvoker tickInvoker = new();
+
+    // Rotation and look
+    private float xRotation;
+    private float sensitivity = 50f;
+    private float sensMultiplier = 1f;
 
     //Movement
-    public float moveSpeed = 4500;
-    public float runSpeed = 20;
+    public float moveSpeed = 4000f;
+    public float runSpeed = 13f;
     public bool grounded, wasGrounded, cancellingGrounded;
     public LayerMask whatIsGround;
 
@@ -23,26 +32,23 @@ public class PlayerMovement : MonoBehaviour {
     public float maxSlopeAngle = 35f;
 
     //Crouch & Slide
-    private Vector3 crouchScale = new Vector3(1, 1f, 1);
-    private Vector3 playerScale = new Vector3(1f, 1.5f, 1);
+    private Vector3 slideDirection;
     public float slideForce = 400;
-    public float slideCounterMovement = 0.2f;
+    public float slideCounterMovement = 0.01f;
 
     //Jumping
     private bool readyToJump = true;
-    private int jumpCooldown = 5;
-    public float jumpForce = 550f;
+    public float jumpForce = 400f;
 
     //Wallrunning & Surfing
     private bool wallRunning, surfing;
     private float wallRunRotation;
-    private bool cancelling, cancellingWall, cancellingSurf;
     private bool readyToWallrun = true;
-    private float wallRunGravity = 1f;
     private float actualWallRotation;
     private float wallRotationVel;
-    private int wallrunCooldown = 5;
-    private int cancelWallrunTimer = -1;
+    private int wallRunTicks;
+    private bool pressingTowardWall;
+    private int wallAttachTicks;
 
     //Input
     private float x, y;
@@ -58,13 +64,17 @@ public class PlayerMovement : MonoBehaviour {
     private float slideSlowdown;
 
     //Other
+    private ParticleSystem.EmissionModule psEmission;
     private float fallSpeed;
     private Vector3 lastMoveSpeed;
     private CapsuleCollider playerCollider;
+    public static PlayerMovement Instance { get; private set; }
 
-    private readonly TickInvoker tickInvoker = new();
+    private Vector3 lastWallNormal = Vector3.zero;
+    private bool sameWallOnCooldown = false;
 
     private void Awake() {
+        Instance = this;
         rb = GetComponent<Rigidbody>();
         playerCollider = GetComponent<CapsuleCollider>();
         playerHeight = playerCollider.bounds.size.y;
@@ -113,38 +123,27 @@ public class PlayerMovement : MonoBehaviour {
         rb.AddForce(Vector3.down * NetworkSettings.tickTime * 12.5f);
         Vector2 mag = FindVelRelativeToLook();
 
-        float xMag = mag.x;
-        float yMag = mag.y;
-
         CounterMovement(x, y, mag);
 
         if (readyToJump && jumping) {
             Jump();
         }
 
-        float maxSpeed = runSpeed;
-
         if (crouching && grounded && readyToJump) {
             rb.AddForce(Vector3.down * NetworkSettings.tickTime * 3000f);
             return;
         }
 
-        float inputX = x;
-        float inputY = y;
-
-        //If speed is larger than maxspeed, cancel out the input so you don't go over max speed
-        if (inputX > 0 && xMag > maxSpeed) inputX = 0;
-        if (inputX < 0 && xMag < -maxSpeed) inputX = 0;
-        if (inputY > 0 && yMag > maxSpeed) inputY = 0;
-        if (inputY < 0 && yMag < -maxSpeed) inputY = 0;
+        float inputX = (x > 0 && mag.x > runSpeed) || (x < 0 && mag.x < -runSpeed) ? 0 : x;
+        float inputY = (y > 0 && mag.y > runSpeed) || (y < 0 && mag.y < -runSpeed) ? 0 : y;
 
         float multiplier = 1f;
         float multiplierV = 1f;
 
         // air movement
         if (!grounded) {
-            multiplier = 0.55f;
-            multiplierV = 0.55f;
+            multiplier = 0.5f;
+            multiplierV = 0.5f;
         }
 
         if (grounded && crouching) {
@@ -161,26 +160,40 @@ public class PlayerMovement : MonoBehaviour {
             multiplierV = 0.3f;
         }
 
-        rb.AddForce(orientation.transform.forward *
-                    (inputY * moveSpeed * NetworkSettings.tickTime * multiplier * multiplierV));
-        rb.AddForce(orientation.transform.right * (inputX * moveSpeed * NetworkSettings.tickTime * multiplier));
+        if (grounded && crouching) {
+            float forwardInput = y > 0 ? y : 1f;
+            rb.AddForce(slideDirection * (forwardInput * moveSpeed * NetworkSettings.tickTime * multiplier * multiplierV));
+        }
+        else {
+            rb.AddForce(orientation.transform.forward *
+                        (inputY * moveSpeed * NetworkSettings.tickTime * multiplier * multiplierV));
+            rb.AddForce(orientation.transform.right * (inputX * moveSpeed * NetworkSettings.tickTime * multiplier));
+        }
     }
     //Scale player down
     private void StartCrouch() {
-        transform.localScale = new Vector3(1.5f, 1f, 1.5f);
+        transform.localScale = new Vector3(1f, 0.75f, 1f);
         transform.localPosition = new Vector3(transform.position.x, transform.position.y - 1f,
             transform.position.z);
         
         playerHeight = 2f;
 
-        /* if (rb.velocity.magnitude > 0.1f && grounded) {
-            rb.AddForce(orientation.transform.forward * 400f);
-        } */
+        Vector3 flatVelocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+        if (flatVelocity.magnitude > 1f) {
+            slideDirection = flatVelocity.normalized;
+        }
+        else {
+            slideDirection = orientation.forward;
+        }
+
+        if (grounded && rb.velocity.magnitude > 5f) {
+            rb.AddForce(slideDirection * slideForce, ForceMode.Impulse);
+        }
     }
 
     //Scale player to original size
     private void StopCrouch() {
-        transform.localScale = new Vector3(1.5f, 2f, 1.5f);
+        transform.localScale = new Vector3(1f, 1.75f, 1f);
         transform.localPosition = new Vector3(transform.position.x, transform.position.y + 1f,
             transform.position.z);
         
@@ -204,6 +217,7 @@ public class PlayerMovement : MonoBehaviour {
         if (grounded) {
             normalVector = hit.normal;
             surfing = IsSurf(hit.normal);
+            lastWallNormal = Vector3.zero;
         }
         else {
             normalVector = Vector3.up;
@@ -211,28 +225,34 @@ public class PlayerMovement : MonoBehaviour {
         }
     }
 
+    private bool TryFindWall(Vector3 direction, out RaycastHit hit) {
+        if (Physics.Raycast(transform.position, direction, out hit, 1f, whatIsGround) && IsWall(hit.normal)) {
+            return true;
+        }
+
+        return false;
+    }
+
     public void CheckWalls() {
         RaycastHit hit = default;
         bool foundWall = false;
+        pressingTowardWall = false;
 
-        Vector3 origin = transform.position;
-
-        RaycastHit tmp;
-        if (Physics.Raycast(origin, orientation.right, out tmp, 1f, whatIsGround) && IsWall(tmp.normal)) {
-            hit = tmp;
-            foundWall = true;
+        if (x < -0.1f && TryFindWall(-orientation.right, out hit)) {
+            foundWall = pressingTowardWall = true;
         }
-        else if (Physics.Raycast(origin, -orientation.right, out tmp, 1f, whatIsGround) && IsWall(tmp.normal)) {
-            hit = tmp;
-            foundWall = true;
+        else if (x > 0.1f && TryFindWall(orientation.right, out hit)) {
+            foundWall = pressingTowardWall = true;
         }
-        else if (Physics.Raycast(origin, orientation.forward, out tmp, 1f, whatIsGround) && IsWall(tmp.normal)) {
-            hit = tmp;
-            foundWall = true;
+        else if (y > 0.1f && TryFindWall(orientation.forward, out hit)) {
+            foundWall = pressingTowardWall = true;
         }
-        else if (Physics.Raycast(origin, -orientation.forward, out tmp, 1f, whatIsGround) && IsWall(tmp.normal)) {
-            hit = tmp;
-            foundWall = true;
+        else if (y < -0.1f && TryFindWall(-orientation.forward, out hit)) {
+            foundWall = pressingTowardWall = true;
+        }
+        else if (wallRunning) {
+            foundWall = TryFindWall(-orientation.right, out hit) || TryFindWall(orientation.right, out hit) ||
+                        TryFindWall(orientation.forward, out hit) || TryFindWall(-orientation.forward, out hit);
         }
 
         if (!foundWall) {
@@ -243,72 +263,99 @@ public class PlayerMovement : MonoBehaviour {
         wallNormalVector = hit.normal;
 
         if (!grounded && readyToWallrun) {
+            if (Vector3.Dot(wallNormalVector, lastWallNormal) > 0.9f) {
+                if (sameWallOnCooldown) {
+                    wallRunning = false;
+                    return;
+                }
+            }
+
             if (!wallRunning) {
+                Vector3 wallForward = Vector3.Cross(wallNormalVector, Vector3.up).normalized;
+                float forwardVel = Vector3.Dot(rb.velocity, wallForward);
+
+                rb.velocity -= wallForward * (forwardVel * 0.4f); // damp velocity when attaching to a wall
                 rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-                rb.AddForce(Vector3.up * 15, ForceMode.Impulse);
+                rb.AddForce(Vector3.up * 16f, ForceMode.Impulse); // upwards force when attaching to a wall
+                wallRunTicks = 0;
+                wallAttachTicks = 0;
             }
 
             wallRunning = true;
+            wallAttachTicks++;
         }
         else {
             wallRunning = false;
+        }
+
+        wallRunTicks++;
+        if (wallRunTicks >= 192) {
+            // max amount of ticks the player can wallrun for
+            rb.AddForce(wallNormalVector * 600f);
+            readyToWallrun = true;
         }
     }
 
     private void ResetJump() => readyToJump = true;
 
+    private void ResetSameWallCooldown() {
+        sameWallOnCooldown = false;
+    }
+
     private void Jump() {
         if ((grounded || wallRunning || surfing) && readyToJump) {
             Vector3 velocity = rb.velocity;
-            readyToJump = false;
-            rb.AddForce(Vector2.up * jumpForce * 1.5f);
-            rb.AddForce(normalVector * jumpForce * 0.5f);
-            if (rb.velocity.y < 0.5f) {
-                rb.velocity = new Vector3(velocity.x, 0f, velocity.z);
-            }
-            else if (rb.velocity.y > 0f) {
-                rb.velocity = new Vector3(velocity.x, velocity.y / 2f, velocity.z);
-            }
 
             if (wallRunning) {
-                rb.AddForce(wallNormalVector * jumpForce * 3f);
+                if (wallAttachTicks < 5) return;
+
+                lastWallNormal = wallNormalVector;
+                sameWallOnCooldown = true;
+                tickInvoker.Invoke(ResetSameWallCooldown, 30);
+                readyToJump = false;
+
+                rb.velocity = new Vector3(rb.velocity.x, 0, rb.velocity.z);
+                
+                rb.AddForce(wallNormalVector * 16f + Vector3.up * 10f, ForceMode.Impulse);
 
                 wallRunning = false;
+                surfing = false;
+
+                tickInvoker.Invoke(ResetJump, 10);
+                return;
             }
 
-            tickInvoker.Invoke(ResetJump, jumpCooldown);
-            if (wallRunning) {
-                wallRunning = false;
-            }
+            rb.AddForce(Vector3.up * jumpForce * 1.5f);
+            
+            rb.velocity = new Vector3(velocity.x, rb.velocity.y < 0.5f ? 0f : velocity.y / 2f, velocity.z);
         }
     }
 
     private void CounterMovement(float x, float y, Vector2 mag) {
-        if (!grounded || jumping) return;
+        if (!grounded || jumping || wallRunning) return;
 
         //Slow down sliding
-        if (crouching) {
-            rb.AddForce(moveSpeed * NetworkSettings.tickTime * -rb.velocity.normalized * slideCounterMovement);
-            return;
-        }
+        float currentCounterMultiplier = crouching ? slideCounterMovement : counterMovement;
 
         //Counter movement
         if (Math.Abs(mag.x) > threshold && Math.Abs(x) < 0.05f || (mag.x < -threshold && x > 0) ||
             (mag.x > threshold && x < 0)) {
-            rb.AddForce(moveSpeed * orientation.transform.right * NetworkSettings.tickTime * -mag.x * counterMovement);
+            rb.AddForce(moveSpeed * orientation.transform.right * NetworkSettings.tickTime * -mag.x * currentCounterMultiplier);
         }
 
         if (Math.Abs(mag.y) > threshold && Math.Abs(y) < 0.05f || (mag.y < -threshold && y > 0) ||
             (mag.y > threshold && y < 0)) {
             rb.AddForce(moveSpeed * orientation.transform.forward * NetworkSettings.tickTime * -mag.y *
-                        counterMovement);
+                        currentCounterMultiplier);
         }
 
+        if (crouching) return;
+
         //Limit diagonal running. This will also cause a full stop if sliding fast and un-crouching, so not optimal.
-        if (Mathf.Sqrt((Mathf.Pow(rb.velocity.x, 2) + Mathf.Pow(rb.velocity.z, 2))) > runSpeed) {
-            float fallspeed = rb.velocity.y;
-            Vector3 n = rb.velocity.normalized * runSpeed;
-            rb.velocity = new Vector3(n.x, fallspeed, n.z);
+        Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+        if (flatVel.magnitude > runSpeed) {
+            Vector3 limitedVel = flatVel.normalized * runSpeed;
+            rb.velocity = new Vector3(limitedVel.x, rb.velocity.y, limitedVel.z);
         }
     }
 
@@ -319,18 +366,12 @@ public class PlayerMovement : MonoBehaviour {
         float u = Mathf.DeltaAngle(lookAngle, moveAngle);
         float v = 90 - u;
 
-        float magnitue = rb.velocity.magnitude;
-        float yMag = magnitue * Mathf.Cos(u * Mathf.Deg2Rad);
-        float xMag = magnitue * Mathf.Cos(v * Mathf.Deg2Rad);
-
-        return new Vector2(xMag, yMag);
+        float magnitude = new Vector2(rb.velocity.x, rb.velocity.z).magnitude;
+        return new Vector2(magnitude * Mathf.Cos(v * Mathf.Deg2Rad), magnitude * Mathf.Cos(u * Mathf.Deg2Rad));
     }
 
     private void CheckWallrunCancellation() {
         if (!wallRunning) {
-            cancelling = false;
-            tickInvoker.Cancel(cancelWallrunTimer);
-            cancelWallrunTimer = -1;
             return;
         }
 
@@ -351,54 +392,24 @@ public class PlayerMovement : MonoBehaviour {
 
         if (!readyToWallrun)
             return;
-
-        bool shouldCancel =
-            (Mathf.Abs(wallRunRotation) < 4f &&
-             y > 0f &&
-             Mathf.Abs(x) < 0.1f)
-            ||
-            (Mathf.Abs(wallRunRotation) > 22f &&
-             y < 0f &&
-             Mathf.Abs(x) < 0.1f);
-
-        if (shouldCancel) {
-            if (!cancelling) {
-                cancelling = true;
-
-                tickInvoker.Cancel(cancelWallrunTimer);
-
-                cancelWallrunTimer =
-                    tickInvoker.Invoke(
-                        CancelWallrun,
-                        wallrunCooldown
-                    );
-            }
-        }
-        else {
-            cancelling = false;
-            tickInvoker.Cancel(cancelWallrunTimer);
-            cancelWallrunTimer = -1;
-        }
-    }
-
-    private void CancelWallrun() {
-        tickInvoker.Invoke(GetReadyToWallrun, wallrunCooldown);
-        rb.AddForce(wallNormalVector * 600f);
-        readyToWallrun = false;
-    }
-
-    private void GetReadyToWallrun() {
-        readyToWallrun = true;
     }
 
     public void WallRunning() {
         if (wallRunning) {
-            rb.AddForce(-wallNormalVector * NetworkSettings.tickTime * moveSpeed);
-            if (!isCrouching) {
-                rb.AddForce(Vector3.up * NetworkSettings.tickTime * rb.mass * 100f * wallRunGravity);
-            }
-            else {
-                rb.AddForce(Vector3.up * NetworkSettings.tickTime * rb.mass * 100f * (wallRunGravity * 0.5f));
+            rb.AddForce(-wallNormalVector * NetworkSettings.tickTime * moveSpeed * 2.5f);
+            Vector3 wallForward = Vector3.Cross(wallNormalVector, Vector3.up);
+
+            if (Vector3.Dot(wallForward, orientation.forward) < 0f) wallForward = -wallForward;
+
+            Vector3 travelForce = wallForward * 150f; // force when directional input
+            if (y > 0.1f) travelForce = wallForward * 1000f; // force when pressing forward
+            else if (y < -0.1f) travelForce = -wallForward * 300f; // force when pressing backwards
+
+            rb.AddForce(travelForce * NetworkSettings.tickTime);
+
+            if (!jumping && pressingTowardWall && rb.velocity.y < (isCrouching ? -2f : 0f)) {
+                rb.velocity = new Vector3(rb.velocity.x,
+                    Mathf.Lerp(rb.velocity.y, isCrouching ? -2f : 0f, NetworkSettings.tickTime * 10f), rb.velocity.z);
             }
         }
     }
