@@ -215,7 +215,7 @@ public class Client : MonoBehaviour {
             catch (ObjectDisposedException) {
             }
             catch (Exception ex) {
-                Debug.LogException(ex);
+                    Debug.LogException(ex);
 
                 Disconnect();
             }

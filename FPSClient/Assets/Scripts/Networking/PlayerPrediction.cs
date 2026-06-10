@@ -1,120 +1,111 @@
 ﻿using UnityEngine;
-using UnityEngine.Serialization;
 
 public class PlayerPrediction : MonoBehaviour {
     private const float positionErrorThreshold = 0.0000001f;
     public static PlayerPrediction Instance;
 
-    private readonly bool[] hasPositionHistory = new bool[NetworkSettings.inputBufferSize];
-    private readonly Vector3[] positionHistory = new Vector3[NetworkSettings.inputBufferSize];
-    
+    private static Vector3[] positionHistory = new Vector3[NetworkSettings.inputBufferSize];
+    private static Vector3[] velocityHistory = new Vector3[NetworkSettings.inputBufferSize];
     public Transform visualPlayer;
     private Vector3 lastPredictedPos;
-    private Vector3 currentPredictedPos;
-    
-    private Vector3 visualOffset = Vector3.zero;
-    public float visualCatchupSpeed = 15f;
 
     private void Awake() {
         Instance = this;
     }
 
-    private void Start() {
-        if (visualPlayer != null) {
-            lastPredictedPos = transform.position;
-            currentPredictedPos = transform.position;
-            visualPlayer.position = transform.position;
-        }
-    }
-    
-    private void Update()
-    {
+    private void Update() {
         if (visualPlayer == null)
             return;
-        
-        if (visualOffset.sqrMagnitude > 0.0001f) {
-            visualOffset = Vector3.Lerp(visualOffset, Vector3.zero, Time.deltaTime * visualCatchupSpeed);
-        } else {
-            visualOffset = Vector3.zero;
-        }
-        
+
         float interpolationFactor = (float)TickTimer.Instance.accumulator / NetworkSettings.tickTime;
         interpolationFactor = Mathf.Clamp01(interpolationFactor);
-        
+
         Vector3 interpolatedPos = Vector3.Lerp(
             lastPredictedPos,
-            currentPredictedPos,
+            PlayerMovement.Instance.transform.position,
             interpolationFactor
         );
-        
-        visualPlayer.position = interpolatedPos + visualOffset;
+
+        visualPlayer.position = interpolatedPos;
         visualPlayer.rotation = transform.rotation;
     }
 
     public void PredictState(PlayerInput input) {
         int i = input.tick % NetworkSettings.inputBufferSize;
 
-        lastPredictedPos = currentPredictedPos;
+        lastPredictedPos = PlayerMovement.Instance.transform.position;
 
-        PlayerMovement.Instance.SetInputs(input.x, input.y, input.jumping, input.crouching);
+        PlayerMovement.Instance.orientation.rotation =
+            Quaternion.Euler(0f, input.orientation, 0f);
+
+        PlayerMovement.Instance.SetInput(
+            input.x,
+            input.y,
+            input.jumping,
+            input.crouching
+        );
+
         PlayerMovement.Instance.AdvanceLogic();
+
+        Physics.SyncTransforms();
 
         Physics.Simulate(NetworkSettings.tickTime);
 
         positionHistory[i] = PlayerMovement.Instance.transform.position;
-        hasPositionHistory[i] = true;
-
-        currentPredictedPos = PlayerMovement.Instance.transform.position;
+        velocityHistory[i] = PlayerMovement.Instance.rb.velocity;
     }
 
-    public void CompareServerState(PlayerState playerState, int tick) {
+    public static void CompareServerState(PlayerState playerState, int tick) {
         int index = tick % NetworkSettings.inputBufferSize;
-
-        if (!hasPositionHistory[index]) return;
 
         Vector3 prePosition = positionHistory[index];
 
         float errorSqrMag = (playerState.position - prePosition).sqrMagnitude;
         if (errorSqrMag > positionErrorThreshold) {
-            Debug.Log($"Desync by {errorSqrMag}");
+            Debug.Log($"Desync by {errorSqrMag}, tick: {tick}");
             SynchronizeMovement(playerState, tick);
         }
     }
 
-    private void SynchronizeMovement(PlayerState playerState, int tick) {
-        Vector3 predictedPosBeforeSync = currentPredictedPos;
+    private static void SynchronizeMovement(PlayerState playerState, int tick) {
+        Vector3 prePosition = PlayerMovement.Instance.transform.position;
 
         PlayerMovement.Instance.rb.position = playerState.position;
         PlayerMovement.Instance.rb.velocity = playerState.velocity;
-        
-        Physics.SyncTransforms(); 
+        PlayerMovement.Instance.orientation.rotation =
+            Quaternion.Euler(0f, playerState.orientation, 0f);
 
         int lastSimulatedTick = TickTimer.tick - 1;
-        
+
+        MoveCamera.Instance.smooth = true;
+
         for (int i = tick + 1; i <= lastSimulatedTick; i++) {
-            int cacheIndex = i % NetworkSettings.inputBufferSize;
-            PlayerInput input = SendInput.Instance.inputHistory[cacheIndex];
+            int index = i % NetworkSettings.inputBufferSize;
+            PlayerInput input = SendInput.Instance.inputHistory[index];
 
-            if (input == null || input.tick != i) {
-                Debug.LogWarning("Missing input history during reconciliation!");
-                break;
-            }
+            PlayerMovement.Instance.orientation.rotation =
+                Quaternion.Euler(0f, input.orientation, 0f);
 
-            PlayerMovement.Instance.SetInputs(input.x, input.y, input.jumping, input.crouching);
+            PlayerMovement.Instance.SetInput(
+                input.x,
+                input.y,
+                input.jumping,
+                input.crouching
+            );
+
             PlayerMovement.Instance.AdvanceLogic();
-            
+
+            Physics.SyncTransforms();
+
             Physics.Simulate(NetworkSettings.tickTime);
-            
-            positionHistory[cacheIndex] = PlayerMovement.Instance.transform.position;
-            hasPositionHistory[cacheIndex] = true;
+
+            positionHistory[index] = PlayerMovement.Instance.transform.position;
+            velocityHistory[index] = PlayerMovement.Instance.rb.velocity;
         }
-        
-        currentPredictedPos = PlayerMovement.Instance.transform.position;
-        
-        Vector3 correctionDelta = currentPredictedPos - predictedPosBeforeSync;
-        
-        lastPredictedPos += correctionDelta;
-        
-        visualOffset -= correctionDelta;
+
+        Vector3 offsetPosition = PlayerMovement.Instance.transform.position - prePosition;
+        MoveCamera.Instance.desyncOffset = -offsetPosition;
+
+        MoveCamera.Instance.smooth = false;
     }
 }

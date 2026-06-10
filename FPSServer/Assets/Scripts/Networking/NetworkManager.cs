@@ -32,9 +32,6 @@ public class NetworkManager : MonoBehaviour {
     private void ProcessTick() {
         ThreadManager.UpdateMain();
 
-        //Forward physics simulation by one step
-
-
         foreach (Client client in Server.clients.Values) {
             if (client.player != null) {
                 PlayerInput input = client.player.InputBuffer.GetInputFromQueue(tick);
@@ -44,11 +41,17 @@ public class NetworkManager : MonoBehaviour {
                         input.crouching);
 
                 client.player.movement.AdvanceLogic();
+
+                // Debug.Log($"applying movement with x:{input.x},y:{input.y},j:{input.jumping},{input.crouching}, tick:{input.tick}");
             }
         }
 
+        Physics.SyncTransforms();
+
+        //Forward physics simulation by one step
+
         Physics.Simulate(NetworkSettings.tickTime);
-        
+
         foreach (Client client in Server.clients.Values) {
             if (client.player != null) {
                 SendWorldSnapshot(client.player.id);
@@ -63,7 +66,7 @@ public class NetworkManager : MonoBehaviour {
 
         snapshot.serverTick = tick;
         snapshot.bufferSlack = toPlayer.InputBuffer.GetBufferSlack();
-        
+
         foreach (Client client in Server.clients.Values) {
             Player player = client.player;
 
@@ -74,11 +77,11 @@ public class NetworkManager : MonoBehaviour {
                     velocity = player.movement.rb.velocity,
                     orientation = player.movement.orientation.transform.eulerAngles.y,
                 };
-            
+
                 snapshot.playerStates.Add(playerState);
             }
         }
-        
+
         ServerSend.WorldSnapshot(toClient, snapshot);
     }
 

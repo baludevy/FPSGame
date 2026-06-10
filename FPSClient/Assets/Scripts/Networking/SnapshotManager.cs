@@ -35,7 +35,7 @@ public class SnapshotManager : MonoBehaviour {
             if (PlayerMovement.Instance != null && state.id == Client.Instance.myId) {
                 // Debug.Log($"latest snapshot position: {state.position}, local: {PlayerMovement.Instance.transform.position}, was {TickTimer.tick - snapshot.serverTick} ticks ago");
                 
-                PlayerPrediction.Instance.CompareServerState(state, snapshot.serverTick);
+                PlayerPrediction.CompareServerState(state, snapshot.serverTick);
                 continue;
             }
 

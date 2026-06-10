@@ -14,16 +14,15 @@ public class MoveCamera : MonoBehaviour {
     public PlayerMovement playerMovement;
 
     private float desiredTilt;
-
     private float tilt;
 
     private Vector3 desiredBob;
-
     private Vector3 bobOffset;
-
     private float bobSpeed = 15f;
-
     private float bobMultiplier = 0.5f;
+
+    public Vector3 desyncOffset;
+    public Vector3 crouchOffset;
 
     private void Start() {
         Instance = this;
@@ -32,10 +31,10 @@ public class MoveCamera : MonoBehaviour {
     private void Update() {
         if (smooth) {
             transform.position = Vector3.Lerp(transform.position,
-                player.position + bobOffset + offset, Time.fixedDeltaTime * 5);
+                player.position + bobOffset + crouchOffset + offset, NetworkSettings.tickTime * 5);
         }
         else {
-            transform.position = player.position + bobOffset + offset;
+            transform.position = player.position + bobOffset + crouchOffset + offset;
         }
     }
 

@@ -15,7 +15,7 @@ public class PlayerMovement : MonoBehaviour {
     //Other
     public Rigidbody rb;
 
-    private readonly TickInvoker tickInvoker = new();
+    public TickInvoker tickInvoker = new();
 
     //Rotation and look
     private float xRotation;
@@ -40,7 +40,7 @@ public class PlayerMovement : MonoBehaviour {
 
     //Jumping
     private bool readyToJump = true;
-    private int jumpCooldown = 15;
+    private int jumpCooldown = 5;
     public float jumpForce = 550f;
 
     //Wallrunning & Surfing
@@ -48,11 +48,11 @@ public class PlayerMovement : MonoBehaviour {
     private float wallRunRotation;
     private bool cancelling, cancellingWall, cancellingSurf;
     private bool readyToWallrun = true;
-    private float wallRunGravity;
+    private float wallRunGravity = 1f;
     private float actualWallRotation;
     private float wallRotationVel;
     private int cancelWallrunTimer = -1;
-    private int wallrunCooldown = 10;
+    private int wallrunCooldown = 5;
 
     //Input
     private float x, y;
@@ -80,12 +80,12 @@ public class PlayerMovement : MonoBehaviour {
     private void Awake() {
         Instance = this;
         rb = GetComponent<Rigidbody>();
-        playerHeight = GetComponent<CapsuleCollider>().bounds.size.y;
+        playerCollider = GetComponent<CapsuleCollider>();
+        playerHeight = playerCollider.bounds.size.y;
     }
 
     private void Start() {
         psEmission = ps.emission;
-        playerCollider = GetComponent<CapsuleCollider>();
 
         readyToJump = true;
         wallNormalVector = Vector3.up;
@@ -106,41 +106,27 @@ public class PlayerMovement : MonoBehaviour {
 
         CheckGrounded();
         CheckWalls();
+        Movement();
         FindWallRunRotation();
         WallRunning();
-        Movement();
+        
+        // Debug.Log($"{crouching} {TickTimer.tick}");
     }
 
-    private void MyInput() {
-        float x = Input.GetAxisRaw("Horizontal");
-        float y = Input.GetAxisRaw("Vertical");
-
-        bool jumping = Input.GetButton("Jump");
-        bool crouching = Input.GetButton("Crouch");
-
-        PlayerMovement.Instance.SetInputs(x, y, jumping, crouching);
-
-        if (Input.GetButtonDown("Crouch")) {
-            PlayerMovement.Instance.StartCrouch();
-        }
-
-        if (Input.GetButtonUp("Crouch")) {
-            PlayerMovement.Instance.StopCrouch();
-        }
-    }
-
-    public void SetInputs(float x, float y, bool jumping, bool crouching) {
+    public void SetInput(float x, float y, bool jumping, bool crouching) {
         if (crouching && !this.crouching) {
-            PlayerMovement.Instance.StartCrouch();
+            StartCrouch();
         }
         else if (!crouching && this.crouching) {
-            PlayerMovement.Instance.StopCrouch();
+            StopCrouch();
         }
 
         this.x = x;
         this.y = y;
+        
         this.jumping = jumping;
         this.crouching = crouching;
+        this.isCrouching = crouching;
     }
 
     public void Movement() {
@@ -163,11 +149,14 @@ public class PlayerMovement : MonoBehaviour {
             return;
         }
 
+        float inputX = x;
+        float inputY = y;
+
         //If speed is larger than maxspeed, cancel out the input so you don't go over max speed
-        if (x > 0 && xMag > maxSpeed) x = 0;
-        if (x < 0 && xMag < -maxSpeed) x = 0;
-        if (y > 0 && yMag > maxSpeed) y = 0;
-        if (y < 0 && yMag < -maxSpeed) y = 0;
+        if (inputX > 0 && xMag > maxSpeed) inputX = 0;
+        if (inputX < 0 && xMag < -maxSpeed) inputX = 0;
+        if (inputY > 0 && yMag > maxSpeed) inputY = 0;
+        if (inputY < 0 && yMag < -maxSpeed) inputY = 0;
 
         float multiplier = 1f;
         float multiplierV = 1f;
@@ -193,23 +182,32 @@ public class PlayerMovement : MonoBehaviour {
         }
 
         rb.AddForce(orientation.transform.forward *
-                    (y * moveSpeed * NetworkSettings.tickTime * multiplier * multiplierV));
-        rb.AddForce(orientation.transform.right * (x * moveSpeed * NetworkSettings.tickTime * multiplier));
+                    (inputY * moveSpeed * NetworkSettings.tickTime * multiplier * multiplierV));
+        rb.AddForce(orientation.transform.right * (inputX * moveSpeed * NetworkSettings.tickTime * multiplier));
 
         SpeedLines();
     }
 
-    public void StartCrouch() {
-        transform.localScale = crouchScale;
-        // transform.localPosition = new Vector3(transform.position.x, transform.position.y - 0.5f, transform.position.z);
+    //Scale player down
+    private void StartCrouch() {
+        transform.localScale = new Vector3(1.5f, 1f, 1.5f);
+        transform.localPosition = new Vector3(transform.position.x, transform.position.y - 1f,
+            transform.position.z);
+        
+        playerHeight = 2f;
 
-        if (rb.velocity.magnitude > 0.1f && grounded)
-            rb.AddForce(orientation.forward * 400f);
+        /* if (rb.velocity.magnitude > 0.1f && grounded) {
+            rb.AddForce(orientation.transform.forward * 400f);
+        } */
     }
 
-    public void StopCrouch() {
-        transform.localScale = playerScale;
-        // transform.localPosition = new Vector3(transform.position.x, transform.position.y - 0.5f, transform.position.z);
+    //Scale player to original size
+    private void StopCrouch() {
+        transform.localScale = new Vector3(1.5f, 2f, 1.5f);
+        transform.localPosition = new Vector3(transform.position.x, transform.position.y + 1f,
+            transform.position.z);
+        
+        playerHeight = 4f;
     }
 
     private void SpeedLines() {
@@ -240,8 +238,14 @@ public class PlayerMovement : MonoBehaviour {
             whatIsGround
         );
 
-        surfing = grounded && IsSurf(hit.normal);
-        normalVector = hit.normal;
+        if (grounded) {
+            normalVector = hit.normal;
+            surfing = IsSurf(hit.normal);
+        }
+        else {
+            normalVector = Vector3.up;
+            surfing = false;
+        }
 
         if (!wasGrounded && grounded && MoveCamera.Instance != null) {
             MoveCamera.Instance.BobOnce(new Vector3(0f, fallSpeed, 0f));
@@ -249,22 +253,30 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     public void CheckWalls() {
-        RaycastHit hit;
+        RaycastHit hit = default;
+        bool foundWall = false;
 
         Vector3 origin = transform.position;
 
-        bool foundWall =
-            Physics.Raycast(origin, orientation.right, out hit, 1f, whatIsGround) ||
-            Physics.Raycast(origin, -orientation.right, out hit, 1f, whatIsGround) ||
-            Physics.Raycast(origin, orientation.forward, out hit, 1f, whatIsGround) ||
-            Physics.Raycast(origin, -orientation.forward, out hit, 1f, whatIsGround);
-
-        if (!foundWall) {
-            wallRunning = false;
-            return;
+        RaycastHit tmp;
+        if (Physics.Raycast(origin, orientation.right, out tmp, 1f, whatIsGround) && IsWall(tmp.normal)) {
+            hit = tmp;
+            foundWall = true;
+        }
+        else if (Physics.Raycast(origin, -orientation.right, out tmp, 1f, whatIsGround) && IsWall(tmp.normal)) {
+            hit = tmp;
+            foundWall = true;
+        }
+        else if (Physics.Raycast(origin, orientation.forward, out tmp, 1f, whatIsGround) && IsWall(tmp.normal)) {
+            hit = tmp;
+            foundWall = true;
+        }
+        else if (Physics.Raycast(origin, -orientation.forward, out tmp, 1f, whatIsGround) && IsWall(tmp.normal)) {
+            hit = tmp;
+            foundWall = true;
         }
 
-        if (!IsWall(hit.normal)) {
+        if (!foundWall) {
             wallRunning = false;
             return;
         }
@@ -308,6 +320,9 @@ public class PlayerMovement : MonoBehaviour {
 
             if (wallRunning) {
                 rb.AddForce(wallNormalVector * jumpForce * 3f);
+
+                wallRunning = false;
+                surfing = false;
             }
 
             tickInvoker.Invoke(ResetJump, jumpCooldown);
@@ -417,7 +432,8 @@ public class PlayerMovement : MonoBehaviour {
         }
         else {
             cancelling = false;
-            tickInvoker.Cancel(CancelWallrun);
+            tickInvoker.Cancel(cancelWallrunTimer);
+            cancelWallrunTimer = -1;
         }
     }
 
