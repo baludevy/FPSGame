@@ -33,33 +33,89 @@ public class Server {
     }
 
     private static void TcpConnectCallback(IAsyncResult result) {
-        TcpClient client = _tcpListener.EndAcceptTcpClient(result);
-        _tcpListener.BeginAcceptTcpClient(TcpConnectCallback, null);
+        TcpClient client = null;
 
-        for (int i = 1; i <= MaxPlayers; i++) {
-            if (clients[i].tcp.Socket == null) {
-                clients[i].tcp.Connect(client);
-                return;
-            }
+        try {
+            client = _tcpListener.EndAcceptTcpClient(result);
         }
-        
-        Debug.Log($"Incoming connection from {client.Client.RemoteEndPoint} was rejected because the Server is full.");
+        catch (ObjectDisposedException) {
+            return;
+        }
+        catch (Exception ex) {
+            Debug.LogException(ex);
+        }
+
+        try {
+            _tcpListener.BeginAcceptTcpClient(TcpConnectCallback, null);
+        }
+        catch (ObjectDisposedException) {
+            return;
+        }
+        catch (Exception ex) {
+            Debug.LogException(ex);
+            return;
+        }
+
+        if (client == null) return;
+
+        try {
+            for (int i = 1; i <= MaxPlayers; i++) {
+                if (clients[i].tcp.Socket == null) {
+                    clients[i].tcp.Connect(client);
+                    return;
+                }
+            }
+            
+            Debug.Log($"Incoming connection from {client.Client.RemoteEndPoint} was rejected because the Server is full.");
+            client.Close();
+        }
+        catch (Exception ex) {
+            Debug.LogException(ex);
+            try { client?.Close(); } catch { }
+        }
     }
 
     private static void UDPReceiveCallback(IAsyncResult result) {
+        IPEndPoint clientEndPoint = new IPEndPoint(IPAddress.Any, 0);
+        byte[] data = null;
+
         try {
-            IPEndPoint clientEndPoint = new IPEndPoint(IPAddress.Any, 0);
-            byte[] data = _udpListener.EndReceive(result, ref clientEndPoint);
-            _udpListener.BeginReceive(UDPReceiveCallback, null);
-
-            if (data.Length < 4) {
-                return;
+            data = _udpListener.EndReceive(result, ref clientEndPoint);
+        }
+        catch (ObjectDisposedException) {
+            return;
+        }
+        catch (SocketException ex) {
+            if (ex.SocketErrorCode == SocketError.ConnectionReset) {
+                Debug.Log($"UDP ICMP reset from {clientEndPoint}, ignoring.");
+            } else {
+                Debug.LogException(ex);
             }
+        }
+        catch (Exception ex) {
+            Debug.LogException(ex);
+        }
+        finally {
+            try {
+                _udpListener.BeginReceive(UDPReceiveCallback, null);
+            }
+            catch (ObjectDisposedException) {
+                
+            }
+            catch (Exception ex) {
+                Debug.LogException(ex);
+            }
+        }
 
+        if (data == null || data.Length < 4) {
+            return;
+        }
+
+        try {
             using (Packet packet = new Packet(data)) {
                 int clientId = packet.ReadInt();
 
-                if (clientId == 0) {
+                if (clientId < 1 || clientId > MaxPlayers || !clients.ContainsKey(clientId)) {
                     return;
                 }
 
@@ -72,9 +128,6 @@ public class Server {
                     clients[clientId].udp.HandleData(packet);
                 }
             }
-        }
-        catch (ObjectDisposedException) {
-            
         }
         catch (Exception ex) {
             Debug.LogException(ex);
@@ -106,7 +159,12 @@ public class Server {
     }
     
     public static void Stop() {
-        _tcpListener.Stop();
-        _udpListener.Close();
+        foreach (Client client in clients.Values) {
+            try { client?.tcp?.Disconnect(); } catch { }
+            try { client?.udp?.Disconnect(); } catch { }
+        }
+
+        try { _tcpListener?.Stop(); } catch { }
+        try { _udpListener?.Close(); } catch { }
     }
 }

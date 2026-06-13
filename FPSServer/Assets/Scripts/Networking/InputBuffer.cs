@@ -21,7 +21,7 @@ public class InputBuffer {
             return input;
         }
         
-        Debug.Log("returnign fallback input");
+        // Debug.Log("returnign fallback input");
 
         PlayerInput fallbackInput = new PlayerInput();
         fallbackInput.tick = tick;

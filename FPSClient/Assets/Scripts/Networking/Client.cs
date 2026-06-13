@@ -81,6 +81,7 @@ public class Client : MonoBehaviour {
                 int byteLength = _stream.EndRead(result);
                 if (byteLength <= 0) {
                     Disconnect();
+                    return;
                 }
 
                 byte[] data = new byte[byteLength];
@@ -238,7 +239,7 @@ public class Client : MonoBehaviour {
             {
                 int packetId = packet.ReadInt();
 
-                if (packetId == (int)ServerPackets.syncTick || packetId == (int)ServerPackets.worldSnapshot)
+                if (packetId == (int)ServerPackets.worldSnapshot)
                 {
                     packetHandlers[packetId](packet);
                     ClientHandle.packetsReceived++;
@@ -279,8 +280,8 @@ public class Client : MonoBehaviour {
         if (!IsConnected) return;
         IsConnected = false;
 
-        tcp.socket.Close();
-        udp.socket.Close();
+        try { tcp?.socket?.Close(); } catch { }
+        try { udp?.socket?.Close(); } catch { }
 
         // disconnect on main thread
         ThreadManager.ExecuteOnMainThread(() => { NetworkUIManager.Instance.EnableConnectUI(); });

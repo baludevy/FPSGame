@@ -45,9 +45,12 @@ public class Client {
 
         public void SendData(Packet packet) {
             try {
-                if (Socket != null) {
+                if (Socket != null && _stream != null) {
                     _stream.BeginWrite(packet.ToArray(), 0, packet.Length(), null, null);
                 }
+            }
+            catch (ObjectDisposedException) {
+            
             }
             catch (Exception ex) {
                 Debug.LogException(ex);
@@ -69,12 +72,11 @@ public class Client {
                 _stream.BeginRead(_receiveBuffer, 0, dataBufferSize, ReceiveCallback, null);
             }
             catch (ObjectDisposedException) {
-            
+                try { Server.clients[_id]?.Disconnect(); } catch { }
             }
             catch (Exception ex) {
-                Server.clients[_id].Disconnect();
-
                 Debug.LogException(ex);
+                try { Server.clients[_id]?.Disconnect(); } catch { }
             }
         }
 
@@ -128,7 +130,15 @@ public class Client {
         }
 
         public void Disconnect() {
-            Socket.Close();
+            try {
+                Socket?.Close();
+            }
+            catch (ObjectDisposedException) { }
+            catch (SocketException) { }
+            catch (Exception ex) {
+                Debug.LogException(ex);
+            }
+
             _stream = null;
             _receivedData = null;
             _receiveBuffer = null;
@@ -162,7 +172,7 @@ public class Client {
             using (Packet packet = new Packet(capturedBytes)) {
                 int packetId = packet.ReadInt();
 
-                if (packetId == (int)ClientPackets.measureRtt || packetId == (int)ClientPackets.syncTick) {
+                if (packetId == (int)ClientPackets.playerInput) {
                     Server.packetHandlers[packetId](_id, packet);
                     return; 
                 }
@@ -204,11 +214,17 @@ public class Client {
     }
 
     public void Disconnect() {
-        Debug.Log($"{player.username} ({player.id}) left.");
+        if (player != null) {
+            Debug.Log($"{player.username} ({player.id}) left.");
+        } else {
+            Debug.Log($"Client {id} disconnected before spawning.");
+        }
 
         ThreadManager.ExecuteOnMainThread(() => {
-            UnityEngine.Object.Destroy(player.gameObject);
-            player = null;
+            if (player != null) {
+                UnityEngine.Object.Destroy(player.gameObject);
+                player = null;
+            }
         });
 
         tcp.Disconnect();

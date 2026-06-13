@@ -49,15 +49,15 @@ public class NetworkDebug : MonoBehaviour {
     }
 
     public void SetPing(float a) {
-        pingText.text = $"ping: {Mathf.CeilToInt(a)}ms";
+        pingText.text = $"ping: {Mathf.FloorToInt(a)}ms";
     }
 
     public void SetJitter(float a) {
-        jitterText.text = $"jitter: {Mathf.CeilToInt(a)}ms";
+        jitterText.text = $"jitter: {Mathf.FloorToInt(a)}ms";
     }
 
     public void SetPacketLoss(float a) {
-        packetLossText.text = $"packet loss: {a}%";
+        packetLossText.text = $"packet loss: {a:F0}%";
     }
 
     private void SetByteUp(float a) {

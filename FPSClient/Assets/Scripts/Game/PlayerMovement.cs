@@ -5,7 +5,7 @@ using UnityEngine;
 // ReSharper disable All
 
 public class PlayerMovement : MonoBehaviour {
-    // Assignables
+    //Assignables
     public Transform playerCam;
     public Transform orientation;
     public Rigidbody rb;
@@ -13,14 +13,14 @@ public class PlayerMovement : MonoBehaviour {
 
     public TickInvoker tickInvoker = new();
 
-    // Rotation and look
+    //Rotation and look
     private float xRotation;
     private float sensitivity = 50f;
     private float sensMultiplier = 1f;
 
-    // Movement
+    //movement
     public float moveSpeed = 4000f;
-    public float runSpeed = 13f;
+    public float runSpeed = 12f;
     public bool grounded, wasGrounded, cancellingGrounded;
     public LayerMask whatIsGround;
 
@@ -28,46 +28,58 @@ public class PlayerMovement : MonoBehaviour {
     private float threshold = 0.01f;
     public float maxSlopeAngle = 35f;
 
-    // Crouch & Slide
+    //crouch
     private Vector3 slideDirection;
     public float slideForce = 400;
     public float slideCounterMovement = 0.01f;
 
-    // Jumping
+    //jumping
     private bool readyToJump = true;
-    public float jumpForce = 400f;
+    public float jumpForce = 9f;
 
-    // Wallrunning & Surfing
-    private bool wallRunning, surfing;
+    //wallrunning
+    public bool wallRunning;
+    private bool surfing;
     private float wallRunRotation;
     private bool readyToWallrun = true;
     private float actualWallRotation;
     private float wallRotationVel;
+    private bool wallrunBoostUsed;
     private int wallRunTicks;
     private bool pressingTowardWall;
     private int wallAttachTicks;
+    private int lastWallInstanceId = 0;
+    private bool sameWallOnCooldown = false;
+    private Vector3 initialWallNormal;
+    private float lockedWallSign;
+    private int currentFacingWallId = 0;
 
-    // Input
+    private int wallCoyoteTicks;
+    private const int maxWallCoyoteTicks = 12;
+    private Vector3 savedWallNormal;
+    private int savedWallInstanceId;
+
+    //input
     private float x, y;
     private bool jumping, sprinting, crouching;
     public Vector3 cameraRot;
     private float desiredX;
 
-    // Sliding / States
+    //sliding
     private bool isCrouching;
     private Vector3 normalVector = Vector3.up;
     private Vector3 wallNormalVector;
     private float playerHeight;
     private float slideSlowdown;
 
+    //other
     private ParticleSystem.EmissionModule psEmission;
     private float fallSpeed;
     private Vector3 lastMoveSpeed;
     private CapsuleCollider playerCollider;
-    public static PlayerMovement Instance { get; private set; }
+    
 
-    private Vector3 lastWallNormal = Vector3.zero;
-    private bool sameWallOnCooldown = false;
+    public static PlayerMovement Instance { get; private set; }
 
     private void Awake() {
         Instance = this;
@@ -131,11 +143,12 @@ public class PlayerMovement : MonoBehaviour {
         float multY = 1f;
 
         if (!grounded) {
-            multX = 0.5f;
-            multY = 0.5f;
+            multX = 0.6f;
+            multY = 0.6f;
         }
 
         if (grounded && crouching) {
+            multX = 0f;
             multY = 0f;
         }
 
@@ -149,22 +162,18 @@ public class PlayerMovement : MonoBehaviour {
             multY = 0.3f;
         }
 
-        if (grounded && crouching) {
-            float forwardInput = y > 0 ? y : 1f;
-            rb.AddForce(slideDirection * (forwardInput * moveSpeed * NetworkSettings.tickTime * multX * multY));
-        }
-        else {
-            rb.AddForce(orientation.forward * (inputY * moveSpeed * NetworkSettings.tickTime * multX * multY));
-            rb.AddForce(orientation.right * (inputX * moveSpeed * NetworkSettings.tickTime * multX));
-        }
+        rb.AddForce(orientation.forward * (inputY * moveSpeed * NetworkSettings.tickTime * multX * multY));
+        rb.AddForce(orientation.right * (inputX * moveSpeed * NetworkSettings.tickTime * multX));
 
         SpeedLines();
     }
 
     private void StartCrouch() {
-        transform.localScale = new Vector3(1f, 0.75f, 1f);
-        transform.position = new Vector3(transform.position.x, transform.position.y - 1f, transform.position.z);
-        playerHeight = 2f;
+        transform.localScale = new Vector3(1f, 0.5f, 1f);
+        transform.localPosition = new Vector3(transform.position.x, transform.position.y - 1f,
+            transform.position.z);
+
+        playerHeight = 1f;
 
         Vector3 flatVelocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
         if (flatVelocity.magnitude > 1f) {
@@ -174,16 +183,19 @@ public class PlayerMovement : MonoBehaviour {
             slideDirection = orientation.forward;
         }
 
-        if (grounded && rb.velocity.magnitude > 5f) {
+        if (grounded && rb.velocity.magnitude > 2f) {
             rb.AddForce(slideDirection * slideForce, ForceMode.Impulse);
         }
     }
 
     private void StopCrouch() {
-        transform.localScale = new Vector3(1f, 1.75f, 1f);
-        transform.position = new Vector3(transform.position.x, transform.position.y + 1f, transform.position.z);
-        playerHeight = 4f;
+        transform.localScale = new Vector3(1f, 1.5f, 1f);
+        transform.localPosition = new Vector3(transform.position.x, transform.position.y + 1f,
+            transform.position.z);
+
+        playerHeight = 3f;
     }
+
 
     private void SpeedLines() {
         float viewAngleFactor = Mathf.Max(1f, Vector3.Angle(rb.velocity, playerCam.forward) * 0.5f);
@@ -192,13 +204,17 @@ public class PlayerMovement : MonoBehaviour {
 
     public void CheckGrounded() {
         wasGrounded = grounded;
-        grounded = Physics.Raycast(transform.position, Vector3.down, out RaycastHit hit, playerHeight * 0.5f + 0.2f,
-            whatIsGround);
+        grounded = Physics.SphereCast(transform.position, 0.45f, Vector3.down, out RaycastHit hit,
+            (playerHeight / 2f) - 0.35f, whatIsGround);
 
         if (grounded) {
             normalVector = hit.normal;
+            wallrunBoostUsed = false;
             surfing = IsSurf(hit.normal);
-            lastWallNormal = Vector3.zero;
+            if (sameWallOnCooldown) {
+                sameWallOnCooldown = false;
+                lastWallInstanceId = 0;
+            }
         }
         else {
             normalVector = Vector3.up;
@@ -223,54 +239,93 @@ public class PlayerMovement : MonoBehaviour {
         bool foundWall = false;
         pressingTowardWall = false;
 
-        if (x < -0.1f && TryFindWall(-orientation.right, out hit)) {
-            foundWall = pressingTowardWall = true;
+        if (!wallRunning) {
+            if (x < -0.1f && TryFindWall(-orientation.right, out hit)) {
+                foundWall = true;
+                lockedWallSign = -1f;
+                initialWallNormal = hit.normal;
+            }
+            else if (x > 0.1f && TryFindWall(orientation.right, out hit)) {
+                foundWall = true;
+                lockedWallSign = 1f;
+                initialWallNormal = hit.normal;
+            }
+            else if (y < -0.1f && TryFindWall(-orientation.forward, out hit)) {
+                foundWall = true;
+                lockedWallSign = 0f;
+                initialWallNormal = hit.normal;
+            }
+            else if (y > 0.1f && TryFindWall(orientation.forward, out hit)) {
+                foundWall = true;
+                lockedWallSign = 0f;
+                initialWallNormal = hit.normal;
+            }
         }
-        else if (x > 0.1f && TryFindWall(orientation.right, out hit)) {
-            foundWall = pressingTowardWall = true;
-        }
-        else if (wallRunning) {
-            foundWall = TryFindWall(-orientation.right, out hit) || TryFindWall(orientation.right, out hit) ||
-                        TryFindWall(orientation.forward, out hit) || TryFindWall(-orientation.forward, out hit);
+        else {
+            if (Physics.Raycast(transform.position, -initialWallNormal, out hit, 1.2f, whatIsGround) &&
+                IsWall(hit.normal)) {
+                foundWall = true;
+                if (lockedWallSign == 1f && x > 0.1f) pressingTowardWall = true;
+                else if (lockedWallSign == -1f && x < -0.1f) pressingTowardWall = true;
+                else if (lockedWallSign == 0f) pressingTowardWall = true;
+            }
         }
 
-        if (!foundWall) {
+        if (!foundWall || (wallRunning && !pressingTowardWall)) {
             wallRunning = false;
+            currentFacingWallId = 0;
+
+            if (!grounded) {
+                wallCoyoteTicks++;
+            }
+            else {
+                wallCoyoteTicks = maxWallCoyoteTicks;
+            }
+
             return;
         }
 
         wallNormalVector = hit.normal;
+        currentFacingWallId = hit.collider.GetInstanceID();
 
         if (!grounded && readyToWallrun) {
-            if (Vector3.Dot(wallNormalVector, lastWallNormal) > 0.9f) {
-                if (sameWallOnCooldown) {
-                    wallRunning = false;
-                    return;
-                }
+            if (sameWallOnCooldown && currentFacingWallId == lastWallInstanceId) {
+                wallRunning = false;
+                return;
             }
 
             if (!wallRunning) {
                 Vector3 wallForward = Vector3.Cross(wallNormalVector, Vector3.up).normalized;
                 float forwardVel = Vector3.Dot(rb.velocity, wallForward);
 
-                rb.velocity -= wallForward * (forwardVel * 0.4f); // damp velocity when attaching to a wall
+                rb.velocity -= wallForward * (forwardVel * 0.4f);
                 rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-                rb.AddForce(Vector3.up * 16f, ForceMode.Impulse); // upwards force when attaching to a wall
+
+                if (!wallrunBoostUsed) {
+                    rb.AddForce(Vector3.up * 14f, ForceMode.Impulse);
+                    wallrunBoostUsed = true;
+                }
+
                 wallRunTicks = 0;
                 wallAttachTicks = 0;
             }
 
             wallRunning = true;
             wallAttachTicks++;
+
+            wallCoyoteTicks = 0;
+            savedWallNormal = wallNormalVector;
+            savedWallInstanceId = currentFacingWallId;
         }
         else {
             wallRunning = false;
+            if (!grounded) wallCoyoteTicks++;
         }
 
         wallRunTicks++;
-        if (wallRunTicks >= 192) {
-            // max amount of ticks the player can wallrun for
+        if (wallRunTicks == 160) {
             rb.AddForce(wallNormalVector * 600f);
+            wallRunning = false;
             readyToWallrun = true;
         }
     }
@@ -282,23 +337,25 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void Jump() {
-        if ((grounded || wallRunning || surfing) && readyToJump) {
-            Vector3 velocity = rb.velocity;
-
-            if (wallRunning) {
+        if ((grounded || wallRunning || surfing || (wallCoyoteTicks < maxWallCoyoteTicks)) && readyToJump) {
+            if (wallRunning || (wallCoyoteTicks < maxWallCoyoteTicks && !grounded)) {
                 if (wallAttachTicks < 5) return;
 
-                lastWallNormal = wallNormalVector;
+                lastWallInstanceId = wallRunning ? currentFacingWallId : savedWallInstanceId;
+                Vector3 pushNormal = wallRunning ? wallNormalVector : savedWallNormal;
+
                 sameWallOnCooldown = true;
-                tickInvoker.Invoke(ResetSameWallCooldown, 30);
+                tickInvoker.Invoke(ResetSameWallCooldown, 64);
                 readyToJump = false;
 
                 rb.velocity = new Vector3(rb.velocity.x, 0, rb.velocity.z);
-
-                rb.AddForce(wallNormalVector * 16f + Vector3.up * 10f, ForceMode.Impulse);
+                rb.AddForce(pushNormal * 16f + Vector3.up * 10f, ForceMode.Impulse);
 
                 wallRunning = false;
                 surfing = false;
+                wallrunBoostUsed = false;
+                currentFacingWallId = 0;
+                wallCoyoteTicks = maxWallCoyoteTicks;
 
                 tickInvoker.Invoke(ResetJump, 10);
                 return;
@@ -306,8 +363,6 @@ public class PlayerMovement : MonoBehaviour {
 
             rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
             rb.AddForce(Vector3.up * jumpForce * 1.5f, ForceMode.Impulse);
-
-            MoveCamera.Instance.BobOnce(Vector3.down);
         }
     }
 
@@ -319,7 +374,7 @@ public class PlayerMovement : MonoBehaviour {
         xRotation = Mathf.Clamp(xRotation - mouseY, -90f, 90f);
 
         actualWallRotation =
-            Mathf.SmoothDamp(actualWallRotation, wallRunRotation, ref wallRotationVel, 0.3f); // smoothWallRotTime
+            Mathf.SmoothDamp(actualWallRotation, wallRunRotation, ref wallRotationVel, 0.3f);
 
         cameraRot = new Vector3(xRotation, desiredX, actualWallRotation);
         playerCam.localRotation = Quaternion.Euler(cameraRot);
@@ -360,14 +415,14 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void FindWallRunRotation() {
-        if (!wallRunning) {
+        if (!wallRunning || lockedWallSign == 0f) {
             wallRunRotation = 0f;
             return;
         }
 
         float cameraAngle = playerCam.rotation.eulerAngles.y;
         float wallAngle = Vector3.SignedAngle(Vector3.forward, wallNormalVector, Vector3.up);
-        wallRunRotation = (-Mathf.DeltaAngle(cameraAngle, wallAngle) / 90f) * 7.5f;
+        wallRunRotation = (-Mathf.DeltaAngle(cameraAngle, wallAngle) / 90f) * 5.5f;
     }
 
     public void WallRunning() {
@@ -377,9 +432,9 @@ public class PlayerMovement : MonoBehaviour {
 
             if (Vector3.Dot(wallForward, orientation.forward) < 0f) wallForward = -wallForward;
 
-            Vector3 travelForce = wallForward * 150f; // force when directional input
-            if (y > 0.1f) travelForce = wallForward * 1000f; // force when pressing forward
-            else if (y < -0.1f) travelForce = -wallForward * 300f; // force when pressing backwards
+            Vector3 travelForce = wallForward * 150f;
+            if (y > 0.1f) travelForce = wallForward * 1000f;
+            else if (y < -0.1f) travelForce = -wallForward * 300f;
 
             rb.AddForce(travelForce * NetworkSettings.tickTime);
 
@@ -401,5 +456,6 @@ public class PlayerMovement : MonoBehaviour {
 
     private void ResetSameWallCooldown() {
         sameWallOnCooldown = false;
+        lastWallInstanceId = 0;
     }
 }

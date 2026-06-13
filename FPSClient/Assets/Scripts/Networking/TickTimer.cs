@@ -12,7 +12,7 @@ public class TickTimer : MonoBehaviour {
     private readonly Stopwatch stopwatch = Stopwatch.StartNew();
     public double accumulator;
     private double currentTime;
-
+    
     private double timer;
 
     public static bool doTick = false;

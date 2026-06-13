@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public static class ConnectionStats {
@@ -8,7 +9,6 @@ public static class ConnectionStats {
     private static readonly object lockObj = new object();
 
     private static int rttSampleCount = 20;
-    private static int jitterSampleCount = 20;
     private static int lossHistorySize = 100;
 
     private static float lastRtt = -1f;
@@ -21,9 +21,10 @@ public static class ConnectionStats {
 
     private static List<float> jitterSortBuffer = new List<float>(20);
 
-    private static float currentSlackAccumulator = 1f;
     private const float slackGrowSpeed = 1.0f;
     private const float slackDecaySpeed = 0.05f;
+
+    private static float smoothedPacketLoss;
 
     public static void CalculateStats(WorldSnapshot snapshot) {
         lock (lockObj) {
@@ -32,8 +33,7 @@ public static class ConnectionStats {
             //ping
             double serverProcessingTime = snapshot.serverSendTime - snapshot.serverReceiveTime;
             float rtt = Mathf.Max(0,
-                (float)((clientReceiveTime - snapshot.clientSendTime - serverProcessingTime -
-                         NetworkSettings.tickTime) * 1000f));
+                (float)((clientReceiveTime - snapshot.clientSendTime - serverProcessingTime) * 1000f));
 
             rttSamples.Enqueue(rtt);
             if (rttSamples.Count > rttSampleCount) rttSamples.Dequeue();
@@ -41,9 +41,12 @@ public static class ConnectionStats {
 
             //jitter
             if (lastRtt >= 0f) {
-                jitterSamples.Enqueue(Mathf.Abs(rtt - lastRtt));
-                if (jitterSamples.Count > jitterSampleCount) jitterSamples.Dequeue();
-                jitter = Percentile95(jitterSamples);
+                float instantJitter = Mathf.Abs(rtt - lastRtt);
+
+                jitter = Mathf.Lerp(jitter, instantJitter, 0.1f);
+            }
+            else {
+                jitter = 0f;
             }
 
             lastRtt = rtt;
@@ -86,31 +89,40 @@ public static class ConnectionStats {
             foreach (bool wasLost in lossHistory)
                 if (wasLost)
                     lost++;
-            packetLoss = lossHistory.Count > 0 ? (lost / (float)lossHistory.Count) * 100f : 0f;
+            float rawPacketLoss = lossHistory.Count > 0 ? (lost / (float)lossHistory.Count) * 100f : 0f;
 
+            smoothedPacketLoss = Mathf.Lerp(smoothedPacketLoss, rawPacketLoss, 0.05f);
+            packetLoss = smoothedPacketLoss;
+
+            //adjustments
+            
             float tickTimeMs = NetworkSettings.tickTime * 1000f;
-            float halfTickTimeMs = tickTimeMs / 2f;
 
-            float rawTargetSlack = Mathf.Max(1f, Mathf.Ceil(jitter / halfTickTimeMs));
+            int targetSlack = Mathf.FloorToInt(jitter / tickTimeMs);
+            targetSlack = Math.Clamp(targetSlack, 1, 6);
 
-            if (rawTargetSlack > currentSlackAccumulator) {
-                currentSlackAccumulator = rawTargetSlack;
-            }
-            else {
-                currentSlackAccumulator = Mathf.MoveTowards(currentSlackAccumulator, rawTargetSlack, slackDecaySpeed);
+            if (jitter > 10f) {
+                targetSlack += 2;
             }
 
-            NetworkSettings.targetBufferSlack = Mathf.CeilToInt(currentSlackAccumulator);
 
             if (packetLoss > 5f) {
-                NetworkSettings.inputRedundancy = 3;
+                targetSlack += 3;
+                NetworkSettings.inputRedundancy = 5;
             }
             else if (packetLoss > 1f) {
-                NetworkSettings.inputRedundancy = 2;
+                targetSlack += 2;
+                NetworkSettings.inputRedundancy = 3;
             }
             else {
                 NetworkSettings.inputRedundancy = 1;
             }
+
+            NetworkSettings.targetBufferSlack = Mathf.Clamp(
+                Mathf.CeilToInt(targetSlack),
+                1,
+                6
+            );
         }
     }
 
@@ -126,7 +138,7 @@ public static class ConnectionStats {
             ping = 0f;
             jitter = 0f;
             packetLoss = 0f;
-            currentSlackAccumulator = 1f;
+            smoothedPacketLoss = 0f;
         }
     }
 
@@ -134,21 +146,5 @@ public static class ConnectionStats {
         float sum = 0f;
         foreach (float v in queue) sum += v;
         return sum / queue.Count;
-    }
-
-    private static float Percentile95(Queue<float> queue) {
-        if (queue.Count == 0) return 0f;
-
-        jitterSortBuffer.Clear();
-        foreach (float v in queue) {
-            jitterSortBuffer.Add(v);
-        }
-
-        jitterSortBuffer.Sort();
-
-        int index = Mathf.CeilToInt(jitterSortBuffer.Count * 0.95f) - 1;
-        index = Mathf.Clamp(index, 0, jitterSortBuffer.Count - 1);
-
-        return jitterSortBuffer[index];
     }
 }
