@@ -203,7 +203,7 @@ public class Client {
         }
     }
 
-    private void Disconnect() {
+    public void Disconnect() {
         Debug.Log($"{player.username} ({player.id}) left.");
 
         ThreadManager.ExecuteOnMainThread(() => {

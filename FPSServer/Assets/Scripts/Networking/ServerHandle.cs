@@ -29,7 +29,7 @@ public class ServerHandle {
     }
 
     public static void PlayerInput(int fromClient, Packet packet) {
-        int inputCount = packet.ReadInt();
+        int inputCount = packet.ReadByte();
 
         float timestamp = packet.ReadFloat();
         
@@ -37,12 +37,12 @@ public class ServerHandle {
 
         for (int i = 0; i < inputCount; i++) {
             PlayerInput input = new PlayerInput {
-                tick = packet.ReadInt(),
+                tick = packet.ReadUInt(),
                 x = packet.ReadFloat(),
                 y = packet.ReadFloat(),
                 orientation = packet.ReadFloat(),
                 jumping = packet.ReadBool(),
-                crouching = packet.ReadBool(),
+                crouching = packet.ReadBool()
             };
             
             inputs.Add(input);

@@ -31,7 +31,7 @@ public class ClientHandle {
 
     public static void SyncTick(Packet packet) {
         double timestamp = packet.ReadDouble();
-        int serverTick = packet.ReadInt();
+        uint serverTick = packet.ReadUInt();
 
         RTTManager.SyncTick(timestamp, serverTick);
     }
@@ -46,11 +46,14 @@ public class ClientHandle {
     }
 
     public static void WorldSnapshot(Packet packet) {
-        int serverTick = packet.ReadInt();
-        int bufferSlack = packet.ReadInt();
-        float echoTimestamp = packet.ReadFloat();
+        uint serverTick = packet.ReadUInt();
+        sbyte inputBufferOffset = packet.ReadSByte();
 
-        int playerCount = packet.ReadInt();
+        float clientSendTime = packet.ReadFloat();
+        float serverSendTime = packet.ReadFloat();
+        float serverReceiveTime = packet.ReadFloat();
+
+        byte playerCount = packet.ReadByte();
         List<PlayerState> states = new List<PlayerState>();
 
         for (int i = 0; i < playerCount; i++) {
@@ -66,11 +69,13 @@ public class ClientHandle {
         
         WorldSnapshot snapshot = new WorldSnapshot {
             serverTick = serverTick,
-            bufferSlack = bufferSlack,
-            echoTimestamp = echoTimestamp,
+            inputBufferOffset = inputBufferOffset,
+            clientSendTime = clientSendTime,
+            serverSendTime = serverSendTime,
+            serverReceiveTime = serverReceiveTime,
             playerStates = states,
         };
         
-        SnapshotManager.Instance.AddSnapshot(snapshot);
+        SnapshotManager.Instance.OnSnapshotReceived(snapshot);
     }
 }

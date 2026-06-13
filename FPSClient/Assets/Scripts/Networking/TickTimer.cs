@@ -7,7 +7,7 @@ public class TickTimer : MonoBehaviour {
     public static TickTimer Instance;
     
     public static float timeScale = 1f;
-    public static int tick;
+    public static uint tick;
 
     private readonly Stopwatch stopwatch = Stopwatch.StartNew();
     public double accumulator;
@@ -48,8 +48,6 @@ public class TickTimer : MonoBehaviour {
 
         if (!doTick) return;
 
-        // tickInvoker.Step();
-
         if (PlayerMovement.Instance != null) {
             PlayerInput input = SendInput.Instance.GatherInput(tick);
 
@@ -57,7 +55,7 @@ public class TickTimer : MonoBehaviour {
         }
     }
 
-    public void AddTicks(int ticksToAdd) {
+    public void AddTicks(uint ticksToAdd) {
         tick += ticksToAdd;
         accumulator += ticksToAdd * NetworkSettings.tickTime;
     }

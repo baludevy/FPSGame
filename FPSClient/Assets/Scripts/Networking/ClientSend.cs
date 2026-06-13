@@ -52,11 +52,9 @@ public class ClientSend {
 
     public static void PlayerInput(List<PlayerInput> inputs) {
         using (Packet packet = new Packet((int)ClientPackets.playerInput)) {
-            packet.Write(inputs.Count);
-
-            float timestamp = (float)TickTimer.Instance.GetTime();
+            packet.Write((byte)inputs.Count);
             
-            packet.Write(timestamp);
+            packet.Write((float)TickTimer.Instance.GetTime());
             
             foreach (PlayerInput input in inputs) {
                 packet.Write(input.tick);

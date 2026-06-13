@@ -10,16 +10,16 @@ public class SnapshotManager : MonoBehaviour {
         Instance = this;
     }
 
-    public void AddSnapshot(WorldSnapshot snapshot) {
-        TimeScaler.Instance.AdjustClock(snapshot.bufferSlack);
+    public void OnSnapshotReceived(WorldSnapshot snapshot) {
+        TimeScaler.Instance.AdjustClock(snapshot.inputBufferOffset);
         
-        float now = (float)TickTimer.Instance.GetTime();
-        float ping = Mathf.Max(0, now - snapshot.echoTimestamp - NetworkSettings.tickTime);
-
-        PingManager.ping = ping;
+        ConnectionStats.CalculateStats(snapshot);
 
         snapshotBuffer.Add(snapshot);
-        snapshotBuffer.Sort((a, b) => a.serverTick.CompareTo(b.serverTick));
+        snapshotBuffer.Sort((a, b) => {
+            if (a == null || b == null) return 0;
+            return a.serverTick.CompareTo(b.serverTick);
+        });
 
         if (snapshotBuffer.Count > 30) {
             snapshotBuffer.RemoveAt(0);
@@ -43,10 +43,15 @@ public class SnapshotManager : MonoBehaviour {
                 PlayerPrediction.CompareServerState(state, snapshot.serverTick);
                 continue;
             }
-            
-            PlayerManager player = GameManager.players[state.id];
 
-            if (player != null) player.transform.position = state.position;
+            try {
+                PlayerManager player = GameManager.players[state.id];
+
+                if (player != null) player.transform.position = state.position;
+            }
+            catch {
+                
+            }
         }
     }
 }

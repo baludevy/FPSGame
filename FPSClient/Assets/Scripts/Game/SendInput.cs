@@ -7,8 +7,8 @@ public class SendInput : MonoBehaviour {
 
     public PlayerInput[] inputHistory = new PlayerInput[NetworkSettings.inputBufferSize];
 
-    public int lastSentTick;
-    
+    public uint lastSentTick;
+
     private List<PlayerInput> playerInputs = new();
 
     private float x;
@@ -19,34 +19,34 @@ public class SendInput : MonoBehaviour {
     private void Awake() {
         Instance = this;
     }
-    
+
     public void Update() {
-       SampleInput();
+        SampleInput();
     }
-    
+
     private void SampleInput() {
         x = Input.GetAxisRaw("Horizontal");
         y = Input.GetAxisRaw("Vertical");
         jumping = Input.GetButton("Jump");
         crouching = Input.GetButton("Crouch");
     }
-    
-    public PlayerInput GatherInput(int tick) {
+
+    public PlayerInput GatherInput(uint tick) {
         PlayerInput input = new PlayerInput {
             tick = tick,
             x = x,
             y = y,
             orientation = PlayerMovement.Instance.orientation.eulerAngles.y,
-            crouching = crouching,
-            jumping = jumping
+            jumping = jumping,
+            crouching = crouching
         };
 
-        int i = input.tick % NetworkSettings.inputBufferSize;
+        uint i = input.tick % NetworkSettings.inputBufferSize;
         inputHistory[i] = input;
 
         return input;
     }
-    
+
     public void SendPlayerInputs() {
         if (PlayerMovement.Instance == null) return;
         if (Instance == null) return;
@@ -54,21 +54,21 @@ public class SendInput : MonoBehaviour {
         int bufferSize = NetworkSettings.inputBufferSize;
 
         if (TickTimer.tick == 0) return;
-        int lastCompletedTick = TickTimer.tick - 1;
+        uint lastCompletedTick = TickTimer.tick - 1;
 
-        int firstUnsents = lastSentTick + 1;
+        uint firstUnsents = lastSentTick + 1;
 
         playerInputs.Clear();
 
         if (firstUnsents <= lastCompletedTick)
-            for (int t = firstUnsents; t <= lastCompletedTick; t++) {
+            for (uint t = firstUnsents; t <= lastCompletedTick; t++) {
                 PlayerInput input = Instance.inputHistory[t % bufferSize];
                 if (input != null && input.tick == t)
                     playerInputs.Add(input);
             }
 
-        for (int i = 0; i < NetworkSettings.inputRedundancy; i++) {
-            int inputTick = lastCompletedTick - i;
+        for (uint i = 0; i < NetworkSettings.inputRedundancy; i++) {
+            uint inputTick = lastCompletedTick - i;
 
             if (inputTick >= firstUnsents) continue;
 
@@ -80,6 +80,8 @@ public class SendInput : MonoBehaviour {
         if (playerInputs.Count == 0) return;
 
         playerInputs.Sort((a, b) => a.tick.CompareTo(b.tick));
+        
+        
         ClientSend.PlayerInput(playerInputs);
 
         lastSentTick = lastCompletedTick;

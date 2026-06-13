@@ -1,13 +1,17 @@
-﻿using UnityEngine;
+﻿using System.Diagnostics;
+using UnityEngine;
 
 
 public class NetworkManager : MonoBehaviour {
     public static NetworkManager Instance;
 
-    private float timer;
-    public static int tick;
+    public static uint tick;
 
     public GameObject playerPrefab;
+
+    private readonly Stopwatch stopwatch = Stopwatch.StartNew();
+    private double accumulator;
+    private double currentTime;
 
     private void Awake() {
         Instance = this;
@@ -16,17 +20,29 @@ public class NetworkManager : MonoBehaviour {
     private void Start() {
         QualitySettings.vSyncCount = 0;
         Application.targetFrameRate = NetworkSettings.tickRate;
+
         Server.Start(10, 42069);
+
+        currentTime = GetTime();
     }
 
     private void Update() {
-        timer += Time.deltaTime;
-        while (timer >= NetworkSettings.tickTime) {
-            timer -= NetworkSettings.tickTime;
+        double newTime = GetTime();
+        double frameTime = newTime - currentTime;
+        currentTime = newTime;
+
+        accumulator += frameTime;
+
+        while (accumulator >= NetworkSettings.tickTime) {
+            accumulator -= NetworkSettings.tickTime;
 
             ProcessTick();
             tick++;
         }
+    }
+
+    public double GetTime() {
+        return stopwatch.Elapsed.TotalSeconds;
     }
 
     private void ProcessTick() {
@@ -36,20 +52,21 @@ public class NetworkManager : MonoBehaviour {
             if (client.player != null) {
                 PlayerInput input = client.player.InputBuffer.GetInputFromQueue(tick);
 
-                if (input != null)
-                    client.player.movement.SetInputs(input.x, input.y, input.orientation, input.jumping,
-                        input.crouching);
+                if (input != null) {
+                    client.player.movement.SetInput(
+                        input.x,
+                        input.y,
+                        input.orientation,
+                        input.jumping,
+                        input.crouching
+                    );
+                }
 
                 client.player.movement.AdvanceLogic();
-
-                // Debug.Log($"applying movement with x:{input.x},y:{input.y},j:{input.jumping},{input.crouching}, tick:{input.tick}");
             }
         }
 
         Physics.SyncTransforms();
-
-        //Forward physics simulation by one step
-
         Physics.Simulate(NetworkSettings.tickTime);
 
         foreach (Client client in Server.clients.Values) {
@@ -65,8 +82,10 @@ public class NetworkManager : MonoBehaviour {
         Player toPlayer = Server.clients[toClient].player;
 
         snapshot.serverTick = tick;
-        snapshot.bufferSlack = toPlayer.InputBuffer.GetBufferSlack();
-        snapshot.echoTimestamp = toPlayer.InputBuffer.latestTimestamp;
+        snapshot.inputBufferOffset = toPlayer.InputBuffer.GetBufferOffset();
+
+        snapshot.clientSendTime = toPlayer.InputBuffer.latestTimestamp;
+        snapshot.serverReceiveTime = toPlayer.InputBuffer.latestReceived;
 
         foreach (Client client in Server.clients.Values) {
             Player player = client.player;

@@ -67,6 +67,8 @@ public class Client : MonoBehaviour {
                 return;
             }
 
+            IsConnected = true;
+
             _stream = socket.GetStream();
 
             _receivedData = new Packet();
@@ -140,7 +142,7 @@ public class Client : MonoBehaviour {
                                 if (packetHandlers.TryGetValue(mainPacketId, out PacketHandler handler)) {
                                     handler(mainThreadPacket);
                                     ClientHandle.packetsReceived++;
-                                    ClientHandle.bytesReceived += packet.Length();
+                                    ClientHandle.bytesReceived += mainThreadPacket.Length();
                                 }
                             }
                         });

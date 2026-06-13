@@ -31,7 +31,7 @@ public class PlayerPrediction : MonoBehaviour {
     }
 
     public void PredictState(PlayerInput input) {
-        int i = input.tick % NetworkSettings.inputBufferSize;
+        uint i = input.tick % NetworkSettings.inputBufferSize;
 
         lastPredictedPos = PlayerMovement.Instance.transform.position;
 
@@ -55,8 +55,8 @@ public class PlayerPrediction : MonoBehaviour {
         velocityHistory[i] = PlayerMovement.Instance.rb.velocity;
     }
 
-    public static void CompareServerState(PlayerState playerState, int tick) {
-        int index = tick % NetworkSettings.inputBufferSize;
+    public static void CompareServerState(PlayerState playerState, uint tick) {
+        uint index = tick % NetworkSettings.inputBufferSize;
 
         Vector3 prePosition = positionHistory[index];
 
@@ -67,23 +67,30 @@ public class PlayerPrediction : MonoBehaviour {
         }
     }
 
-    private static void SynchronizeMovement(PlayerState playerState, int tick) {
+    private static void SynchronizeMovement(PlayerState serverState, uint tick) {
         Vector3 prePosition = PlayerMovement.Instance.transform.position;
 
-        PlayerMovement.Instance.rb.position = playerState.position;
-        PlayerMovement.Instance.rb.velocity = playerState.velocity;
-        PlayerMovement.Instance.orientation.rotation =
-            Quaternion.Euler(0f, playerState.orientation, 0f);
+        PlayerMovement player = PlayerMovement.Instance;
 
-        int lastSimulatedTick = TickTimer.tick - 1;
+        if (player == null)
+            return;
+
+        player.rb.position = serverState.position;
+        player.rb.velocity = serverState.velocity;
+        player.orientation.rotation =
+            Quaternion.Euler(0f, serverState.orientation, 0f);
+
+        uint lastSimulatedTick = TickTimer.tick - 1;
 
         MoveCamera.Instance.smooth = true;
 
-        for (int i = tick + 1; i <= lastSimulatedTick; i++) {
-            int index = i % NetworkSettings.inputBufferSize;
+        for (uint i = tick + 1; i <= lastSimulatedTick; i++) {
+            uint index = i % NetworkSettings.inputBufferSize;
             PlayerInput input = SendInput.Instance.inputHistory[index];
+            
+            if(input == null) return;
 
-            PlayerMovement.Instance.orientation.rotation =
+            player.orientation.rotation =
                 Quaternion.Euler(0f, input.orientation, 0f);
 
             PlayerMovement.Instance.SetInput(

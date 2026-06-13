@@ -103,7 +103,7 @@ public class PlayerMovement : MonoBehaviour {
         // Debug.Log($"{crouching} {NetworkManager.tick}");
     }
 
-    public void SetInputs(float x, float y, float orientation, bool jumping, bool crouching) {
+    public void SetInput(float x, float y, float orientation, bool jumping, bool crouching) {
         if (crouching && !this.crouching) {
             StartCrouch();
         }

@@ -122,10 +122,27 @@ public class Packet : IDisposable {
     public void Write(short _value) {
         buffer.AddRange(BitConverter.GetBytes(_value));
     }
+    
+    public void Write(ushort value)
+    {
+        buffer.AddRange(BitConverter.GetBytes(value));
+    }
+    
+    public void Write(sbyte value)
+    {
+        buffer.Add((byte)value);
+    }
+
 
     /// <summary>Adds an int to the packet.</summary>
     /// <param name="_value">The int to add.</param>
     public void Write(int _value) {
+        buffer.AddRange(BitConverter.GetBytes(_value));
+    }
+    
+    /// <summary>Adds a uint to the packet.</summary>
+    /// <param name="_value">The uint to add.</param>
+    public void Write(uint _value) {
         buffer.AddRange(BitConverter.GetBytes(_value));
     }
 
@@ -198,6 +215,16 @@ public class Packet : IDisposable {
             throw new Exception("Could not read value of type 'byte'!");
         }
     }
+    
+    public sbyte ReadSByte(bool moveReadPos = true)
+    {
+        sbyte value = (sbyte)readableBuffer[readPos];
+
+        if (moveReadPos)
+            readPos += 1;
+
+        return value;
+    }
 
     /// <summary>Reads an array of bytes from the packet.</summary>
     /// <param name="_length">The length of the byte array.</param>
@@ -237,6 +264,16 @@ public class Packet : IDisposable {
             throw new Exception("Could not read value of type 'short'!");
         }
     }
+    
+    public ushort ReadUShort(bool moveReadPos = true)
+    {
+        ushort value = BitConverter.ToUInt16(readableBuffer, readPos);
+
+        if (moveReadPos)
+            readPos += 2;
+
+        return value;
+    }
 
     /// <summary>Reads an int from the packet.</summary>
     /// <param name="_moveReadPos">Whether or not to move the buffer's read position.</param>
@@ -253,6 +290,23 @@ public class Packet : IDisposable {
         }
         else {
             throw new Exception("Could not read value of type 'int'!");
+        }
+    }
+    
+    /// <summary>Reads a uint from the packet.</summary>
+    /// <param name="_moveReadPos">Whether or not to move the buffer's read position.</param>
+    public uint ReadUInt(bool _moveReadPos = true) {
+        if (buffer.Count > readPos) {
+            uint _value = BitConverter.ToUInt32(readableBuffer, readPos);
+
+            if (_moveReadPos) {
+                readPos += 4;
+            }
+
+            return _value;
+        }
+        else {
+            throw new Exception("Could not read value of type 'uint'!");
         }
     }
 

@@ -86,12 +86,17 @@ public class ServerSend {
     }
 
     public static void WorldSnapshot(int toClient, WorldSnapshot snapshot) {
+        snapshot.serverSendTime = (float)NetworkManager.Instance.GetTime();
+        
         using (Packet packet = new Packet((int)ServerPackets.worldSnapshot)) {
             packet.Write(snapshot.serverTick);
-            packet.Write(snapshot.bufferSlack);
-            packet.Write(snapshot.echoTimestamp);
+            packet.Write(snapshot.inputBufferOffset);
+            
+            packet.Write(snapshot.clientSendTime);
+            packet.Write(snapshot.serverSendTime);
+            packet.Write(snapshot.serverReceiveTime);
 
-            packet.Write(snapshot.playerStates.Count);
+            packet.Write((byte)snapshot.playerStates.Count);
 
             foreach (PlayerState state in snapshot.playerStates) {
                 packet.Write(state.id);

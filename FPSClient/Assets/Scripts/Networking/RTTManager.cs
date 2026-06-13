@@ -24,17 +24,17 @@ public class RTTManager : MonoBehaviour {
         Debug.Log($"RTT: {currentRtt} ms");
     }
 
-    public static void SyncTick(double timestamp, int serverTick) {
+    public static void SyncTick(double timestamp, uint serverTick) {
         double now = TickTimer.Instance.GetTime();
 
         double rttMs = (now - timestamp) * 1000.0;
         currentRtt = (float)rttMs;
 
-        int latencyTicks = Mathf.CeilToInt(
+        uint latencyTicks = (uint)Mathf.CeilToInt(
             (float)(rttMs / 2.0 / 1000.00 / NetworkSettings.tickTime)
         );
 
-        int desiredTick = serverTick + latencyTicks + 2;
+        uint desiredTick = serverTick + latencyTicks + 2;
 
         TickTimer.tick = desiredTick;
 

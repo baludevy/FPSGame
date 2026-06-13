@@ -23,7 +23,7 @@ public class GameManager : MonoBehaviour {
     private void Start() {
         QualitySettings.vSyncCount = 1;
     }
-
+    
     public void SpawnPlayer(int id, string username, Vector3 position, Quaternion rotation) {
         GameObject player;
         if (id == Client.Instance.myId) {

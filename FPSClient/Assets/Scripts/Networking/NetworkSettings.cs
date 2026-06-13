@@ -4,6 +4,6 @@
     public const int tickRate = 64;
     public const float tickTime = 1f / tickRate;
     public const int inputBufferSize = 1024;
-    public const int inputRedundancy = 1;
-    public const int targetBufferSlack = 1;
+    public static int inputRedundancy = 1;
+    public static int targetBufferSlack = 1;
 }

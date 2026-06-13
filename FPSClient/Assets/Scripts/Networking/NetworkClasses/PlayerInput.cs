@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 
 public class PlayerInput {
-    public int tick;
+    public uint tick;
 
     public float x;
     public float y;

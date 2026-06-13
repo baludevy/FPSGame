@@ -74,10 +74,10 @@ public class PlayerMovement : MonoBehaviour {
         rb = GetComponent<Rigidbody>();
         playerCollider = GetComponent<CapsuleCollider>();
         playerHeight = playerCollider.bounds.size.y;
+        psEmission = ps.emission;
     }
 
     private void Start() {
-        psEmission = ps.emission;
         readyToJump = true;
         wallNormalVector = Vector3.up;
         CursorManager.DisableCursor();
@@ -294,7 +294,7 @@ public class PlayerMovement : MonoBehaviour {
                 readyToJump = false;
 
                 rb.velocity = new Vector3(rb.velocity.x, 0, rb.velocity.z);
-                
+
                 rb.AddForce(wallNormalVector * 16f + Vector3.up * 10f, ForceMode.Impulse);
 
                 wallRunning = false;
@@ -306,14 +306,14 @@ public class PlayerMovement : MonoBehaviour {
 
             rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
             rb.AddForce(Vector3.up * jumpForce * 1.5f, ForceMode.Impulse);
-            
+
             MoveCamera.Instance.BobOnce(Vector3.down);
         }
     }
 
     public void Look() {
         float mouseX = Input.GetAxis("Mouse X") * sensitivity * Time.fixedDeltaTime * sensMultiplier;
-        float mouseY = Input.GetAxis("Mouse Y") * sensitivity *  Time.fixedDeltaTime * sensMultiplier;
+        float mouseY = Input.GetAxis("Mouse Y") * sensitivity * Time.fixedDeltaTime * sensMultiplier;
 
         desiredX = playerCam.localRotation.eulerAngles.y + mouseX;
         xRotation = Mathf.Clamp(xRotation - mouseY, -90f, 90f);
