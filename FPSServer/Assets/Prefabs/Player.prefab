@@ -185,7 +185,7 @@ MonoBehaviour:
   maxSlopeAngle: 35
   slideForce: 7
   slideCounterMovement: 0.03
-  jumpForce: 400
+  jumpForce: 10
   cameraRot: {x: 0, y: 0, z: 0}
 --- !u!54 &4315818815198386099
 Rigidbody:

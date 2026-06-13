@@ -16,6 +16,8 @@ public class TimeScaler : MonoBehaviour
 
     [SerializeField] private float smoothSpeed = 8f;
 
+    public int currentBufferSlack;
+
     private float currentScale;
 
     private void Awake()
@@ -30,8 +32,9 @@ public class TimeScaler : MonoBehaviour
         currentScale = normalTimescale;
     }
 
-    public void AdjustClock(int bufferSlack)
-    {
+    public void AdjustClock(int bufferSlack) {
+        currentBufferSlack = bufferSlack;
+        
         if (bufferSlack == 0)
         {
             TickTimer.timeScale = Mathf.Clamp(normalTimescale + 0.05f, minTimescale, maxTimescale);

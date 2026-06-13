@@ -24,7 +24,7 @@ public class MoveCamera : MonoBehaviour {
     public Vector3 desyncOffset;
     public Vector3 crouchOffset;
 
-    private void Start() {
+    private void Awake() {
         Instance = this;
     }
 

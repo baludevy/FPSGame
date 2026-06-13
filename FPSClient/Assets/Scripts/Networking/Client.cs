@@ -129,6 +129,9 @@ public class Client : MonoBehaviour {
                     
                     if (packetId == (int)ClientPackets.measureRtt || packetId == (int)ClientPackets.syncTick) {
                         packetHandlers[packetId](packet);
+                        
+                        ClientHandle.packetsReceived++;
+                        ClientHandle.bytesReceived += packet.Length();
                     }
                     else {
                         ThreadManager.ExecuteOnMainThread(() => {
@@ -136,6 +139,8 @@ public class Client : MonoBehaviour {
                                 int mainPacketId = mainThreadPacket.ReadInt();
                                 if (packetHandlers.TryGetValue(mainPacketId, out PacketHandler handler)) {
                                     handler(mainThreadPacket);
+                                    ClientHandle.packetsReceived++;
+                                    ClientHandle.bytesReceived += packet.Length();
                                 }
                             }
                         });
@@ -217,7 +222,7 @@ public class Client : MonoBehaviour {
             catch (Exception ex) {
                 Debug.LogException(ex);
 
-                Disconnect();
+                // Disconnect();
             }
         }
 
@@ -231,9 +236,11 @@ public class Client : MonoBehaviour {
             {
                 int packetId = packet.ReadInt();
 
-                if (packetId == (int)ServerPackets.syncTick)
+                if (packetId == (int)ServerPackets.syncTick || packetId == (int)ServerPackets.worldSnapshot)
                 {
                     packetHandlers[packetId](packet);
+                    ClientHandle.packetsReceived++;
+                    ClientHandle.bytesReceived += packet.Length();
                     return;
                 }
             }
@@ -243,6 +250,8 @@ public class Client : MonoBehaviour {
 
                 int packetId = packet.ReadInt();
                 packetHandlers[packetId](packet);
+                ClientHandle.packetsReceived++;
+                ClientHandle.bytesReceived += packet.Length();
             });
         }
 

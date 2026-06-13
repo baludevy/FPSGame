@@ -89,6 +89,7 @@ public class ServerSend {
         using (Packet packet = new Packet((int)ServerPackets.worldSnapshot)) {
             packet.Write(snapshot.serverTick);
             packet.Write(snapshot.bufferSlack);
+            packet.Write(snapshot.echoTimestamp);
 
             packet.Write(snapshot.playerStates.Count);
 

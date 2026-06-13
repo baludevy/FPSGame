@@ -66,6 +66,7 @@ public class NetworkManager : MonoBehaviour {
 
         snapshot.serverTick = tick;
         snapshot.bufferSlack = toPlayer.InputBuffer.GetBufferSlack();
+        snapshot.echoTimestamp = toPlayer.InputBuffer.latestTimestamp;
 
         foreach (Client client in Server.clients.Values) {
             Player player = client.player;

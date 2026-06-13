@@ -13,6 +13,11 @@ public class SnapshotManager : MonoBehaviour {
     public void AddSnapshot(WorldSnapshot snapshot) {
         TimeScaler.Instance.AdjustClock(snapshot.bufferSlack);
         
+        float now = (float)TickTimer.Instance.GetTime();
+        float ping = Mathf.Max(0, now - snapshot.echoTimestamp - NetworkSettings.tickTime);
+
+        PingManager.ping = ping;
+
         snapshotBuffer.Add(snapshot);
         snapshotBuffer.Sort((a, b) => a.serverTick.CompareTo(b.serverTick));
 

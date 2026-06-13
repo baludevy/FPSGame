@@ -4,6 +4,9 @@ using System.Net;
 using UnityEngine;
 
 public class ClientHandle {
+    public static int packetsReceived;
+    public static int bytesReceived;
+    
     public static void Welcome(Packet packet) {
         int myId = packet.ReadInt();
 
@@ -45,6 +48,7 @@ public class ClientHandle {
     public static void WorldSnapshot(Packet packet) {
         int serverTick = packet.ReadInt();
         int bufferSlack = packet.ReadInt();
+        float echoTimestamp = packet.ReadFloat();
 
         int playerCount = packet.ReadInt();
         List<PlayerState> states = new List<PlayerState>();
@@ -63,6 +67,7 @@ public class ClientHandle {
         WorldSnapshot snapshot = new WorldSnapshot {
             serverTick = serverTick,
             bufferSlack = bufferSlack,
+            echoTimestamp = echoTimestamp,
             playerStates = states,
         };
         

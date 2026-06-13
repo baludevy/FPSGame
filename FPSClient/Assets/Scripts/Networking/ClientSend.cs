@@ -2,14 +2,23 @@
 using UnityEngine;
 
 public class ClientSend {
+    public static int packetsSent;
+    public static int bytesSent;
+    
     private static void SendTCPData(Packet packet) {
         packet.WriteLength();
+
+        packetsSent++;
+        bytesSent += packet.Length();
 
         Client.Instance.tcp.SendData(packet);
     }
 
     private static void SendUDPData(Packet packet) {
         packet.WriteLength();
+        
+        packetsSent++;
+        bytesSent += packet.Length();
 
         Client.Instance.udp.SendData(packet);
     }
@@ -44,8 +53,10 @@ public class ClientSend {
     public static void PlayerInput(List<PlayerInput> inputs) {
         using (Packet packet = new Packet((int)ClientPackets.playerInput)) {
             packet.Write(inputs.Count);
+
+            float timestamp = (float)TickTimer.Instance.GetTime();
             
-            packet.Write(TickTimer.Instance.GetTime());
+            packet.Write(timestamp);
             
             foreach (PlayerInput input in inputs) {
                 packet.Write(input.tick);

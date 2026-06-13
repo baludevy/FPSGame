@@ -5,7 +5,7 @@ public class InputBuffer {
     private PlayerInput[] inputQueue;
     private PlayerInput lastValidInput; 
 
-    public double latestTimestamp;
+    public float latestTimestamp;
 
     public void Initialize() {
         inputQueue = new PlayerInput[NetworkSettings.inputBufferSize];
@@ -28,7 +28,7 @@ public class InputBuffer {
         return fallbackInput;
     }
 
-    public void AddInputsToQueue(List<PlayerInput> inputs, double timestamp) {
+    public void AddInputsToQueue(List<PlayerInput> inputs, float timestamp) {
         latestTimestamp = timestamp;
 
         foreach (PlayerInput input in inputs) {

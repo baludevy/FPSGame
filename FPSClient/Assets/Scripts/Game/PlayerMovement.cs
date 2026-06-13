@@ -229,12 +229,6 @@ public class PlayerMovement : MonoBehaviour {
         else if (x > 0.1f && TryFindWall(orientation.right, out hit)) {
             foundWall = pressingTowardWall = true;
         }
-        else if (y > 0.1f && TryFindWall(orientation.forward, out hit)) {
-            foundWall = pressingTowardWall = true;
-        }
-        else if (y < -0.1f && TryFindWall(-orientation.forward, out hit)) {
-            foundWall = pressingTowardWall = true;
-        }
         else if (wallRunning) {
             foundWall = TryFindWall(-orientation.right, out hit) || TryFindWall(orientation.right, out hit) ||
                         TryFindWall(orientation.forward, out hit) || TryFindWall(-orientation.forward, out hit);
@@ -310,11 +304,10 @@ public class PlayerMovement : MonoBehaviour {
                 return;
             }
 
-            rb.AddForce(Vector3.up * jumpForce * 1.5f);
+            rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+            rb.AddForce(Vector3.up * jumpForce * 1.5f, ForceMode.Impulse);
             
             MoveCamera.Instance.BobOnce(Vector3.down);
-
-            rb.velocity = new Vector3(velocity.x, rb.velocity.y < 0.5f ? 0f : velocity.y / 2f, velocity.z);
         }
     }
 

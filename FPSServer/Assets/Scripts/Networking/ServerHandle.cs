@@ -31,7 +31,7 @@ public class ServerHandle {
     public static void PlayerInput(int fromClient, Packet packet) {
         int inputCount = packet.ReadInt();
 
-        double timestamp = packet.ReadDouble();
+        float timestamp = packet.ReadFloat();
         
         List<PlayerInput> inputs = new List<PlayerInput>();
 
