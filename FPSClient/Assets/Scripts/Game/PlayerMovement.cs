@@ -323,7 +323,7 @@ public class PlayerMovement : MonoBehaviour {
         }
 
         wallRunTicks++;
-        if (wallRunTicks == 160) {
+        if (wallRunTicks == 96) {
             rb.AddForce(wallNormalVector * 1200f);
             wallRunning = false;
             readyToWallrun = true;
