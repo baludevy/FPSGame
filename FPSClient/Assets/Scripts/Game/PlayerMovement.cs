@@ -77,7 +77,6 @@ public class PlayerMovement : MonoBehaviour {
     private float fallSpeed;
     private Vector3 lastMoveSpeed;
     private CapsuleCollider playerCollider;
-    
 
     public static PlayerMovement Instance { get; private set; }
 
@@ -104,7 +103,6 @@ public class PlayerMovement : MonoBehaviour {
 
     public void AdvanceLogic() {
         tickInvoker.Step();
-
         CheckGrounded();
         CheckWalls();
         Movement();
@@ -136,8 +134,15 @@ public class PlayerMovement : MonoBehaviour {
             rb.AddForce(Vector3.down * NetworkSettings.tickTime * 3000f);
         }
 
-        float inputX = (x > 0 && mag.x > runSpeed) || (x < 0 && mag.x < -runSpeed) ? 0 : x;
-        float inputY = (y > 0 && mag.y > runSpeed) || (y < 0 && mag.y < -runSpeed) ? 0 : y;
+        float inputX = x;
+        if ((x > 0 && mag.x > runSpeed) || (x < 0 && mag.x < -runSpeed)) {
+            inputX = 0;
+        }
+
+        float inputY = y;
+        if ((y > 0 && mag.y > runSpeed) || (y < 0 && mag.y < -runSpeed)) {
+            inputY = 0;
+        }
 
         float multX = 1f;
         float multY = 1f;
@@ -170,8 +175,7 @@ public class PlayerMovement : MonoBehaviour {
 
     private void StartCrouch() {
         transform.localScale = new Vector3(1f, 0.5f, 1f);
-        transform.localPosition = new Vector3(transform.position.x, transform.position.y - 1f,
-            transform.position.z);
+        transform.localPosition = new Vector3(transform.position.x, transform.position.y - 1f, transform.position.z);
 
         playerHeight = 1f;
 
@@ -190,16 +194,20 @@ public class PlayerMovement : MonoBehaviour {
 
     private void StopCrouch() {
         transform.localScale = new Vector3(1f, 1.5f, 1f);
-        transform.localPosition = new Vector3(transform.position.x, transform.position.y + 1f,
-            transform.position.z);
+        transform.localPosition = new Vector3(transform.position.x, transform.position.y + 1f, transform.position.z);
 
         playerHeight = 3f;
     }
 
-
     private void SpeedLines() {
         float viewAngleFactor = Mathf.Max(1f, Vector3.Angle(rb.velocity, playerCam.forward) * 0.5f);
-        psEmission.rateOverTimeMultiplier = (grounded && !wallRunning) ? 0f : rb.velocity.magnitude / viewAngleFactor;
+
+        if (grounded && !wallRunning) {
+            psEmission.rateOverTimeMultiplier = 0f;
+        }
+        else {
+            psEmission.rateOverTimeMultiplier = rb.velocity.magnitude / viewAngleFactor;
+        }
     }
 
     public void CheckGrounded() {
@@ -275,11 +283,11 @@ public class PlayerMovement : MonoBehaviour {
             wallRunning = false;
             currentFacingWallId = 0;
 
-            if (!grounded) {
-                wallCoyoteTicks++;
+            if (grounded) {
+                wallCoyoteTicks = maxWallCoyoteTicks;
             }
             else {
-                wallCoyoteTicks = maxWallCoyoteTicks;
+                wallCoyoteTicks++;
             }
 
             return;
@@ -324,9 +332,10 @@ public class PlayerMovement : MonoBehaviour {
 
         wallRunTicks++;
         if (wallRunTicks == 160) {
-            rb.AddForce(wallNormalVector * 600f);
+            rb.AddForce(wallNormalVector * 1200f);
             wallRunning = false;
             readyToWallrun = true;
+            wallRunTicks = 0;
         }
     }
 
@@ -337,33 +346,47 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void Jump() {
-        if ((grounded || wallRunning || surfing || (wallCoyoteTicks < maxWallCoyoteTicks)) && readyToJump) {
-            if (wallRunning || (wallCoyoteTicks < maxWallCoyoteTicks && !grounded)) {
-                if (wallAttachTicks < 5) return;
+        bool canJump = grounded || wallRunning || surfing || wallCoyoteTicks < maxWallCoyoteTicks;
+        if (!canJump || !readyToJump) return;
 
-                lastWallInstanceId = wallRunning ? currentFacingWallId : savedWallInstanceId;
-                Vector3 pushNormal = wallRunning ? wallNormalVector : savedWallNormal;
+        bool isWallJump = wallRunning || (wallCoyoteTicks < maxWallCoyoteTicks && !grounded);
+        if (isWallJump) {
+            if (wallAttachTicks < 10) return;
 
-                sameWallOnCooldown = true;
-                tickInvoker.Invoke(ResetSameWallCooldown, 64);
-                readyToJump = false;
-
-                rb.velocity = new Vector3(rb.velocity.x, 0, rb.velocity.z);
-                rb.AddForce(pushNormal * 16f + Vector3.up * 10f, ForceMode.Impulse);
-
-                wallRunning = false;
-                surfing = false;
-                wallrunBoostUsed = false;
-                currentFacingWallId = 0;
-                wallCoyoteTicks = maxWallCoyoteTicks;
-
-                tickInvoker.Invoke(ResetJump, 10);
-                return;
+            if (wallRunning) {
+                lastWallInstanceId = currentFacingWallId;
+            }
+            else {
+                lastWallInstanceId = savedWallInstanceId;
             }
 
-            rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-            rb.AddForce(Vector3.up * jumpForce * 1.5f, ForceMode.Impulse);
+            Vector3 pushNormal;
+            if (wallRunning) {
+                pushNormal = wallNormalVector;
+            }
+            else {
+                pushNormal = savedWallNormal;
+            }
+
+            sameWallOnCooldown = true;
+            tickInvoker.Invoke(ResetSameWallCooldown, 64);
+            readyToJump = false;
+
+            rb.velocity = new Vector3(rb.velocity.x, 0, rb.velocity.z);
+            rb.AddForce(pushNormal * 16f + Vector3.up * 10f, ForceMode.Impulse);
+
+            wallRunning = false;
+            surfing = false;
+            wallrunBoostUsed = false;
+            currentFacingWallId = 0;
+            wallCoyoteTicks = maxWallCoyoteTicks;
+
+            tickInvoker.Invoke(ResetJump, 10);
+            return;
         }
+
+        rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+        rb.AddForce(Vector3.up * jumpForce * 1.5f, ForceMode.Impulse);
     }
 
     public void Look() {
@@ -373,8 +396,7 @@ public class PlayerMovement : MonoBehaviour {
         desiredX = playerCam.localRotation.eulerAngles.y + mouseX;
         xRotation = Mathf.Clamp(xRotation - mouseY, -90f, 90f);
 
-        actualWallRotation =
-            Mathf.SmoothDamp(actualWallRotation, wallRunRotation, ref wallRotationVel, 0.3f);
+        actualWallRotation = Mathf.SmoothDamp(actualWallRotation, wallRunRotation, ref wallRotationVel, 0.3f);
 
         cameraRot = new Vector3(xRotation, desiredX, actualWallRotation);
         playerCam.localRotation = Quaternion.Euler(cameraRot);
@@ -384,7 +406,10 @@ public class PlayerMovement : MonoBehaviour {
     private void CounterMovement(float x, float y, Vector2 mag) {
         if (!grounded || jumping || wallRunning) return;
 
-        float currentCounterMultiplier = crouching ? slideCounterMovement : counterMovement;
+        float currentCounterMultiplier = counterMovement;
+        if (crouching) {
+            currentCounterMultiplier = slideCounterMovement;
+        }
 
         if (Math.Abs(mag.x) > threshold && Math.Abs(x) < 0.05f || (mag.x < -threshold && x > 0) ||
             (mag.x > threshold && x < 0)) {
@@ -426,29 +451,41 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     public void WallRunning() {
-        if (wallRunning) {
-            rb.AddForce(-wallNormalVector * NetworkSettings.tickTime * moveSpeed * 2.5f);
-            Vector3 wallForward = Vector3.Cross(wallNormalVector, Vector3.up);
+        if (!wallRunning) return;
 
-            if (Vector3.Dot(wallForward, orientation.forward) < 0f) wallForward = -wallForward;
+        rb.AddForce(-wallNormalVector * NetworkSettings.tickTime * moveSpeed * 2.5f);
 
-            Vector3 travelForce = wallForward * 150f;
-            if (y > 0.1f) travelForce = wallForward * 1000f;
-            else if (y < -0.1f) travelForce = -wallForward * 300f;
+        Vector3 wallForward = Vector3.Cross(wallNormalVector, Vector3.up);
+        if (Vector3.Dot(wallForward, orientation.forward) < 0f) wallForward = -wallForward;
 
-            rb.AddForce(travelForce * NetworkSettings.tickTime);
+        Vector3 travelForce = wallForward * 150f;
+        if (y > 0.1f) {
+            travelForce = wallForward * 1000f; //forwards
+        }
+        else if (y < -0.1f) {
+            travelForce = -wallForward * 600f; //backwards
+        }
 
-            if (!jumping && pressingTowardWall && rb.velocity.y < (isCrouching ? -2f : 0f)) {
-                rb.velocity = new Vector3(rb.velocity.x,
-                    Mathf.Lerp(rb.velocity.y, isCrouching ? -2f : 0f, NetworkSettings.tickTime * 10f), rb.velocity.z);
-            }
+        rb.AddForce(travelForce * NetworkSettings.tickTime);
+
+        float gravityMult = -1f;
+        if (isCrouching) {
+            gravityMult = -2f;
+        }
+
+        if (!jumping && pressingTowardWall && rb.velocity.y < gravityMult) {
+            rb.velocity = new Vector3(rb.velocity.x, Mathf.Max(rb.velocity.y, gravityMult), rb.velocity.z);
         }
     }
 
-    private bool IsSurf(Vector3 v) =>
-        Vector3.Angle(Vector3.up, v) < 89f && Vector3.Angle(Vector3.up, v) > maxSlopeAngle;
+    private bool IsSurf(Vector3 v) {
+        float angle = Vector3.Angle(Vector3.up, v);
+        return angle < 89f && angle > maxSlopeAngle;
+    }
 
-    private bool IsWall(Vector3 v) => Math.Abs(90f - Vector3.Angle(Vector3.up, v)) < 0.1f;
+    private bool IsWall(Vector3 v) {
+        return Math.Abs(90f - Vector3.Angle(Vector3.up, v)) < 0.1f;
+    }
 
     private void ResetJump() {
         readyToJump = true;
