@@ -193,6 +193,23 @@ public class PlayerMovement : MonoBehaviour {
         return false;
     }
 
+
+    private int GetWallIdentifier(RaycastHit hit) {
+        int colliderId = hit.collider.GetInstanceID();
+
+        Vector3 n = hit.normal;
+        int nx = Mathf.RoundToInt(n.x * 10f);
+        int ny = Mathf.RoundToInt(n.y * 10f);
+        int nz = Mathf.RoundToInt(n.z * 10f);
+        int planeOffset = Mathf.RoundToInt(Vector3.Dot(hit.point, n) * 2f);
+        int hash = colliderId;
+        hash = hash * 397 ^ nx;
+        hash = hash * 397 ^ ny;
+        hash = hash * 397 ^ nz;
+        hash = hash * 397 ^ planeOffset;
+        return hash;
+    }
+
     public void CheckWalls() {
         RaycastHit hit = default;
         bool foundWall = false;
@@ -230,18 +247,16 @@ public class PlayerMovement : MonoBehaviour {
                 else pressingTowardWall = true;
             }
         }
-
-        bool detachByInput = wallRunning && !pressingTowardWall;
-        bool wantsWallJump = jumping && readyToJump && wallAttachTicks >= 10;
         
-        if (!foundWall || (detachByInput && !wantsWallJump)) {
+        
+        if (!foundWall) {
             wallRunning = false;
             currentFacingWallId = 0;
             return;
         }
 
         wallNormalVector = hit.normal;
-        currentFacingWallId = hit.collider.GetInstanceID();
+        currentFacingWallId = GetWallIdentifier(hit);
 
         if (!grounded && readyToWallrun) {
             if (sameWallOnCooldown && currentFacingWallId == lastWallInstanceId) {

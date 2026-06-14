@@ -82,7 +82,7 @@ public class SendInput : MonoBehaviour {
         playerInputs.Sort((a, b) => a.tick.CompareTo(b.tick));
         
         
-        ClientSend.PlayerInput(playerInputs);
+        // ClientSend.PlayerInput(playerInputs);
 
         lastSentTick = lastCompletedTick;
     }

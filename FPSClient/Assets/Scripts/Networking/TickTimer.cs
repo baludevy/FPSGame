@@ -15,7 +15,7 @@ public class TickTimer : MonoBehaviour {
     
     private double timer;
 
-    public static bool doTick = false;
+    public static bool doTick = true;
 
     private void Awake() {
         Instance = this;

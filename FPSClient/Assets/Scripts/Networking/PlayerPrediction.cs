@@ -68,7 +68,7 @@ public class PlayerPrediction : MonoBehaviour {
     private static void SynchronizeMovement(PlayerState playerState, uint tick) {
         Vector3 prePosition = PlayerMovement.Instance.transform.position;
 
-        PlayerMovement.Instance.rb.position = playerState.position;
+        PlayerMovement.Instance.transform.position = playerState.position;
         PlayerMovement.Instance.rb.velocity = playerState.velocity;
         PlayerMovement.Instance.orientation.rotation =
             Quaternion.Euler(0f, playerState.orientation, 0f);
