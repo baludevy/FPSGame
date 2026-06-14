@@ -35,12 +35,10 @@ public class PlayerPrediction : MonoBehaviour {
 
         lastPredictedPos = PlayerMovement.Instance.transform.position;
 
-        PlayerMovement.Instance.orientation.rotation =
-            Quaternion.Euler(0f, input.orientation, 0f);
-
         PlayerMovement.Instance.SetInput(
             input.x,
             input.y,
+            input.orientation,
             input.jumping,
             input.crouching
         );
@@ -67,18 +65,13 @@ public class PlayerPrediction : MonoBehaviour {
         }
     }
 
-    private static void SynchronizeMovement(PlayerState serverState, uint tick) {
+    private static void SynchronizeMovement(PlayerState playerState, uint tick) {
         Vector3 prePosition = PlayerMovement.Instance.transform.position;
 
-        PlayerMovement player = PlayerMovement.Instance;
-
-        if (player == null)
-            return;
-
-        player.rb.position = serverState.position;
-        player.rb.velocity = serverState.velocity;
-        player.orientation.rotation =
-            Quaternion.Euler(0f, serverState.orientation, 0f);
+        PlayerMovement.Instance.rb.position = playerState.position;
+        PlayerMovement.Instance.rb.velocity = playerState.velocity;
+        PlayerMovement.Instance.orientation.rotation =
+            Quaternion.Euler(0f, playerState.orientation, 0f);
 
         uint lastSimulatedTick = TickTimer.tick - 1;
 
@@ -88,22 +81,16 @@ public class PlayerPrediction : MonoBehaviour {
             uint index = i % NetworkSettings.inputBufferSize;
             PlayerInput input = SendInput.Instance.inputHistory[index];
             
-            if(input == null) return;
-
-            player.orientation.rotation =
-                Quaternion.Euler(0f, input.orientation, 0f);
-
-            PlayerMovement.Instance.SetInput(
-                input.x,
-                input.y,
-                input.jumping,
-                input.crouching
-            );
+            if(input == null) {
+                Debug.Log("fuck");
+                continue;
+            }
+            
+            PlayerMovement.Instance.SetInput(input.x, input.y, input.orientation, input.jumping, input.crouching);
 
             PlayerMovement.Instance.AdvanceLogic();
-
+            
             Physics.SyncTransforms();
-
             Physics.Simulate(NetworkSettings.tickTime);
 
             positionHistory[index] = PlayerMovement.Instance.transform.position;

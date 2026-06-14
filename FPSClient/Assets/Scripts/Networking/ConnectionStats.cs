@@ -101,10 +101,11 @@ public static class ConnectionStats {
             int targetSlack = Mathf.FloorToInt(jitter / tickTimeMs);
             targetSlack = Math.Clamp(targetSlack, 1, 6);
 
-            if (jitter > 10f) {
+            if (jitter > 5f) {
+                targetSlack += 1;
+            } else if (jitter > 10f) {
                 targetSlack += 2;
             }
-
 
             if (packetLoss > 5f) {
                 targetSlack += 3;

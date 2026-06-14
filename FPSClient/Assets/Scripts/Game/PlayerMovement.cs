@@ -29,12 +29,11 @@ public class PlayerMovement : MonoBehaviour {
     public float maxSlopeAngle = 35f;
 
     //crouch
-    private Vector3 slideDirection;
     public float slideForce = 400;
     public float slideCounterMovement = 0.01f;
 
     //jumping
-    private bool readyToJump = true;
+    public bool readyToJump = true;
     public float jumpForce = 9f;
 
     //wallrunning
@@ -44,8 +43,8 @@ public class PlayerMovement : MonoBehaviour {
     private bool readyToWallrun = true;
     private float actualWallRotation;
     private float wallRotationVel;
-    private bool wallrunBoostUsed;
-    private int wallRunTicks;
+    public bool wallrunBoostUsed;
+    public int wallRunTicks;
     private bool pressingTowardWall;
     private int wallAttachTicks;
     private int lastWallInstanceId = 0;
@@ -54,16 +53,11 @@ public class PlayerMovement : MonoBehaviour {
     private float lockedWallSign;
     private int currentFacingWallId = 0;
 
-    private int wallCoyoteTicks;
-    private const int maxWallCoyoteTicks = 12;
-    private Vector3 savedWallNormal;
-    private int savedWallInstanceId;
-
     //input
     private float x, y;
     private bool jumping, sprinting, crouching;
     public Vector3 cameraRot;
-    private float desiredX;
+    public float desiredX;
 
     //sliding
     private bool isCrouching;
@@ -110,13 +104,14 @@ public class PlayerMovement : MonoBehaviour {
         WallRunning();
     }
 
-    public void SetInput(float x, float y, bool jumping, bool crouching) {
+    public void SetInput(float x, float y, float orientation, bool jumping, bool crouching) {
         if (crouching && !this.crouching) StartCrouch();
         else if (!crouching && this.crouching) StopCrouch();
 
         this.x = x;
         this.y = y;
         this.jumping = jumping;
+        this.orientation.localRotation = Quaternion.Euler(0f, orientation, 0f);
         this.crouching = crouching;
         this.isCrouching = crouching;
     }
@@ -179,16 +174,8 @@ public class PlayerMovement : MonoBehaviour {
 
         playerHeight = 1f;
 
-        Vector3 flatVelocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-        if (flatVelocity.magnitude > 1f) {
-            slideDirection = flatVelocity.normalized;
-        }
-        else {
-            slideDirection = orientation.forward;
-        }
-
         if (grounded && rb.velocity.magnitude > 2f) {
-            rb.AddForce(slideDirection * slideForce, ForceMode.Impulse);
+            rb.AddForce(orientation.forward * slideForce, ForceMode.Impulse);
         }
     }
 
@@ -273,23 +260,19 @@ public class PlayerMovement : MonoBehaviour {
             if (Physics.Raycast(transform.position, -initialWallNormal, out hit, 1.2f, whatIsGround) &&
                 IsWall(hit.normal)) {
                 foundWall = true;
-                if (lockedWallSign == 1f && x > 0.1f) pressingTowardWall = true;
-                else if (lockedWallSign == -1f && x < -0.1f) pressingTowardWall = true;
-                else if (lockedWallSign == 0f) pressingTowardWall = true;
+
+                if (lockedWallSign == 1f) pressingTowardWall = x > -0.1f;
+                else if (lockedWallSign == -1f) pressingTowardWall = x < 0.1f;
+                else pressingTowardWall = true;
             }
         }
 
-        if (!foundWall || (wallRunning && !pressingTowardWall)) {
+        bool detachByInput = wallRunning && !pressingTowardWall;
+        bool wantsWallJump = jumping && readyToJump && wallAttachTicks >= 10;
+
+        if (!foundWall || (detachByInput && !wantsWallJump)) {
             wallRunning = false;
             currentFacingWallId = 0;
-
-            if (grounded) {
-                wallCoyoteTicks = maxWallCoyoteTicks;
-            }
-            else {
-                wallCoyoteTicks++;
-            }
-
             return;
         }
 
@@ -320,14 +303,9 @@ public class PlayerMovement : MonoBehaviour {
 
             wallRunning = true;
             wallAttachTicks++;
-
-            wallCoyoteTicks = 0;
-            savedWallNormal = wallNormalVector;
-            savedWallInstanceId = currentFacingWallId;
         }
         else {
             wallRunning = false;
-            if (!grounded) wallCoyoteTicks++;
         }
 
         wallRunTicks++;
@@ -346,27 +324,16 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void Jump() {
-        bool canJump = grounded || wallRunning || surfing || wallCoyoteTicks < maxWallCoyoteTicks;
+        bool canJump = grounded || wallRunning || surfing;
         if (!canJump || !readyToJump) return;
 
-        bool isWallJump = wallRunning || (wallCoyoteTicks < maxWallCoyoteTicks && !grounded);
+        bool isWallJump = wallRunning;
         if (isWallJump) {
             if (wallAttachTicks < 10) return;
 
-            if (wallRunning) {
-                lastWallInstanceId = currentFacingWallId;
-            }
-            else {
-                lastWallInstanceId = savedWallInstanceId;
-            }
+            lastWallInstanceId = currentFacingWallId;
 
-            Vector3 pushNormal;
-            if (wallRunning) {
-                pushNormal = wallNormalVector;
-            }
-            else {
-                pushNormal = savedWallNormal;
-            }
+            Vector3 pushNormal = wallNormalVector;
 
             sameWallOnCooldown = true;
             tickInvoker.Invoke(ResetSameWallCooldown, 64);
@@ -379,7 +346,6 @@ public class PlayerMovement : MonoBehaviour {
             surfing = false;
             wallrunBoostUsed = false;
             currentFacingWallId = 0;
-            wallCoyoteTicks = maxWallCoyoteTicks;
 
             tickInvoker.Invoke(ResetJump, 10);
             return;
@@ -400,15 +366,19 @@ public class PlayerMovement : MonoBehaviour {
 
         cameraRot = new Vector3(xRotation, desiredX, actualWallRotation);
         playerCam.localRotation = Quaternion.Euler(cameraRot);
-        orientation.localRotation = Quaternion.Euler(0f, desiredX, 0f);
     }
 
     private void CounterMovement(float x, float y, Vector2 mag) {
         if (!grounded || jumping || wallRunning) return;
 
+        Vector3 vel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+
         float currentCounterMultiplier = counterMovement;
         if (crouching) {
-            currentCounterMultiplier = slideCounterMovement;
+            rb.AddForce(
+                -vel * moveSpeed * slideCounterMovement * NetworkSettings.tickTime);
+
+            return;
         }
 
         if (Math.Abs(mag.x) > threshold && Math.Abs(x) < 0.05f || (mag.x < -threshold && x > 0) ||
@@ -423,9 +393,8 @@ public class PlayerMovement : MonoBehaviour {
 
         if (crouching) return;
 
-        Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-        if (flatVel.magnitude > runSpeed) {
-            Vector3 limitedVel = flatVel.normalized * runSpeed;
+        if (vel.magnitude > runSpeed) {
+            Vector3 limitedVel = vel.normalized * runSpeed;
             rb.velocity = new Vector3(limitedVel.x, rb.velocity.y, limitedVel.z);
         }
     }

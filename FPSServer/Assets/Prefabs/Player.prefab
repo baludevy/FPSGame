@@ -184,7 +184,7 @@ MonoBehaviour:
   counterMovement: 0.175
   maxSlopeAngle: 35
   slideForce: 7
-  slideCounterMovement: 0.03
+  slideCounterMovement: 0.0175
   jumpForce: 9
   wallRunning: 0
   cameraRot: {x: 0, y: 0, z: 0}
