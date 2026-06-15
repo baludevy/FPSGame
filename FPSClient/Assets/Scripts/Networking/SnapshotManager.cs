@@ -4,10 +4,14 @@ using UnityEngine;
 public class SnapshotManager : MonoBehaviour {
     public static SnapshotManager Instance;
 
-    public float interpTime = 0.015625f; 
+    public static uint serverTick;
+    public static float clientRenderTick;
+    public static uint snapshotBufferOffset;
+    public static float interpTime => NetworkSettings.interpTime;
 
     private readonly List<WorldSnapshot> snapshotBuffer = new List<WorldSnapshot>();
-    private float clientRenderTick;
+    private readonly object bufferLock = new();
+    private uint lastReconciledTick;
     private bool isInitialized;
 
     private void Awake() {
@@ -17,108 +21,135 @@ public class SnapshotManager : MonoBehaviour {
     public void OnSnapshotReceived(WorldSnapshot snapshot) {
         if (snapshot == null) return;
 
-        TimeScaler.Instance.AdjustClock(snapshot.inputBufferOffset);
-        ConnectionStats.CalculateStats(snapshot);
+        if (snapshot.serverTick > serverTick) {
+            serverTick = snapshot.serverTick;
+            snapshotBufferOffset = serverTick - (uint)Mathf.RoundToInt(clientRenderTick) - 1;
 
-        if (snapshotBuffer.Count > 0 && snapshot.serverTick <= snapshotBuffer[snapshotBuffer.Count - 1].serverTick) {
-            if (snapshot.serverTick <= snapshotBuffer[0].serverTick) return;
+            float now = TickTimer.Instance.GetTime();
+            ConnectionStatistics.CalculateStatistics(snapshot.serverTick, now, snapshot.clientSendTime,
+                snapshot.serverReceiveTime, snapshot.serverSendTime);
 
-            int insertAt = snapshotBuffer.Count;
-            for (int i = 0; i < snapshotBuffer.Count; i++) {
-                if (snapshot.serverTick < snapshotBuffer[i].serverTick) {
-                    insertAt = i;
-                    break;
-                }
-            }
-            snapshotBuffer.Insert(insertAt, snapshot);
-        }
-        else {
-            snapshotBuffer.Add(snapshot);
-        }
-    }
-
-    private void LateUpdate() {
-        if (snapshotBuffer.Count == 0) return;
-
-        float tickRate = 1f / NetworkSettings.tickTime;
-        float interpTicks = interpTime * tickRate;
-
-        if (!isInitialized) {
-            clientRenderTick = snapshotBuffer[snapshotBuffer.Count - 1].serverTick - interpTicks;
-            isInitialized = true;
-            return;
+            // adjust thresholds and target offset based on network conditions, sync clock to be ahead of the server
+            ConnectionStatistics.ApplyAdjustments();
+            TimeScaler.Instance.AdjustClock(snapshot.inputBufferOffset);
         }
 
-        clientRenderTick += Time.deltaTime * tickRate;
-
-        float newestTick = snapshotBuffer[snapshotBuffer.Count - 1].serverTick;
-        float targetTick = newestTick - interpTicks;
-        float drift = clientRenderTick - targetTick;
-
-        if (Mathf.Abs(drift) > interpTicks * 2f) {
-            clientRenderTick = targetTick;
-        }
-        else {
-            clientRenderTick = Mathf.MoveTowards(clientRenderTick, targetTick, Time.deltaTime * tickRate * 0.1f);
-        }
-
-        while (snapshotBuffer.Count > 2 && snapshotBuffer[1].serverTick < clientRenderTick) {
-            snapshotBuffer.RemoveAt(0);
-        }
-
-        if (snapshotBuffer.Count < 2) return;
-
-        WorldSnapshot fromSnap = snapshotBuffer[0];
-        WorldSnapshot toSnap = snapshotBuffer[1];
-        bool foundBounds = false;
-
-        for (int i = 0; i < snapshotBuffer.Count - 1; i++) {
-            if (clientRenderTick >= snapshotBuffer[i].serverTick && clientRenderTick <= snapshotBuffer[i + 1].serverTick) {
-                fromSnap = snapshotBuffer[i];
-                toSnap = snapshotBuffer[i + 1];
-                foundBounds = true;
+        if (snapshot.serverTick > lastReconciledTick) {
+            lastReconciledTick = snapshot.serverTick;
+            int myId = Client.Instance.myId;
+            foreach (PlayerState state in snapshot.playerStates) {
+                if (state.id != myId) continue;
+                if (PlayerMovement.Instance != null)
+                    ThreadManager.ExecuteOnMainThread(() =>
+                        PlayerPrediction.CompareServerState(state, snapshot.serverTick));
                 break;
             }
         }
 
-        if (!foundBounds) {
-            if (clientRenderTick < snapshotBuffer[0].serverTick) {
-                fromSnap = snapshotBuffer[0];
-                toSnap = snapshotBuffer[0];
+        lock (bufferLock) {
+            AddToBuffer(snapshot);
+        }
+    }
+
+    private void AddToBuffer(WorldSnapshot snapshot) {
+        if (snapshotBuffer.Count == 0) {
+            snapshotBuffer.Add(snapshot);
+            return;
+        }
+
+        uint newest = snapshotBuffer[snapshotBuffer.Count - 1].serverTick;
+
+        if (snapshot.serverTick > newest) {
+            snapshotBuffer.Add(snapshot);
+            return;
+        }
+
+        if (snapshot.serverTick <= snapshotBuffer[0].serverTick) return;
+
+        for (int i = 0; i < snapshotBuffer.Count; i++) {
+            if (snapshot.serverTick == snapshotBuffer[i].serverTick) return;
+            if (snapshot.serverTick < snapshotBuffer[i].serverTick) {
+                snapshotBuffer.Insert(i, snapshot);
+                return;
             }
-            else {
-                fromSnap = snapshotBuffer[snapshotBuffer.Count - 2];
-                toSnap = snapshotBuffer[snapshotBuffer.Count - 1];
+        }
+    }
+
+    private void LateUpdate() {
+        lock (bufferLock) {
+            if (snapshotBuffer.Count < 2) return;
+
+            float tickRate = 1f / NetworkSettings.tickTime;
+            float interpTicks = interpTime * tickRate;
+
+            if (!isInitialized) {
+                clientRenderTick = snapshotBuffer[snapshotBuffer.Count - 1].serverTick - interpTicks;
+                isInitialized = true;
+                return;
+            }
+
+            AdvanceRenderTick(tickRate, interpTicks);
+            TrimBuffer();
+
+            if (snapshotBuffer.Count < 2) return;
+
+            GetInterpolationBounds(out WorldSnapshot from, out WorldSnapshot to);
+
+            float tickDelta = to.serverTick - from.serverTick;
+            float t = tickDelta > 0f ? (clientRenderTick - from.serverTick) / tickDelta : 0f;
+            t = Mathf.Clamp01(t);
+
+            ProcessSnapshot(from, to, t);
+        }
+    }
+
+    private void AdvanceRenderTick(float tickRate, float interpTicks) {
+        clientRenderTick += Time.deltaTime * tickRate;
+
+        float targetTick = snapshotBuffer[snapshotBuffer.Count - 1].serverTick - interpTicks;
+        float drift = clientRenderTick - targetTick;
+
+        if (Mathf.Abs(drift) > interpTicks * 2f)
+            clientRenderTick = targetTick;
+        else
+            clientRenderTick = Mathf.MoveTowards(clientRenderTick, targetTick, Time.deltaTime * tickRate * 0.1f);
+    }
+
+    private void TrimBuffer() {
+        while (snapshotBuffer.Count > 2 && snapshotBuffer[1].serverTick < clientRenderTick)
+            snapshotBuffer.RemoveAt(0);
+    }
+
+    private void GetInterpolationBounds(out WorldSnapshot from, out WorldSnapshot to) {
+        for (int i = 0; i < snapshotBuffer.Count - 1; i++) {
+            if (clientRenderTick >= snapshotBuffer[i].serverTick &&
+                clientRenderTick <= snapshotBuffer[i + 1].serverTick) {
+                from = snapshotBuffer[i];
+                to = snapshotBuffer[i + 1];
+                return;
             }
         }
 
-        float tickDelta = toSnap.serverTick - fromSnap.serverTick;
-        float t = tickDelta > 0f ? (clientRenderTick - fromSnap.serverTick) / tickDelta : 0f;
-        t = Mathf.Clamp01(t);
-
-        ProcessSnapshot(fromSnap, toSnap, t);
+        if (clientRenderTick < snapshotBuffer[0].serverTick) {
+            from = snapshotBuffer[0];
+            to = snapshotBuffer[0];
+        }
+        else {
+            from = snapshotBuffer[snapshotBuffer.Count - 2];
+            to = snapshotBuffer[snapshotBuffer.Count - 1];
+        }
     }
 
     private void ProcessSnapshot(WorldSnapshot from, WorldSnapshot to, float t) {
         int myId = Client.Instance.myId;
 
         foreach (PlayerState toState in to.playerStates) {
-            int playerId = toState.id;
-
-            if (playerId == myId) {
-                if (PlayerMovement.Instance != null) {
-                    PlayerPrediction.CompareServerState(toState, to.serverTick);
-                }
-                continue;
-            }
-
-            if (!GameManager.players.TryGetValue(playerId, out PlayerManager player) || player == null) {
-                continue;
-            }
+            if (toState.id == myId) continue;
+            if (!GameManager.players.TryGetValue(toState.id, out PlayerManager player) || player == null) continue;
 
             Vector3 fromPos = toState.position;
             for (int i = 0; i < from.playerStates.Count; i++) {
-                if (from.playerStates[i].id == playerId) {
+                if (from.playerStates[i].id == toState.id) {
                     fromPos = from.playerStates[i].position;
                     break;
                 }

@@ -124,15 +124,15 @@ public class Client : MonoBehaviour {
 
             while (packetLength > 0 && packetLength <= _receivedData.UnreadLength()) {
                 byte[] packetBytes = _receivedData.ReadBytes(packetLength);
-                
+
                 byte[] capturedBytes = packetBytes;
 
                 using (Packet packet = new Packet(capturedBytes)) {
                     int packetId = packet.ReadInt();
-                    
+
                     if (packetId == (int)ClientPackets.measureRtt || packetId == (int)ClientPackets.syncTick) {
                         packetHandlers[packetId](packet);
-                        
+
                         ClientHandle.packetsReceived++;
                         ClientHandle.bytesReceived += packet.Length();
                     }
@@ -149,7 +149,7 @@ public class Client : MonoBehaviour {
                         });
                     }
                 }
-                
+
                 packetLength = 0;
                 if (_receivedData.UnreadLength() >= 4) {
                     packetLength = _receivedData.ReadInt();
@@ -234,13 +234,11 @@ public class Client : MonoBehaviour {
                 int packetLength = packet.ReadInt();
                 data = packet.ReadBytes(packetLength);
             }
-            
-            using (Packet packet = new Packet(data))
-            {
+
+            using (Packet packet = new Packet(data)) {
                 int packetId = packet.ReadInt();
 
-                if (packetId == (int)ServerPackets.worldSnapshot)
-                {
+                if (packetId == (int)ServerPackets.worldSnapshot) {
                     packetHandlers[packetId](packet);
                     ClientHandle.packetsReceived++;
                     ClientHandle.bytesReceived += packet.Length();
@@ -280,10 +278,19 @@ public class Client : MonoBehaviour {
         if (!IsConnected) return;
         IsConnected = false;
 
-        try { tcp?.socket?.Close(); } catch { }
-        try { udp?.socket?.Close(); } catch { }
+        try {
+            tcp?.socket?.Close();
+        }
+        catch {
+        }
+
+        try {
+            udp?.socket?.Close();
+        }
+        catch {
+        }
 
         // disconnect on main thread
-        ThreadManager.ExecuteOnMainThread(() => { NetworkUIManager.Instance.EnableConnectUI(); });
+        ThreadManager.ExecuteOnMainThread(() => { ConnectionManager.OnDisconnect(); });
     }
 }

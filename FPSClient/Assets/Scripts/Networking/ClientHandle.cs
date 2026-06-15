@@ -1,26 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Net;
 using UnityEngine;
 
 public class ClientHandle {
     public static int packetsReceived;
     public static int bytesReceived;
-    
+
     public static void Welcome(Packet packet) {
         int myId = packet.ReadInt();
 
         Client.Instance.myId = myId;
         Client.IsConnected = true;
 
-        ClientSend.WelcomeReceived();
-        NetworkUIManager.Instance.DisableConnectUI();
-
         Client.Instance.udp.Connect(((IPEndPoint)Client.Instance.tcp.socket.Client.LocalEndPoint).Port);
 
-        RTTManager.SendSyncTickRequest();
-
-        Debug.Log("Connected.");
+        ConnectionManager.OnConnect();
     }
 
     public static void MeasureRTT(Packet packet) {
@@ -63,10 +57,10 @@ public class ClientHandle {
                 velocity = packet.ReadVector3(),
                 orientation = packet.ReadFloat()
             };
-        
+
             states.Add(state);
         }
-        
+
         WorldSnapshot snapshot = new WorldSnapshot {
             serverTick = serverTick,
             inputBufferOffset = inputBufferOffset,
@@ -75,7 +69,7 @@ public class ClientHandle {
             serverReceiveTime = serverReceiveTime,
             playerStates = states,
         };
-        
+
         SnapshotManager.Instance.OnSnapshotReceived(snapshot);
     }
 }

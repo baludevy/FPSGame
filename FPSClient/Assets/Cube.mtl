@@ -1,0 +1,17 @@
+newmtl Prototype_512x512_White
+map_Kd prototype_512x512_white.png
+bump prototype_512x512_normal.png
+Kd 1 1 1
+d 0
+
+newmtl texture_07_1
+map_Kd texture_07 1.png
+Kd 1 1 1
+d 1
+
+newmtl Prototype_512x512_Grey1
+map_Kd prototype_512x512_grey1.png
+bump prototype_512x512_normal.png
+Kd 1 1 1
+d 0
+

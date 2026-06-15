@@ -183,7 +183,7 @@ MonoBehaviour:
     m_Bits: 8
   counterMovement: 0.175
   maxSlopeAngle: 35
-  slideForce: 7
+  slideForce: 10
   slideCounterMovement: 0.0175
   jumpForce: 9
   wallRunning: 0

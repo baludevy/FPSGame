@@ -29,6 +29,14 @@ public class SendInput : MonoBehaviour {
         y = Input.GetAxisRaw("Vertical");
         jumping = Input.GetButton("Jump");
         crouching = Input.GetButton("Crouch");
+
+        if (Input.GetKeyDown(KeyCode.E)) {
+            NetworkSettings.targetInpBufferOffset++;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Q)) {
+            NetworkSettings.targetInpBufferOffset--;
+        }
     }
 
     public PlayerInput GatherInput(uint tick) {
@@ -82,7 +90,7 @@ public class SendInput : MonoBehaviour {
         playerInputs.Sort((a, b) => a.tick.CompareTo(b.tick));
         
         
-        // ClientSend.PlayerInput(playerInputs);
+        ClientSend.PlayerInput(playerInputs);
 
         lastSentTick = lastCompletedTick;
     }

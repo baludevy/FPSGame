@@ -10,8 +10,8 @@ public class NetworkManager : MonoBehaviour {
     public GameObject playerPrefab;
 
     private readonly Stopwatch stopwatch = Stopwatch.StartNew();
-    private double accumulator;
-    private double currentTime;
+    private float accumulator;
+    private float currentTime;
 
     private void Awake() {
         Instance = this;
@@ -27,8 +27,8 @@ public class NetworkManager : MonoBehaviour {
     }
 
     private void Update() {
-        double newTime = GetTime();
-        double frameTime = newTime - currentTime;
+        float newTime = GetTime();
+        float frameTime = newTime - currentTime;
         currentTime = newTime;
 
         accumulator += frameTime;
@@ -41,8 +41,8 @@ public class NetworkManager : MonoBehaviour {
         }
     }
 
-    public double GetTime() {
-        return stopwatch.Elapsed.TotalSeconds;
+    public float GetTime() {
+        return (float)stopwatch.Elapsed.TotalSeconds;
     }
 
     private void ProcessTick() {

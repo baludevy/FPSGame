@@ -69,7 +69,6 @@ public class PlayerMovement : MonoBehaviour {
     //other
     private ParticleSystem.EmissionModule psEmission;
     private float fallSpeed;
-    private Vector3 lastMoveSpeed;
     private CapsuleCollider playerCollider;
 
     public static PlayerMovement Instance { get; private set; }
@@ -91,7 +90,6 @@ public class PlayerMovement : MonoBehaviour {
 
     private void Update() {
         fallSpeed = rb.velocity.y;
-        lastMoveSpeed = VectorExtensions.XZVector(rb.velocity);
         Look();
     }
 
@@ -102,8 +100,6 @@ public class PlayerMovement : MonoBehaviour {
         Movement();
         FindWallRunRotation();
         WallRunning();
-        
-        Debug.Log(wallRunning);
     }
 
     public void SetInput(float x, float y, float orientation, bool jumping, bool crouching) {

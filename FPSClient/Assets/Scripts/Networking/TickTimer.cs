@@ -5,32 +5,36 @@ using Debug = UnityEngine.Debug;
 
 public class TickTimer : MonoBehaviour {
     public static TickTimer Instance;
-    
+
     public static float timeScale = 1f;
     public static uint tick;
 
     private readonly Stopwatch stopwatch = Stopwatch.StartNew();
-    public double accumulator;
-    private double currentTime;
-    
-    private double timer;
+    public float accumulator;
+    private float currentTime;
 
-    public static bool doTick = true;
+    private float timer;
+
+    public static bool doTick = false;
 
     private void Awake() {
         Instance = this;
     }
 
     private void Update() {
-        double newTime = GetTime();
-        double frameTime = (newTime - currentTime) * timeScale;
+        float newTime = GetTime();
+        float frameTime = (newTime - currentTime) * timeScale;
         currentTime = newTime;
 
-        double tickInterval = NetworkSettings.tickTime;
+        float tickInterval = NetworkSettings.tickTime;
         accumulator += frameTime;
 
         while (accumulator >= tickInterval) {
+            ThreadManager.UpdateMain();
+
             accumulator -= tickInterval;
+
+            if (!doTick) return;
             ProcessTick();
             tick++;
         }
@@ -39,15 +43,11 @@ public class TickTimer : MonoBehaviour {
             SendInput.Instance.SendPlayerInputs();
     }
 
-    public double GetTime() {
-        return stopwatch.Elapsed.TotalSeconds;
+    public float GetTime() {
+        return (float)stopwatch.Elapsed.TotalSeconds;
     }
 
     private void ProcessTick() {
-        ThreadManager.UpdateMain();
-
-        if (!doTick) return;
-
         if (PlayerMovement.Instance != null) {
             PlayerInput input = SendInput.Instance.GatherInput(tick);
 

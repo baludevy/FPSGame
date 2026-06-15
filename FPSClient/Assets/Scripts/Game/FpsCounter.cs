@@ -18,6 +18,6 @@ public class FPSCounter : MonoBehaviour {
         int fps = (int)(1.0f / deltaTime);
         float msec = deltaTime * 1000.0f;
 
-        counter.text = $"{Mathf.Round(msec * 10) / 10} ms ({fps} FPS)";
+        counter.text = $"FPS: {fps} ({Mathf.Round(msec * 10) / 10} ms)";
     }
 }
