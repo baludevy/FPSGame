@@ -51,7 +51,7 @@ public class TickTimer : MonoBehaviour {
         if (PlayerMovement.Instance != null) {
             PlayerInput input = SendInput.Instance.GatherInput(tick);
 
-            PlayerPrediction.Instance.PredictState(input);
+            SendInput.Instance.ProcessInput(input);
         }
     }
 

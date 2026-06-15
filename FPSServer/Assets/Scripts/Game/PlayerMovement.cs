@@ -85,17 +85,18 @@ public class PlayerMovement : MonoBehaviour {
         WallRunning();
     }
 
-    public void SetInput(float x, float y, float orientation, bool jumping, bool crouching) {
-        if (crouching && !this.crouching) StartCrouch();
-        else if (!crouching && this.crouching) StopCrouch();
+    public void SetInput(PlayerInput inp) {
+        if (inp.crouching && !crouching) StartCrouch();
+        else if (!inp.crouching && crouching) StopCrouch();
 
-        this.x = x;
-        this.y = y;
-        this.orientation.localRotation = Quaternion.Euler(0f, orientation, 0f);
-        this.jumping = jumping;
-        this.crouching = crouching;
-        this.isCrouching = crouching;
+        x = inp.x;
+        y = inp.y;
+        orientation.localRotation = Quaternion.Euler(0f, inp.orientation, 0f);
+        jumping = inp.jumping;
+        crouching = inp.crouching;
     }
+    
+    
 
     public void Movement() {
         rb.AddForce(Vector3.down * NetworkSettings.tickTime * 12.5f);
@@ -247,8 +248,8 @@ public class PlayerMovement : MonoBehaviour {
                 else pressingTowardWall = true;
             }
         }
-        
-        
+
+
         if (!foundWall) {
             wallRunning = false;
             currentFacingWallId = 0;

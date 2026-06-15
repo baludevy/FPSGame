@@ -12,6 +12,7 @@ public enum ServerPackets {
     syncTick,
     spawnPlayer,
     worldSnapshot,
+    lagCompDebug,
 }
 
 /// <summary>Sent from client to server.</summary>

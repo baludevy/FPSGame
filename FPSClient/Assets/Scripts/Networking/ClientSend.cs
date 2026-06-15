@@ -58,11 +58,13 @@ public class ClientSend {
             
             foreach (PlayerInput input in inputs) {
                 packet.Write(input.tick);
+                packet.Write(input.renderTick);
                 packet.Write(input.x);
                 packet.Write(input.y);
                 packet.Write(input.orientation);
                 packet.Write(input.jumping);
                 packet.Write(input.crouching);
+                packet.Write(input.shoot);
             }
             
             SendUDPData(packet);

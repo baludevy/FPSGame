@@ -60,7 +60,6 @@ public class PlayerMovement : MonoBehaviour {
     public float desiredX;
 
     //sliding
-    private bool isCrouching;
     private Vector3 normalVector = Vector3.up;
     private Vector3 wallNormalVector;
     private float playerHeight;
@@ -102,16 +101,15 @@ public class PlayerMovement : MonoBehaviour {
         WallRunning();
     }
 
-    public void SetInput(float x, float y, float orientation, bool jumping, bool crouching) {
-        if (crouching && !this.crouching) StartCrouch();
-        else if (!crouching && this.crouching) StopCrouch();
+    public void SetInput(PlayerInput inp) {
+        if (inp.crouching && !crouching) StartCrouch();
+        else if (!inp.crouching && crouching) StopCrouch();
 
-        this.x = x;
-        this.y = y;
-        this.jumping = jumping;
-        this.orientation.localRotation = Quaternion.Euler(0f, orientation, 0f);
-        this.crouching = crouching;
-        this.isCrouching = crouching;
+        x = inp.x;
+        y = inp.y;
+        orientation.localRotation = Quaternion.Euler(0f, inp.orientation, 0f);
+        jumping = inp.jumping;
+        crouching = inp.crouching;
     }
 
     public void Movement() {
@@ -448,7 +446,7 @@ public class PlayerMovement : MonoBehaviour {
         rb.AddForce(travelForce * NetworkSettings.tickTime);
 
         float gravityMult = -1f;
-        if (isCrouching) {
+        if (crouching) {
             gravityMult = -2f;
         }
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 public class SendInput : MonoBehaviour {
     public static SendInput Instance;
@@ -15,6 +16,7 @@ public class SendInput : MonoBehaviour {
     private float y;
     private bool jumping;
     private bool crouching;
+    private bool shoot;
 
     private void Awake() {
         Instance = this;
@@ -29,24 +31,27 @@ public class SendInput : MonoBehaviour {
         y = Input.GetAxisRaw("Vertical");
         jumping = Input.GetButton("Jump");
         crouching = Input.GetButton("Crouch");
+        shoot = Input.GetKey(KeyCode.Mouse0);
+    }
 
-        if (Input.GetKeyDown(KeyCode.E)) {
-            NetworkSettings.targetInpBufferOffset++;
-        }
-
-        if (Input.GetKeyDown(KeyCode.Q)) {
-            NetworkSettings.targetInpBufferOffset--;
+    public void Shoot() {
+        foreach (PlayerManager player in GameManager.players.Values) {
+            if (player.id != Client.Instance.myId) {
+                Instantiate(PrefabManager.Instance.lagCompClient, player.transform.position, Quaternion.identity);
+            }
         }
     }
 
     public PlayerInput GatherInput(uint tick) {
         PlayerInput input = new PlayerInput {
             tick = tick,
+            renderTick = SnapshotManager.clientRenderTick,
             x = x,
             y = y,
             orientation = PlayerMovement.Instance.desiredX,
             jumping = jumping,
-            crouching = crouching
+            crouching = crouching,
+            shoot = shoot,
         };
 
         uint i = input.tick % NetworkSettings.inputBufferSize;
@@ -88,10 +93,18 @@ public class SendInput : MonoBehaviour {
         if (playerInputs.Count == 0) return;
 
         playerInputs.Sort((a, b) => a.tick.CompareTo(b.tick));
-        
-        
+
+
         ClientSend.PlayerInput(playerInputs);
 
         lastSentTick = lastCompletedTick;
+    }
+    
+    private bool lastShoot;
+
+    public void ProcessInput(PlayerInput input) {
+        PlayerPrediction.Instance.PredictState(input);
+        if (input.shoot && !lastShoot) Shoot();
+        lastShoot = input.shoot;
     }
 }

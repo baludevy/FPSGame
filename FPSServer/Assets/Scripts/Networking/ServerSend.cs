@@ -81,29 +81,37 @@ public class ServerSend {
         }
     }
 
-    public static void WorldSnapshot(int toClient, WorldSnapshot snapshot) {
-        snapshot.serverSendTime = NetworkManager.Instance.GetTime();
+    public static void PlayerUpdate(int toClient, PlayerUpdate update) {
+        update.serverSendTime = NetworkManager.Instance.GetTime();
 
         using (Packet packet = new Packet((int)ServerPackets.worldSnapshot)) {
-            packet.Write(snapshot.serverTick);
-            packet.Write(snapshot.inputBufferOffset);
+            packet.Write(update.serverTick);
+            packet.Write(update.inputBufferOffset);
 
-            packet.Write(snapshot.clientSendTime);
-            packet.Write(snapshot.serverSendTime);
-            packet.Write(snapshot.serverReceiveTime);
+            packet.Write(update.clientSendTime);
+            packet.Write(update.serverSendTime);
+            packet.Write(update.serverReceiveTime);
 
-            packet.Write(snapshot.movementState.id);
-            packet.Write(snapshot.movementState.position);
-            packet.Write(snapshot.movementState.orientation);
-            packet.Write(snapshot.movementState.velocity);
+            packet.Write(update.movementState.id);
+            packet.Write(update.movementState.position);
+            packet.Write(update.movementState.orientation);
+            packet.Write(update.movementState.velocity);
 
-            packet.Write((byte)snapshot.playerStates.Count);
-            foreach (PlayerState state in snapshot.playerStates) {
+            packet.Write((byte)update.worldSnapshot.playerStates.Count);
+            foreach (PlayerState state in update.worldSnapshot.playerStates) {
                 packet.Write(state.id);
                 packet.Write(state.position);
             }
 
             SendUDPData(toClient, packet);
+        }
+    }
+
+    public static void LagCompDebug(int toClient, Vector3 pos) {
+        using (Packet packet = new Packet((int)ServerPackets.lagCompDebug)) {
+            packet.Write(pos);
+            
+            SendTCPData(toClient, packet);
         }
     }
 }

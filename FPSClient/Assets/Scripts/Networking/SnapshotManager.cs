@@ -18,33 +18,33 @@ public class SnapshotManager : MonoBehaviour {
         Instance = this;
     }
 
-    public void OnSnapshotReceived(WorldSnapshot snapshot) {
-        if (snapshot == null) return;
+    public void OnUpdateReceived(PlayerUpdate update) {
+        if (update == null) return;
 
-        if (snapshot.serverTick > serverTick) {
-            serverTick = snapshot.serverTick;
+        if (update.serverTick > serverTick) {
+            serverTick = update.serverTick;
             snapshotBufferOffset = serverTick - (uint)Mathf.RoundToInt(clientRenderTick) - 1;
 
             float now = TickTimer.Instance.GetTime();
-            ConnectionStatistics.CalculateStatistics(snapshot.serverTick, now, snapshot.clientSendTime,
-                snapshot.serverReceiveTime, snapshot.serverSendTime);
+            ConnectionStatistics.CalculateStatistics(update.serverTick, now, update.clientSendTime,
+                update.serverReceiveTime, update.serverSendTime);
 
             // adjust thresholds and target offset based on network conditions, sync clock to be ahead of the server
             ConnectionStatistics.ApplyAdjustments();
-            TimeScaler.Instance.AdjustClock(snapshot.inputBufferOffset);
+            TimeScaler.Instance.AdjustClock(update.inputBufferOffset);
         }
 
-        if (snapshot.serverTick > lastReconciledTick) {
-            lastReconciledTick = snapshot.serverTick;
+        if (update.serverTick > lastReconciledTick) {
+            lastReconciledTick = update.serverTick;
             int myId = Client.Instance.myId;
-            
+
             if (PlayerMovement.Instance != null)
                 ThreadManager.ExecuteOnMainThread(() =>
-                    PlayerPrediction.CompareServerState(snapshot.movementState, snapshot.serverTick));
+                    PlayerPrediction.CompareServerState(update.movementState, update.serverTick));
         }
 
         lock (bufferLock) {
-            AddToBuffer(snapshot);
+            AddToBuffer(update.worldSnapshot);
         }
     }
 

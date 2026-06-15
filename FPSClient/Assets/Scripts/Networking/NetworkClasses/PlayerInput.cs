@@ -2,6 +2,7 @@
 
 public class PlayerInput {
     public uint tick;
+    public float renderTick;
 
     public float x;
     public float y;
@@ -10,4 +11,6 @@ public class PlayerInput {
 
     public bool jumping;
     public bool crouching;
+
+    public bool shoot;
 }

@@ -1,13 +1,7 @@
 ﻿using System.Collections.Generic;
 
 public class WorldSnapshot {
-    public uint serverTick;
-    public sbyte inputBufferOffset;
-
-    public float clientSendTime;
-    public float serverSendTime;
-    public float serverReceiveTime;
-
-    public MovementState movementState;
+    public uint tick;
+    
     public List<PlayerState> playerStates = new List<PlayerState>();
 }

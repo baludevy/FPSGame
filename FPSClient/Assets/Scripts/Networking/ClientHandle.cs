@@ -39,7 +39,7 @@ public class ClientHandle {
         GameManager.Instance.SpawnPlayer(id, username, position, rotation);
     }
 
-    public static void WorldSnapshot(Packet packet) {
+    public static void PlayerUpdate(Packet packet) {
         uint serverTick = packet.ReadUInt();
         sbyte inputBufferOffset = packet.ReadSByte();
 
@@ -53,7 +53,7 @@ public class ClientHandle {
             orientation = packet.ReadFloat(),
             velocity = packet.ReadVector3(),
         };
-        
+
         byte playerStateCount = packet.ReadByte();
         List<PlayerState> playerStates = new List<PlayerState>();
 
@@ -66,16 +66,28 @@ public class ClientHandle {
             playerStates.Add(state);
         }
 
+
         WorldSnapshot snapshot = new WorldSnapshot {
+            serverTick = serverTick,
+            playerStates = playerStates,
+        };
+
+        PlayerUpdate update = new PlayerUpdate {
             serverTick = serverTick,
             inputBufferOffset = inputBufferOffset,
             clientSendTime = clientSendTime,
             serverSendTime = serverSendTime,
             serverReceiveTime = serverReceiveTime,
             movementState = movementState,
-            playerStates = playerStates,
+            worldSnapshot = snapshot,
         };
 
-        SnapshotManager.Instance.OnSnapshotReceived(snapshot);
+        SnapshotManager.Instance.OnUpdateReceived(update);
+    }
+
+    public static void LagCompDebug(Packet packet) {
+        Vector3 pos = packet.ReadVector3();
+
+        Object.Instantiate(PrefabManager.Instance.lagCompServer, pos, Quaternion.identity);
     }
 }

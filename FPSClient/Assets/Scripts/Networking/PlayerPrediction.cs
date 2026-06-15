@@ -17,7 +17,7 @@ public class PlayerPrediction : MonoBehaviour {
         if (visualPlayer == null)
             return;
 
-        float interpolationFactor = (float)TickTimer.Instance.accumulator / NetworkSettings.tickTime;
+        float interpolationFactor = TickTimer.Instance.accumulator / NetworkSettings.tickTime;
         interpolationFactor = Mathf.Clamp01(interpolationFactor);
 
         Vector3 interpolatedPos = Vector3.Lerp(
@@ -35,13 +35,7 @@ public class PlayerPrediction : MonoBehaviour {
 
         lastPredictedPos = PlayerMovement.Instance.transform.position;
 
-        PlayerMovement.Instance.SetInput(
-            input.x,
-            input.y,
-            input.orientation,
-            input.jumping,
-            input.crouching
-        );
+        PlayerMovement.Instance.SetInput(input);
 
         PlayerMovement.Instance.AdvanceLogic();
 
@@ -60,7 +54,7 @@ public class PlayerPrediction : MonoBehaviour {
 
         float errorSqrMag = (serverState.position - prePosition).sqrMagnitude;
         if (errorSqrMag > positionErrorThreshold) {
-            Debug.Log($"Desync by {errorSqrMag}, tick: {tick}");
+            // Debug.Log($"Desync by {errorSqrMag}, tick: {tick}");
             SynchronizeMovement(serverState, tick);
         }
     }
@@ -86,7 +80,7 @@ public class PlayerPrediction : MonoBehaviour {
                 continue;
             }
 
-            PlayerMovement.Instance.SetInput(input.x, input.y, input.orientation, input.jumping, input.crouching);
+            PlayerMovement.Instance.SetInput(input);
 
             PlayerMovement.Instance.AdvanceLogic();
 

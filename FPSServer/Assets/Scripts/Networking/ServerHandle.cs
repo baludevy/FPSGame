@@ -38,11 +38,13 @@ public class ServerHandle {
         for (int i = 0; i < inputCount; i++) {
             PlayerInput input = new PlayerInput {
                 tick = packet.ReadUInt(),
+                renderTick = packet.ReadFloat(),
                 x = packet.ReadFloat(),
                 y = packet.ReadFloat(),
                 orientation = packet.ReadFloat(),
                 jumping = packet.ReadBool(),
-                crouching = packet.ReadBool()
+                crouching = packet.ReadBool(),
+                shoot = packet.ReadBool(),
             };
             
             inputs.Add(input);

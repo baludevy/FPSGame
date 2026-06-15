@@ -270,7 +270,8 @@ public class Client : MonoBehaviour {
             { (int)ServerPackets.measureRtt, ClientHandle.MeasureRTT },
             { (int)ServerPackets.syncTick, ClientHandle.SyncTick },
             { (int)ServerPackets.spawnPlayer, ClientHandle.SpawnPlayer },
-            { (int)ServerPackets.worldSnapshot, ClientHandle.WorldSnapshot },
+            { (int)ServerPackets.worldSnapshot, ClientHandle.PlayerUpdate },
+            { (int)ServerPackets.lagCompDebug, ClientHandle.LagCompDebug },
         };
     }
 

@@ -13,6 +13,8 @@ public class NetworkManager : MonoBehaviour {
     private float accumulator;
     private float currentTime;
 
+    public LagCompensation lagCompensation = new LagCompensation();
+
     private void Awake() {
         Instance = this;
     }
@@ -53,39 +55,34 @@ public class NetworkManager : MonoBehaviour {
                 PlayerInput input = client.player.InputBuffer.GetInputFromQueue(tick);
 
                 if (input != null) {
-                    client.player.movement.SetInput(
-                        input.x,
-                        input.y,
-                        input.orientation,
-                        input.jumping,
-                        input.crouching
-                    );
+                    client.player.ProcessInput(input);
                 }
-
-                client.player.movement.AdvanceLogic();
             }
         }
 
         Physics.SyncTransforms();
         Physics.Simulate(NetworkSettings.tickTime);
 
+        lagCompensation.SaveSnapshot(GetWorldSnapshot());
+        lagCompensation.Update();
+
         foreach (Client client in Server.clients.Values) {
             if (client.player != null) {
-                SendWorldSnapshot(client.player.id);
+                SendPlayerUpdate(client.player.id);
             }
         }
     }
 
-    private void SendWorldSnapshot(int toClient) {
-        WorldSnapshot snapshot = new WorldSnapshot();
+    private void SendPlayerUpdate(int toClient) {
+        PlayerUpdate update = new PlayerUpdate();
 
         Player toPlayer = Server.clients[toClient].player;
 
-        snapshot.serverTick = tick;
-        snapshot.inputBufferOffset = toPlayer.InputBuffer.GetBufferOffset();
+        update.serverTick = tick;
+        update.inputBufferOffset = toPlayer.InputBuffer.GetBufferOffset();
 
-        snapshot.clientSendTime = toPlayer.InputBuffer.latestTimestamp;
-        snapshot.serverReceiveTime = toPlayer.InputBuffer.latestReceived;
+        update.clientSendTime = toPlayer.InputBuffer.latestTimestamp;
+        update.serverReceiveTime = toPlayer.InputBuffer.latestReceived;
 
         foreach (Client client in Server.clients.Values) {
             Player player = client.player;
@@ -93,14 +90,29 @@ public class NetworkManager : MonoBehaviour {
             if (player == null) continue;
 
             if (player.id == toClient) {
-                snapshot.movementState = new MovementState() {
+                update.movementState = new MovementState() {
                     id = player.id,
                     position = player.transform.position,
                     orientation = player.movement.orientation.eulerAngles.y,
                     velocity = player.movement.rb.velocity
                 };
-                continue;
             }
+        }
+
+        update.worldSnapshot = GetWorldSnapshot();
+
+        ServerSend.PlayerUpdate(toClient, update);
+    }
+
+    private WorldSnapshot GetWorldSnapshot() {
+        WorldSnapshot snapshot = new WorldSnapshot() {
+            tick = tick,
+        };
+
+        foreach (Client client in Server.clients.Values) {
+            Player player = client.player;
+
+            if (player == null) continue;
 
             PlayerState playerState = new PlayerState {
                 id = player.id,
@@ -110,9 +122,31 @@ public class NetworkManager : MonoBehaviour {
             snapshot.playerStates.Add(playerState);
         }
 
-        ServerSend.WorldSnapshot(toClient, snapshot);
+        return snapshot;
     }
 
+    private WorldSnapshot GetWorldSnapshotForPlayer(int forPlayer) {
+        WorldSnapshot snapshot = new WorldSnapshot {
+            tick = tick,
+        };
+
+        foreach (Client client in Server.clients.Values) {
+            Player player = client.player;
+
+            if (player == null || player.id == forPlayer) continue;
+
+            PlayerState playerState = new PlayerState {
+                id = player.id,
+                position = player.transform.position,
+            };
+
+            snapshot.playerStates.Add(playerState);
+        }
+
+        return snapshot;
+    }
+
+    
     private void OnApplicationQuit() {
         Server.Stop();
     }
