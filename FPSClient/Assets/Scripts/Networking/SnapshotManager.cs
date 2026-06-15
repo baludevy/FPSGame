@@ -37,13 +37,10 @@ public class SnapshotManager : MonoBehaviour {
         if (snapshot.serverTick > lastReconciledTick) {
             lastReconciledTick = snapshot.serverTick;
             int myId = Client.Instance.myId;
-            foreach (PlayerState state in snapshot.playerStates) {
-                if (state.id != myId) continue;
-                if (PlayerMovement.Instance != null)
-                    ThreadManager.ExecuteOnMainThread(() =>
-                        PlayerPrediction.CompareServerState(state, snapshot.serverTick));
-                break;
-            }
+            
+            if (PlayerMovement.Instance != null)
+                ThreadManager.ExecuteOnMainThread(() =>
+                    PlayerPrediction.CompareServerState(snapshot.movementState, snapshot.serverTick));
         }
 
         lock (bufferLock) {

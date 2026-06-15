@@ -8,5 +8,6 @@ public class WorldSnapshot {
     public float serverSendTime;
     public float serverReceiveTime;
 
+    public MovementState movementState;
     public List<PlayerState> playerStates = new List<PlayerState>();
 }

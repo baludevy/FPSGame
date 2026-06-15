@@ -90,16 +90,24 @@ public class NetworkManager : MonoBehaviour {
         foreach (Client client in Server.clients.Values) {
             Player player = client.player;
 
-            if (player != null) {
-                PlayerState playerState = new PlayerState {
+            if (player == null) continue;
+
+            if (player.id == toClient) {
+                snapshot.movementState = new MovementState() {
                     id = player.id,
                     position = player.transform.position,
-                    velocity = player.movement.rb.velocity,
-                    orientation = player.movement.orientation.transform.eulerAngles.y,
+                    orientation = player.movement.orientation.eulerAngles.y,
+                    velocity = player.movement.rb.velocity
                 };
-
-                snapshot.playerStates.Add(playerState);
+                continue;
             }
+
+            PlayerState playerState = new PlayerState {
+                id = player.id,
+                position = player.transform.position,
+            };
+
+            snapshot.playerStates.Add(playerState);
         }
 
         ServerSend.WorldSnapshot(toClient, snapshot);

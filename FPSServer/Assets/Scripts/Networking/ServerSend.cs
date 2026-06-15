@@ -52,20 +52,16 @@ public class ServerSend {
         }
     }
 
-    public static void MeasureRTT(int toClient, double timestamp)
-    {
-        using (Packet packet = new Packet((int)ServerPackets.measureRtt))
-        {
+    public static void MeasureRTT(int toClient, double timestamp) {
+        using (Packet packet = new Packet((int)ServerPackets.measureRtt)) {
             packet.Write(timestamp);
-            
+
             SendTCPData(toClient, packet);
         }
     }
-    
-    public static void SyncTick(int toClient, double timestamp)
-    {
-        using (Packet packet = new Packet((int)ServerPackets.syncTick))
-        {
+
+    public static void SyncTick(int toClient, double timestamp) {
+        using (Packet packet = new Packet((int)ServerPackets.syncTick)) {
             packet.Write(timestamp);
             packet.Write(NetworkManager.tick);
 
@@ -73,7 +69,7 @@ public class ServerSend {
         }
     }
 
-    
+
     public static void SpawnPlayer(int toClient, Player player) {
         using (Packet packet = new Packet((int)ServerPackets.spawnPlayer)) {
             packet.Write(player.id);
@@ -86,23 +82,25 @@ public class ServerSend {
     }
 
     public static void WorldSnapshot(int toClient, WorldSnapshot snapshot) {
-        snapshot.serverSendTime = (float)NetworkManager.Instance.GetTime();
-        
+        snapshot.serverSendTime = NetworkManager.Instance.GetTime();
+
         using (Packet packet = new Packet((int)ServerPackets.worldSnapshot)) {
             packet.Write(snapshot.serverTick);
             packet.Write(snapshot.inputBufferOffset);
-            
+
             packet.Write(snapshot.clientSendTime);
             packet.Write(snapshot.serverSendTime);
             packet.Write(snapshot.serverReceiveTime);
 
-            packet.Write((byte)snapshot.playerStates.Count);
+            packet.Write(snapshot.movementState.id);
+            packet.Write(snapshot.movementState.position);
+            packet.Write(snapshot.movementState.orientation);
+            packet.Write(snapshot.movementState.velocity);
 
+            packet.Write((byte)snapshot.playerStates.Count);
             foreach (PlayerState state in snapshot.playerStates) {
                 packet.Write(state.id);
                 packet.Write(state.position);
-                packet.Write(state.velocity);
-                packet.Write(state.orientation);
             }
 
             SendUDPData(toClient, packet);

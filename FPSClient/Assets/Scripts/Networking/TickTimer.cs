@@ -30,9 +30,9 @@ public class TickTimer : MonoBehaviour {
         accumulator += frameTime;
 
         while (accumulator >= tickInterval) {
-            ThreadManager.UpdateMain();
-
             accumulator -= tickInterval;
+
+            ThreadManager.UpdateMain();
 
             if (!doTick) return;
             ProcessTick();

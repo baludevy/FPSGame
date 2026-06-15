@@ -47,18 +47,23 @@ public class ClientHandle {
         float serverSendTime = packet.ReadFloat();
         float serverReceiveTime = packet.ReadFloat();
 
-        byte playerCount = packet.ReadByte();
-        List<PlayerState> states = new List<PlayerState>();
+        MovementState movementState = new MovementState() {
+            id = packet.ReadInt(),
+            position = packet.ReadVector3(),
+            orientation = packet.ReadFloat(),
+            velocity = packet.ReadVector3(),
+        };
+        
+        byte playerStateCount = packet.ReadByte();
+        List<PlayerState> playerStates = new List<PlayerState>();
 
-        for (int i = 0; i < playerCount; i++) {
+        for (int i = 0; i < playerStateCount; i++) {
             PlayerState state = new PlayerState {
                 id = packet.ReadInt(),
                 position = packet.ReadVector3(),
-                velocity = packet.ReadVector3(),
-                orientation = packet.ReadFloat()
             };
 
-            states.Add(state);
+            playerStates.Add(state);
         }
 
         WorldSnapshot snapshot = new WorldSnapshot {
@@ -67,7 +72,8 @@ public class ClientHandle {
             clientSendTime = clientSendTime,
             serverSendTime = serverSendTime,
             serverReceiveTime = serverReceiveTime,
-            playerStates = states,
+            movementState = movementState,
+            playerStates = playerStates,
         };
 
         SnapshotManager.Instance.OnSnapshotReceived(snapshot);

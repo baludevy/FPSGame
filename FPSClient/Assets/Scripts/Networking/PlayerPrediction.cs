@@ -53,25 +53,25 @@ public class PlayerPrediction : MonoBehaviour {
         velocityHistory[i] = PlayerMovement.Instance.rb.velocity;
     }
 
-    public static void CompareServerState(PlayerState playerState, uint tick) {
+    public static void CompareServerState(MovementState serverState, uint tick) {
         uint index = tick % NetworkSettings.inputBufferSize;
 
         Vector3 prePosition = positionHistory[index];
 
-        float errorSqrMag = (playerState.position - prePosition).sqrMagnitude;
+        float errorSqrMag = (serverState.position - prePosition).sqrMagnitude;
         if (errorSqrMag > positionErrorThreshold) {
             Debug.Log($"Desync by {errorSqrMag}, tick: {tick}");
-            SynchronizeMovement(playerState, tick);
+            SynchronizeMovement(serverState, tick);
         }
     }
 
-    private static void SynchronizeMovement(PlayerState playerState, uint tick) {
+    private static void SynchronizeMovement(MovementState serverState, uint tick) {
         Vector3 prePosition = PlayerMovement.Instance.transform.position;
 
-        PlayerMovement.Instance.transform.position = playerState.position;
-        PlayerMovement.Instance.rb.velocity = playerState.velocity;
+        PlayerMovement.Instance.transform.position = serverState.position;
+        PlayerMovement.Instance.rb.velocity = serverState.velocity;
         PlayerMovement.Instance.orientation.rotation =
-            Quaternion.Euler(0f, playerState.orientation, 0f);
+            Quaternion.Euler(0f, serverState.orientation, 0f);
 
         uint lastSimulatedTick = TickTimer.tick - 1;
 
@@ -80,16 +80,16 @@ public class PlayerPrediction : MonoBehaviour {
         for (uint i = tick + 1; i <= lastSimulatedTick; i++) {
             uint index = i % NetworkSettings.inputBufferSize;
             PlayerInput input = SendInput.Instance.inputHistory[index];
-            
-            if(input == null) {
+
+            if (input == null) {
                 Debug.Log("fuck");
                 continue;
             }
-            
+
             PlayerMovement.Instance.SetInput(input.x, input.y, input.orientation, input.jumping, input.crouching);
 
             PlayerMovement.Instance.AdvanceLogic();
-            
+
             Physics.SyncTransforms();
             Physics.Simulate(NetworkSettings.tickTime);
 

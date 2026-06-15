@@ -30,9 +30,7 @@ public static class ConnectionStatistics {
         float serverProcessTime = serverSend - serverReceive;
 
         float pingSample = clientReceive - clientSend - serverProcessTime;
-        float totalRttSample = clientReceive - clientSend + (NetworkSettings.interpTime +
-                                                             TimeScaler.Instance.currentBufferOffset *
-                                                             NetworkSettings.tickTime);
+        float totalRttSample = clientReceive - clientSend + (NetworkSettings.interpTime);
 
         UpdatePing(pingSample);
         UpdateTotalRtt(totalRttSample);
@@ -98,32 +96,31 @@ public static class ConnectionStatistics {
         float sampleLoss = 1f - (receivedCount / (float)lossWindow);
         packetLoss = (sampleLoss * packetLossSmooth) + (packetLoss * (1f - packetLossSmooth));
     }
-    
-    public static void ApplyAdjustments() {
 
+    public static void ApplyAdjustments() {
         float jitterInTicks = jitter / NetworkSettings.tickTime;
 
         int calculatedBuffer = Mathf.CeilToInt(jitterInTicks * 3f);
 
         float lossPercentage = packetLoss * 100f;
-        
+
         NetworkSettings.targetInpBufferOffset = calculatedBuffer;
-        
+
         NetworkSettings.interpTime = Math.Max(1, calculatedBuffer) * NetworkSettings.tickTime;
 
         int inputRedundancy = Mathf.Clamp(Mathf.RoundToInt(lossPercentage / 3f), 0, 5);
         NetworkSettings.inputRedundancy = inputRedundancy;
     }
-    
+
     public static void Reset() {
         ping = 0f;
         packetLoss = 0f;
         jitter = 0f;
         totalRtt = 0f;
-        
+
         lastTransitTime = -1f;
         hasLastTransit = false;
-        
+
         Array.Clear(received, 0, received.Length);
         receivedCount = 0;
         latestTick = 0;
