@@ -3,13 +3,13 @@
 public class MoveCamera : MonoBehaviour {
     public Transform player;
     public Vector3 offset;
-    public static MoveCamera Instance { get; private set; }
+    public static MoveCamera Instance;
     public bool smooth;
     public PlayerMovement playerMovement;
     private float desiredTilt;
     private float tilt;
     private Vector3 desiredBob;
-    private Vector3 bobOffset;
+    public Vector3 bobOffset;
     private float bobSpeed = 15f;
     private float bobMultiplier = 0.5f;
     public Vector3 desyncOffset;
@@ -80,6 +80,9 @@ public class MoveCamera : MonoBehaviour {
     public void BobOnce(Vector3 bobDirection) {
         Vector3 vector = ClampVector(bobDirection * 0.15f, -3f, 3f);
         desiredBob = vector * bobMultiplier;
+
+        if (WeaponSway.Instance != null)
+            WeaponSway.Instance.BobOnce(-vector);
     }
 
     private void UpdateBob() {

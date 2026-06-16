@@ -67,7 +67,7 @@ public class PlayerMovement : MonoBehaviour {
 
     //other
     private ParticleSystem.EmissionModule psEmission;
-    private float fallSpeed;
+    public float fallSpeed;
     private CapsuleCollider playerCollider;
 
     public static PlayerMovement Instance { get; private set; }
@@ -213,7 +213,7 @@ public class PlayerMovement : MonoBehaviour {
         }
 
         if (!wasGrounded && grounded && MoveCamera.Instance != null) {
-            MoveCamera.Instance.BobOnce(new Vector3(0f, fallSpeed, 0f));
+            MoveCamera.Instance.BobOnce(new Vector3(0f, fallSpeed * 0.8f, 0f));
         }
     }
 
