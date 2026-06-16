@@ -130,7 +130,7 @@ public class Client : MonoBehaviour {
                 using (Packet packet = new Packet(capturedBytes)) {
                     int packetId = packet.ReadInt();
 
-                    if (packetId == (int)ClientPackets.measureRtt || packetId == (int)ClientPackets.syncTick) {
+                    if (false) {
                         packetHandlers[packetId](packet);
 
                         ClientHandle.packetsReceived++;
@@ -238,7 +238,7 @@ public class Client : MonoBehaviour {
             using (Packet packet = new Packet(data)) {
                 int packetId = packet.ReadInt();
 
-                if (packetId == (int)ServerPackets.worldSnapshot) {
+                if (packetId == (int)ServerPackets.gameUpdate) {
                     packetHandlers[packetId](packet);
                     ClientHandle.packetsReceived++;
                     ClientHandle.bytesReceived += packet.Length();
@@ -267,11 +267,9 @@ public class Client : MonoBehaviour {
     private void InitializeClientData() {
         packetHandlers = new Dictionary<int, PacketHandler>() {
             { (int)ServerPackets.welcome, ClientHandle.Welcome },
-            { (int)ServerPackets.measureRtt, ClientHandle.MeasureRTT },
             { (int)ServerPackets.syncTick, ClientHandle.SyncTick },
             { (int)ServerPackets.spawnPlayer, ClientHandle.SpawnPlayer },
-            { (int)ServerPackets.worldSnapshot, ClientHandle.PlayerUpdate },
-            { (int)ServerPackets.lagCompDebug, ClientHandle.LagCompDebug },
+            { (int)ServerPackets.gameUpdate, ClientHandle.GameUpdate },
         };
     }
 

@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 
 public class PlayerPrediction : MonoBehaviour {
-    private const float positionErrorThreshold = 0.0000001f;
+    private const float positionErrorThreshold = 0.001f;
     public static PlayerPrediction Instance;
 
     private static Vector3[] positionHistory = new Vector3[NetworkSettings.inputBufferSize];

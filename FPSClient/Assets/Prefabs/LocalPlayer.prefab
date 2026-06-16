@@ -2901,7 +2901,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 1335595927676222055}
-  offset: {x: 0, y: 1, z: 0}
+  offset: {x: 0, y: 1.2, z: 0}
   smooth: 0
   playerMovement: {fileID: 6894953828135802274}
   desyncOffset: {x: 0, y: 0, z: 0}
@@ -3467,7 +3467,6 @@ MonoBehaviour:
   maxSlopeAngle: 35
   slideForce: 10
   slideCounterMovement: 0.0175
-  readyToJump: 1
   jumpForce: 9
   wallRunning: 0
   wallrunBoostUsed: 0

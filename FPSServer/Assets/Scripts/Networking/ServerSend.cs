@@ -52,20 +52,12 @@ public class ServerSend {
         }
     }
 
-    public static void MeasureRTT(int toClient, double timestamp) {
-        using (Packet packet = new Packet((int)ServerPackets.measureRtt)) {
-            packet.Write(timestamp);
-
-            SendTCPData(toClient, packet);
-        }
-    }
-
-    public static void SyncTick(int toClient, double timestamp) {
+    public static void SyncTick(int toClient, float clientSendTime, uint serverTick) {
         using (Packet packet = new Packet((int)ServerPackets.syncTick)) {
-            packet.Write(timestamp);
-            packet.Write(NetworkManager.tick);
+            packet.Write(clientSendTime);
+            packet.Write(serverTick);
 
-            SendTCPData(toClient, packet);
+            SendUDPData(toClient, packet);
         }
     }
 
@@ -81,10 +73,10 @@ public class ServerSend {
         }
     }
 
-    public static void PlayerUpdate(int toClient, PlayerUpdate update) {
+    public static void GameUpdate(int toClient, GameUpdate update) {
         update.serverSendTime = NetworkManager.Instance.GetTime();
 
-        using (Packet packet = new Packet((int)ServerPackets.worldSnapshot)) {
+        using (Packet packet = new Packet((int)ServerPackets.gameUpdate)) {
             packet.Write(update.serverTick);
             packet.Write(update.inputBufferOffset);
 
@@ -104,14 +96,6 @@ public class ServerSend {
             }
 
             SendUDPData(toClient, packet);
-        }
-    }
-
-    public static void LagCompDebug(int toClient, Vector3 pos) {
-        using (Packet packet = new Packet((int)ServerPackets.lagCompDebug)) {
-            packet.Write(pos);
-            
-            SendTCPData(toClient, packet);
         }
     }
 }

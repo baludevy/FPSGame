@@ -33,7 +33,7 @@ public class PlayerMovement : MonoBehaviour {
     public float slideCounterMovement = 0.01f;
 
     //jumping
-    public bool readyToJump = true;
+    private bool readyToJump = true;
     public float jumpForce = 9f;
 
     //wallrunning
@@ -317,7 +317,7 @@ public class PlayerMovement : MonoBehaviour {
         }
 
         wallRunTicks++;
-        if (wallRunTicks == 96) {
+        if (wallRunTicks == 160) {
             rb.AddForce(wallNormalVector * 1200f);
             wallRunning = false;
             readyToWallrun = true;
@@ -424,7 +424,7 @@ public class PlayerMovement : MonoBehaviour {
 
         float cameraAngle = playerCam.rotation.eulerAngles.y;
         float wallAngle = Vector3.SignedAngle(Vector3.forward, wallNormalVector, Vector3.up);
-        wallRunRotation = (-Mathf.DeltaAngle(cameraAngle, wallAngle) / 90f) * 5.5f;
+        wallRunRotation = (-Mathf.DeltaAngle(cameraAngle, wallAngle) / 90f) * 10.5f;
     }
 
     public void WallRunning() {

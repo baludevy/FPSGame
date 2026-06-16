@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.ProBuilder;
 
 public class TimeScaler : MonoBehaviour {
     public static TimeScaler Instance { get; private set; }
@@ -6,10 +7,10 @@ public class TimeScaler : MonoBehaviour {
     private int targetInpBufferOffset => NetworkSettings.targetInpBufferOffset;
 
     private float normalTimescale = 1f;
-    private float minTimescale = 0.7f;
-    private float maxTimescale = 1.05f;
+    private float minTimescale = 0.95f;
+    private float maxTimescale = 1.2f;
 
-    private float sensitivity = 0.015f;
+    private float sensitivity = 0.03f;
     private float smoothing = 0.25f;
 
     private float baseThreshold = 1f;

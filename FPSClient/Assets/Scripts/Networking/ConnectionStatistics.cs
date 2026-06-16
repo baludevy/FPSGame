@@ -14,9 +14,14 @@ public static class ConnectionStatistics {
     private static float pingSmooth = 0.1f;
     private static float packetLossSmooth = 0.1f;
 
-    //jitter
+    //jitter p95
     private static float lastTransitTime = -1f;
     private static bool hasLastTransit;
+    private const int jitterWindow = 128;
+    private static float[] jitterSamples = new float[jitterWindow];
+    private static int jitterIndex;
+    private static int jitterCount;
+    private static float[] jitterSorted = new float[jitterWindow];
 
     //packet loss
     private const int lossWindow = 128;
@@ -63,11 +68,18 @@ public static class ConnectionStatistics {
             return;
         }
 
-        float delta = currentTransitTime - lastTransitTime;
+        float delta = Math.Abs(currentTransitTime - lastTransitTime);
         lastTransitTime = currentTransitTime;
 
-        // rfc 3550
-        jitter += (Math.Abs(delta) - jitter) / 16f;
+        jitterSamples[jitterIndex] = delta;
+        jitterIndex = (jitterIndex + 1) % jitterWindow;
+        if (jitterCount < jitterWindow) jitterCount++;
+
+        Array.Copy(jitterSamples, jitterSorted, jitterCount);
+        Array.Sort(jitterSorted, 0, jitterCount);
+
+        int p95Index = Mathf.CeilToInt(jitterCount * 0.95f) - 1;
+        jitter = jitterSorted[p95Index];
     }
 
     private static void UpdatePacketLoss(uint serverTick) {
@@ -100,7 +112,7 @@ public static class ConnectionStatistics {
     public static void ApplyAdjustments() {
         float jitterInTicks = jitter / NetworkSettings.tickTime;
 
-        int calculatedBuffer = Mathf.CeilToInt(jitterInTicks * 3f);
+        int calculatedBuffer = Mathf.CeilToInt(jitterInTicks);
 
         float lossPercentage = packetLoss * 100f;
 
@@ -108,7 +120,7 @@ public static class ConnectionStatistics {
 
         NetworkSettings.interpTime = Math.Max(1, calculatedBuffer) * NetworkSettings.tickTime;
 
-        int inputRedundancy = Mathf.Clamp(Mathf.RoundToInt(lossPercentage / 3f), 0, 5);
+        int inputRedundancy = Mathf.Clamp(Mathf.RoundToInt(lossPercentage / 3f), 1, 5);
         NetworkSettings.inputRedundancy = inputRedundancy;
     }
 
@@ -120,6 +132,10 @@ public static class ConnectionStatistics {
 
         lastTransitTime = -1f;
         hasLastTransit = false;
+
+        Array.Clear(jitterSamples, 0, jitterSamples.Length);
+        jitterIndex = 0;
+        jitterCount = 0;
 
         Array.Clear(received, 0, received.Length);
         receivedCount = 0;

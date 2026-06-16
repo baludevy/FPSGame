@@ -8,17 +8,14 @@ using UnityEngine;
 /// 
 public enum ServerPackets {
     welcome = 1,
-    measureRtt,
     syncTick,
     spawnPlayer,
-    worldSnapshot,
-    lagCompDebug,
+    gameUpdate,
 }
 
 /// <summary>Sent from client to server.</summary>
 public enum ClientPackets {
     welcomeReceived = 1,
-    measureRtt,
     syncTick,
     playerInput
 }
@@ -123,14 +120,12 @@ public class Packet : IDisposable {
     public void Write(short _value) {
         buffer.AddRange(BitConverter.GetBytes(_value));
     }
-    
-    public void Write(ushort value)
-    {
+
+    public void Write(ushort value) {
         buffer.AddRange(BitConverter.GetBytes(value));
     }
-    
-    public void Write(sbyte value)
-    {
+
+    public void Write(sbyte value) {
         buffer.Add((byte)value);
     }
 
@@ -140,7 +135,7 @@ public class Packet : IDisposable {
     public void Write(int _value) {
         buffer.AddRange(BitConverter.GetBytes(_value));
     }
-    
+
     /// <summary>Adds a uint to the packet.</summary>
     /// <param name="_value">The uint to add.</param>
     public void Write(uint _value) {
@@ -152,7 +147,7 @@ public class Packet : IDisposable {
     public void Write(long _value) {
         buffer.AddRange(BitConverter.GetBytes(_value));
     }
-    
+
     /// <summary>Adds a double to the packet.</summary>
     /// <param name="_value">The long to add.</param>
     public void Write(double _value) {
@@ -216,9 +211,8 @@ public class Packet : IDisposable {
             throw new Exception("Could not read value of type 'byte'!");
         }
     }
-    
-    public sbyte ReadSByte(bool moveReadPos = true)
-    {
+
+    public sbyte ReadSByte(bool moveReadPos = true) {
         sbyte value = (sbyte)readableBuffer[readPos];
 
         if (moveReadPos)
@@ -265,9 +259,8 @@ public class Packet : IDisposable {
             throw new Exception("Could not read value of type 'short'!");
         }
     }
-    
-    public ushort ReadUShort(bool moveReadPos = true)
-    {
+
+    public ushort ReadUShort(bool moveReadPos = true) {
         ushort value = BitConverter.ToUInt16(readableBuffer, readPos);
 
         if (moveReadPos)
@@ -293,7 +286,7 @@ public class Packet : IDisposable {
             throw new Exception("Could not read value of type 'int'!");
         }
     }
-    
+
     /// <summary>Reads a uint from the packet.</summary>
     /// <param name="_moveReadPos">Whether or not to move the buffer's read position.</param>
     public uint ReadUInt(bool _moveReadPos = true) {
@@ -328,7 +321,7 @@ public class Packet : IDisposable {
             throw new Exception("Could not read value of type 'long'!");
         }
     }
-    
+
     /// <summary>Reads a double from the packet.</summary>
     /// <param name="_moveReadPos">Whether or not to move the buffer's read position.</param>
     public double ReadDouble(bool _moveReadPos = true) {

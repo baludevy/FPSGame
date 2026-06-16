@@ -9,7 +9,7 @@ public class TickTimer : MonoBehaviour {
     public static float timeScale = 1f;
     public static uint tick;
 
-    private readonly Stopwatch stopwatch = Stopwatch.StartNew();
+    private Stopwatch stopwatch = Stopwatch.StartNew();
     public float accumulator;
     private float currentTime;
 
@@ -33,6 +33,7 @@ public class TickTimer : MonoBehaviour {
             accumulator -= tickInterval;
 
             ThreadManager.UpdateMain();
+            TickSync.Update();
 
             if (!doTick) return;
             ProcessTick();

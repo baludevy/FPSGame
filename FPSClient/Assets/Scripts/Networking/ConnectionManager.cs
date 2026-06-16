@@ -4,8 +4,9 @@ public static class ConnectionManager {
     public static void OnConnect() {
         ClientSend.WelcomeReceived();
         NetworkUIManager.Instance.DisableConnectUI();
-
-        RTTManager.SendSyncTickRequest();
+        
+        TickSync.StartSync();
+        TickTimer.doTick = true;
 
         Debug.Log("Connected.");
     }

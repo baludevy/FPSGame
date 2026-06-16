@@ -17,19 +17,6 @@ public class ClientHandle {
         ConnectionManager.OnConnect();
     }
 
-    public static void MeasureRTT(Packet packet) {
-        double timestamp = packet.ReadDouble();
-
-        RTTManager.ReceiveRTTResponse(timestamp);
-    }
-
-    public static void SyncTick(Packet packet) {
-        double timestamp = packet.ReadDouble();
-        uint serverTick = packet.ReadUInt();
-
-        RTTManager.SyncTick(timestamp, serverTick);
-    }
-
     public static void SpawnPlayer(Packet packet) {
         int id = packet.ReadInt();
         string username = packet.ReadString();
@@ -39,7 +26,14 @@ public class ClientHandle {
         GameManager.Instance.SpawnPlayer(id, username, position, rotation);
     }
 
-    public static void PlayerUpdate(Packet packet) {
+    public static void SyncTick(Packet packet) {
+        float clientSendTime = packet.ReadFloat();
+        uint serverTick = packet.ReadUInt();
+
+        TickSync.OnPong(clientSendTime, serverTick);
+    }
+
+    public static void GameUpdate(Packet packet) {
         uint serverTick = packet.ReadUInt();
         sbyte inputBufferOffset = packet.ReadSByte();
 
@@ -72,7 +66,7 @@ public class ClientHandle {
             playerStates = playerStates,
         };
 
-        PlayerUpdate update = new PlayerUpdate {
+        GameUpdate update = new GameUpdate {
             serverTick = serverTick,
             inputBufferOffset = inputBufferOffset,
             clientSendTime = clientSendTime,
@@ -83,11 +77,5 @@ public class ClientHandle {
         };
 
         SnapshotManager.Instance.OnUpdateReceived(update);
-    }
-
-    public static void LagCompDebug(Packet packet) {
-        Vector3 pos = packet.ReadVector3();
-
-        Object.Instantiate(PrefabManager.Instance.lagCompServer, pos, Quaternion.identity);
     }
 }

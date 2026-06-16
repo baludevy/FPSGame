@@ -19,16 +19,16 @@ public class Server {
     public static void Start(int maxPlayers, int port) {
         MaxPlayers = maxPlayers;
         Server.port = port;
-        
+
         InitializeServerData();
 
         _tcpListener = new TcpListener(IPAddress.Any, Server.port);
         _tcpListener.Start();
         _tcpListener.BeginAcceptTcpClient(TcpConnectCallback, null);
-        
+
         _udpListener = new UdpClient(Server.port);
         _udpListener.BeginReceive(UDPReceiveCallback, null);
-        
+
         Debug.Log($"Server started on port {Server.port}.");
     }
 
@@ -65,13 +65,18 @@ public class Server {
                     return;
                 }
             }
-            
-            Debug.Log($"Incoming connection from {client.Client.RemoteEndPoint} was rejected because the Server is full.");
+
+            Debug.Log(
+                $"Incoming connection from {client.Client.RemoteEndPoint} was rejected because the Server is full.");
             client.Close();
         }
         catch (Exception ex) {
             Debug.LogException(ex);
-            try { client?.Close(); } catch { }
+            try {
+                client?.Close();
+            }
+            catch {
+            }
         }
     }
 
@@ -87,8 +92,8 @@ public class Server {
         }
         catch (SocketException ex) {
             if (ex.SocketErrorCode == SocketError.ConnectionReset) {
-                Debug.Log($"UDP ICMP reset from {clientEndPoint}, ignoring.");
-            } else {
+            }
+            else {
                 Debug.LogException(ex);
             }
         }
@@ -100,7 +105,6 @@ public class Server {
                 _udpListener.BeginReceive(UDPReceiveCallback, null);
             }
             catch (ObjectDisposedException) {
-                
             }
             catch (Exception ex) {
                 Debug.LogException(ex);
@@ -133,7 +137,7 @@ public class Server {
             Debug.LogException(ex);
         }
     }
-    
+
     public static void SendUDPData(IPEndPoint clientEndPoint, Packet packet) {
         try {
             if (clientEndPoint != null) {
@@ -144,7 +148,7 @@ public class Server {
             Debug.LogException(ex);
         }
     }
-    
+
     private static void InitializeServerData() {
         for (int i = 1; i <= MaxPlayers; i++) {
             clients.Add(i, new Client(i));
@@ -152,19 +156,36 @@ public class Server {
 
         packetHandlers = new Dictionary<int, packetHandler> {
             { (int)ClientPackets.welcomeReceived, ServerHandle.WelcomeReceived },
-            { (int)ClientPackets.measureRtt, ServerHandle.MeasureRTT },
             { (int)ClientPackets.syncTick, ServerHandle.SyncTick },
             { (int)ClientPackets.playerInput, ServerHandle.PlayerInput },
         };
     }
-    
+
     public static void Stop() {
         foreach (Client client in clients.Values) {
-            try { client?.tcp?.Disconnect(); } catch { }
-            try { client?.udp?.Disconnect(); } catch { }
+            try {
+                client?.tcp?.Disconnect();
+            }
+            catch {
+            }
+
+            try {
+                client?.udp?.Disconnect();
+            }
+            catch {
+            }
         }
 
-        try { _tcpListener?.Stop(); } catch { }
-        try { _udpListener?.Close(); } catch { }
+        try {
+            _tcpListener?.Stop();
+        }
+        catch {
+        }
+
+        try {
+            _udpListener?.Close();
+        }
+        catch {
+        }
     }
 }

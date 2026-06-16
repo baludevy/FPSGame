@@ -14,18 +14,11 @@ public class MoveCamera : MonoBehaviour {
     private float bobMultiplier = 0.5f;
     public Vector3 desyncOffset;
     public Vector3 crouchOffset;
-
-    private float strafeRotation;
-    private float desiredStrafeRotation;
-    private float strafeRotationVel;
-    private float strafeTiltAmount = 1.5f;
-    private float strafeSmoothTime = 0.3f;
-
     public Camera cam;
     private float baseFov = 90f;
     private float targetFov;
     private float fovVelocity;
-    private float fovSmoothTime = 0.2f;
+    private float fovSmoothTime = 0.3f;
     private float maxFovOffset = 10f;
     private float speedThreshold = 15f;
     private float maxSpeedForFov = 35f;
@@ -53,30 +46,12 @@ public class MoveCamera : MonoBehaviour {
 
     private void LateUpdate() {
         UpdateBob();
-        UpdateStrafeRotation();
 
         Vector3 cameraRot = playerMovement.cameraRot;
         cameraRot.x = Mathf.Clamp(cameraRot.x, -90f, 90f);
-        cameraRot.z += strafeRotation;
         transform.rotation = Quaternion.Euler(cameraRot);
         Vector3 eulerAngles = transform.rotation.eulerAngles;
         transform.rotation = Quaternion.Euler(eulerAngles);
-    }
-
-    private void UpdateStrafeRotation() {
-        float x = Input.GetAxisRaw("Horizontal");
-        if (x < -0.1f) {
-            desiredStrafeRotation = strafeTiltAmount;
-        }
-        else if (x > 0.1f) {
-            desiredStrafeRotation = -strafeTiltAmount;
-        }
-        else {
-            desiredStrafeRotation = 0f;
-        }
-
-        strafeRotation =
-            Mathf.SmoothDamp(strafeRotation, desiredStrafeRotation, ref strafeRotationVel, strafeSmoothTime);
     }
 
     private void UpdateFov() {

@@ -100,7 +100,7 @@ public class Client {
                 {
                     int packetId = packet.ReadInt();
                     
-                    if (packetId == (int)ClientPackets.measureRtt || packetId == (int)ClientPackets.syncTick)
+                    if (false)
                     {
                         Server.packetHandlers[packetId](_id, packet);
                     }

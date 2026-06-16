@@ -34,11 +34,6 @@ public class Player : MonoBehaviour {
 
             if (player == null || player.id == id)
                 continue;
-
-            Vector3 rewoundPos = NetworkManager.Instance.lagCompensation.GetRewoundPosition(input.renderTick, player.id);
-
-            ServerSend.LagCompDebug(id, rewoundPos);
-            Debug.Log($"Player {player.id} rewound pos at tick {input.renderTick}: {rewoundPos}");
         }
     }
 }

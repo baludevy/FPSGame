@@ -74,7 +74,7 @@ public class NetworkManager : MonoBehaviour {
     }
 
     private void SendPlayerUpdate(int toClient) {
-        PlayerUpdate update = new PlayerUpdate();
+        GameUpdate update = new GameUpdate();
 
         Player toPlayer = Server.clients[toClient].player;
 
@@ -101,7 +101,7 @@ public class NetworkManager : MonoBehaviour {
 
         update.worldSnapshot = GetWorldSnapshot();
 
-        ServerSend.PlayerUpdate(toClient, update);
+        ServerSend.GameUpdate(toClient, update);
     }
 
     private WorldSnapshot GetWorldSnapshot() {

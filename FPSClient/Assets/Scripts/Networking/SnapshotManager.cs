@@ -14,13 +14,21 @@ public class SnapshotManager : MonoBehaviour {
     private uint lastReconciledTick;
     private bool isInitialized;
 
+    public bool firstUpdateReceived;
+
     private void Awake() {
         Instance = this;
     }
 
-    public void OnUpdateReceived(PlayerUpdate update) {
-        if (update == null) return;
+    public void Reset() {
+        lock (bufferLock) {
+            snapshotBuffer.Clear();
+            isInitialized = false;
+            lastReconciledTick = 0;
+        }
+    }
 
+    public void OnUpdateReceived(GameUpdate update) {
         if (update.serverTick > serverTick) {
             serverTick = update.serverTick;
             snapshotBufferOffset = serverTick - (uint)Mathf.RoundToInt(clientRenderTick) - 1;
@@ -29,14 +37,12 @@ public class SnapshotManager : MonoBehaviour {
             ConnectionStatistics.CalculateStatistics(update.serverTick, now, update.clientSendTime,
                 update.serverReceiveTime, update.serverSendTime);
 
-            // adjust thresholds and target offset based on network conditions, sync clock to be ahead of the server
             ConnectionStatistics.ApplyAdjustments();
             TimeScaler.Instance.AdjustClock(update.inputBufferOffset);
         }
 
         if (update.serverTick > lastReconciledTick) {
             lastReconciledTick = update.serverTick;
-            int myId = Client.Instance.myId;
 
             if (PlayerMovement.Instance != null)
                 ThreadManager.ExecuteOnMainThread(() =>
@@ -109,7 +115,7 @@ public class SnapshotManager : MonoBehaviour {
         if (Mathf.Abs(drift) > interpTicks * 2f)
             clientRenderTick = targetTick;
         else
-            clientRenderTick = Mathf.MoveTowards(clientRenderTick, targetTick, Time.deltaTime * tickRate * 0.1f);
+            clientRenderTick -= drift * Time.deltaTime * tickRate * 0.1f;
     }
 
     private void TrimBuffer() {
@@ -140,18 +146,15 @@ public class SnapshotManager : MonoBehaviour {
     private void ProcessSnapshot(WorldSnapshot from, WorldSnapshot to, float t) {
         int myId = Client.Instance.myId;
 
+        Dictionary<int, Vector3> fromPositions = new Dictionary<int, Vector3>(from.playerStates.Count);
+        for (int i = 0; i < from.playerStates.Count; i++)
+            fromPositions[from.playerStates[i].id] = from.playerStates[i].position;
+
         foreach (PlayerState toState in to.playerStates) {
             if (toState.id == myId) continue;
             if (!GameManager.players.TryGetValue(toState.id, out PlayerManager player) || player == null) continue;
 
-            Vector3 fromPos = toState.position;
-            for (int i = 0; i < from.playerStates.Count; i++) {
-                if (from.playerStates[i].id == toState.id) {
-                    fromPos = from.playerStates[i].position;
-                    break;
-                }
-            }
-
+            Vector3 fromPos = fromPositions.TryGetValue(toState.id, out Vector3 pos) ? pos : toState.position;
             player.transform.position = Vector3.Lerp(fromPos, toState.position, t);
         }
     }

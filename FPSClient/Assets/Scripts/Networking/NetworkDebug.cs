@@ -82,7 +82,7 @@ public class NetworkDebug : MonoBehaviour {
         totalPing.text = $"total: {ConnectionStatistics.totalRtt * 1000f:F0}ms";
 
         packetLoss.text = $"loss: {ConnectionStatistics.packetLoss * 100:F0}%";
-        jitter.text = $"jitter: {ConnectionStatistics.jitter * 1000 * 2:F0}ms";
+        jitter.text = $"jitter: {ConnectionStatistics.jitter * 1000:F0}ms";
 
         inputBufferOffset.text = $"ibuf: {TimeScaler.Instance.currentBufferOffset}";
         inputBufferTarget.text = $"target: {NetworkSettings.targetInpBufferOffset}";

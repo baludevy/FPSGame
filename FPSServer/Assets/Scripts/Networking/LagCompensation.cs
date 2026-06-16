@@ -11,16 +11,46 @@ public class LagCompensation {
         snapshotHistory.Add(snapshot);
     }
 
-    public Vector3 GetRewoundPosition(float renderTick, int playerId) {
-        WorldSnapshot fromSnapshot = snapshotHistory.First(s => s.tick == Mathf.FloorToInt(renderTick));
-        WorldSnapshot toSnapshot = snapshotHistory.First(s => s.tick == Mathf.CeilToInt(renderTick));
+    public PlayerState GetRewoundState(float renderTick, int playerId) {
+        WorldSnapshot interpolated = GetRewoundSnapshot(renderTick);
+        return interpolated.playerStates.FirstOrDefault(p => p.id == playerId);
+    }
 
-        PlayerState fromState = fromSnapshot.playerStates.First(p => p.id == playerId);
-        PlayerState toState = toSnapshot.playerStates.First(p => p.id == playerId);
+    public WorldSnapshot GetRewoundSnapshot(float renderTick) {
+        int floorTick = Mathf.FloorToInt(renderTick);
+        int ceilTick = Mathf.CeilToInt(renderTick);
 
-        float t = renderTick - Mathf.FloorToInt(renderTick);
+        WorldSnapshot fromSnapshot = snapshotHistory.FirstOrDefault(s => s.tick == floorTick)
+                                     ?? snapshotHistory.OrderBy(s => s.tick).First();
 
-        return Vector3.Lerp(fromState.position, toState.position, t);
+        WorldSnapshot toSnapshot = snapshotHistory.FirstOrDefault(s => s.tick == ceilTick)
+                                   ?? snapshotHistory.OrderBy(s => s.tick).First();
+
+        float t = renderTick - floorTick;
+
+        return InterpolateSnapshot(fromSnapshot, toSnapshot, t);
+    }
+
+    private WorldSnapshot InterpolateSnapshot(WorldSnapshot from, WorldSnapshot to, float t) {
+        WorldSnapshot interpolated = new WorldSnapshot {
+            tick = from.tick,
+            playerStates = new List<PlayerState>()
+        };
+
+        foreach (PlayerState fromState in from.playerStates) {
+            PlayerState toState = to.playerStates.FirstOrDefault(p => p.id == fromState.id);
+
+            PlayerState interpolatedState = new PlayerState {
+                id = fromState.id,
+                position = toState != null
+                    ? Vector3.Lerp(fromState.position, toState.position, t)
+                    : fromState.position
+            };
+
+            interpolated.playerStates.Add(interpolatedState);
+        }
+
+        return interpolated;
     }
 
     public void Update() {

@@ -34,19 +34,11 @@ public class ClientSend {
         }
     }
 
-    public static void MeasureRTT(double timestamp) {
-        using (Packet packet = new Packet((int)ClientPackets.measureRtt)) {
-            packet.Write(timestamp);
-            
-            SendTCPData(packet);
-        }
-    }
-    
-    public static void SyncTick(double timestamp) {
+    public static void SyncTick(float clientSendTime) {
         using (Packet packet = new Packet((int)ClientPackets.syncTick)) {
-            packet.Write(timestamp);
-
-            SendTCPData(packet);
+            packet.Write(clientSendTime);
+            
+            SendUDPData(packet);
         }
     }
 
