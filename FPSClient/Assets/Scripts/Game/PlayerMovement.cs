@@ -424,7 +424,7 @@ public class PlayerMovement : MonoBehaviour {
 
         float cameraAngle = playerCam.rotation.eulerAngles.y;
         float wallAngle = Vector3.SignedAngle(Vector3.forward, wallNormalVector, Vector3.up);
-        wallRunRotation = (-Mathf.DeltaAngle(cameraAngle, wallAngle) / 90f) * 10.5f;
+        wallRunRotation = (-Mathf.DeltaAngle(cameraAngle, wallAngle) / 90f) * 8.5f;
     }
 
     public void WallRunning() {

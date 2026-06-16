@@ -22,7 +22,7 @@ public class GameManager : MonoBehaviour {
 
     private void Start() {
         QualitySettings.vSyncCount = 1;
-        // Application.targetFrameRate = 144;
+        Application.targetFrameRate = 200;
     }
     
     public void SpawnPlayer(int id, string username, Vector3 position, Quaternion rotation) {

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class SnapshotManager : MonoBehaviour {
@@ -6,7 +7,7 @@ public class SnapshotManager : MonoBehaviour {
 
     public static uint serverTick;
     public static float clientRenderTick;
-    public static uint snapshotBufferOffset;
+    public static int snapshotBufferOffset;
     public static float interpTime => NetworkSettings.interpTime;
 
     private readonly List<WorldSnapshot> snapshotBuffer = new List<WorldSnapshot>();
@@ -31,7 +32,7 @@ public class SnapshotManager : MonoBehaviour {
     public void OnUpdateReceived(GameUpdate update) {
         if (update.serverTick > serverTick) {
             serverTick = update.serverTick;
-            snapshotBufferOffset = serverTick - (uint)Mathf.RoundToInt(clientRenderTick) - 1;
+            snapshotBufferOffset = Math.Max(0, (int)serverTick - Mathf.RoundToInt(clientRenderTick) - 1);
 
             float now = TickTimer.Instance.GetTime();
             ConnectionStatistics.CalculateStatistics(update.serverTick, now, update.clientSendTime,

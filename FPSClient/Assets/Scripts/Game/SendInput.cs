@@ -34,14 +34,6 @@ public class SendInput : MonoBehaviour {
         shoot = Input.GetKey(KeyCode.Mouse0);
     }
 
-    public void Shoot() {
-        foreach (PlayerManager player in GameManager.players.Values) {
-            if (player.id != Client.Instance.myId) {
-                Instantiate(PrefabManager.Instance.lagCompClient, player.transform.position, Quaternion.identity);
-            }
-        }
-    }
-
     public PlayerInput GatherInput(uint tick) {
         PlayerInput input = new PlayerInput {
             tick = tick,
@@ -99,12 +91,12 @@ public class SendInput : MonoBehaviour {
 
         lastSentTick = lastCompletedTick;
     }
-    
+
     private bool lastShoot;
 
     public void ProcessInput(PlayerInput input) {
         PlayerPrediction.Instance.PredictState(input);
-        if (input.shoot && !lastShoot) Shoot();
+        // if (input.shoot && !lastShoot) Shoot();
         lastShoot = input.shoot;
     }
 }
