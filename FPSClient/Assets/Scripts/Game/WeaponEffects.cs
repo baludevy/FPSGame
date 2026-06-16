@@ -1,27 +1,41 @@
 ﻿using UnityEngine;
 
-public class WeaponSway : MonoBehaviour {
-    public static WeaponSway Instance;
+public class WeaponEffects : MonoBehaviour {
+    public static WeaponEffects Instance;
 
-    public float smooth = 10f;
+    [Header("Weapon Sway")] public float smooth = 10f;
     public float swayMult = 2f;
 
-    public float bobMultiplier = 1f;
+    [Header("Bob")] public float bobMultiplier = 1f;
     public float bobSpeed = 15f;
 
-    public float moveBobX = 0.04f;
+    [Header("Movement bob")] public float moveBobX = 0.04f;
     public float moveBobY = 0.03f;
     public float moveBobFrequency = 10f;
     public float moveBobSpeedThreshold = 0.1f;
     public float fallOffsetMultiplier = 0.003f;
     public float fallOffsetMax = 0.3f;
 
-    public bool breathing = true;
+    [Header("Breathing")] public bool breathing = true;
     public float breathingSpeed = 1.2f;
     public float breathingPosX = 0.01f;
     public float breathingPosY = 0.015f;
     public float breathingRotX = 0.5f;
     public float breathingRotZ = 0.25f;
+
+    [Header("Recoil")] public Vector3 recoilPosition;
+    public Vector3 recoilRotation;
+
+    public float recoilReturnSpeed = 12f;
+    public float recoilSnappiness = 20f;
+
+    private Vector3 recoilPosCurrent;
+    private Vector3 recoilPosTarget;
+
+    private Vector3 recoilRotCurrent;
+    private Vector3 recoilRotTarget;
+
+    private float nextFire;
 
     private Vector3 initialPosition;
     private Vector3 desiredBob;
@@ -46,7 +60,14 @@ public class WeaponSway : MonoBehaviour {
 
         UpdateBob();
 
-        Vector3 targetPos = initialPosition + bobOffset + GetBreathPos() + GetMoveBob();
+        UpdateRecoil();
+
+        Vector3 targetPos =
+            initialPosition +
+            bobOffset +
+            GetBreathPos() +
+            GetMoveBob() +
+            recoilPosCurrent;
 
         transform.localPosition = Vector3.Lerp(
             transform.localPosition,
@@ -56,7 +77,7 @@ public class WeaponSway : MonoBehaviour {
 
         transform.localRotation = Quaternion.Slerp(
             transform.localRotation,
-            targetRot * GetBreathRot(),
+            targetRot * GetBreathRot() * Quaternion.Euler(recoilRotCurrent),
             smooth * Time.deltaTime
         );
     }
@@ -132,5 +153,23 @@ public class WeaponSway : MonoBehaviour {
             desiredBob,
             Time.deltaTime * bobSpeed
         );
+    }
+
+    private void UpdateRecoil() {
+        recoilRotTarget = Vector3.Lerp(recoilRotTarget, Vector3.zero, Time.deltaTime * recoilReturnSpeed);
+        recoilPosTarget = Vector3.Lerp(recoilPosTarget, Vector3.zero, Time.deltaTime * recoilReturnSpeed);
+
+        recoilRotCurrent = Vector3.Lerp(recoilRotCurrent, recoilRotTarget, Time.deltaTime * recoilSnappiness);
+        recoilPosCurrent = Vector3.Lerp(recoilPosCurrent, recoilPosTarget, Time.deltaTime * recoilSnappiness);
+    }
+
+    public void AddRecoil() {
+        recoilRotTarget += new Vector3(
+            recoilRotation.x + Random.Range(-1f, 1f),
+            recoilRotation.y + Random.Range(-1f, 1f),
+            recoilRotation.z + Random.Range(-1f, 1f)
+        );
+
+        recoilPosTarget += recoilPosition;
     }
 }

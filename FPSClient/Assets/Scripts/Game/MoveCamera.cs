@@ -81,8 +81,8 @@ public class MoveCamera : MonoBehaviour {
         Vector3 vector = ClampVector(bobDirection * 0.15f, -3f, 3f);
         desiredBob = vector * bobMultiplier;
 
-        if (WeaponSway.Instance != null)
-            WeaponSway.Instance.BobOnce(-vector);
+        if (WeaponEffects.Instance != null)
+            WeaponEffects.Instance.BobOnce(-vector);
     }
 
     private void UpdateBob() {

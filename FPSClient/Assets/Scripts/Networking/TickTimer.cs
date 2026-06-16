@@ -15,7 +15,7 @@ public class TickTimer : MonoBehaviour {
 
     private float timer;
 
-    public static bool doTick = false;
+    public static bool doTick = true;
 
     private void Awake() {
         Instance = this;
@@ -40,8 +40,8 @@ public class TickTimer : MonoBehaviour {
             tick++;
         }
 
-        if (PlayerMovement.Instance != null && tick - 1 > SendInput.Instance.lastSentTick)
-            SendInput.Instance.SendPlayerInputs();
+        if (PlayerMovement.Instance != null && tick - 1 > InputManager.Instance.lastSentTick)
+            InputManager.Instance.SendPlayerInputs();
     }
 
     public float GetTime() {
@@ -50,9 +50,9 @@ public class TickTimer : MonoBehaviour {
 
     private void ProcessTick() {
         if (PlayerMovement.Instance != null) {
-            PlayerInput input = SendInput.Instance.GatherInput(tick);
+            PlayerInput input = InputManager.Instance.GatherInput(tick);
 
-            SendInput.Instance.ProcessInput(input);
+            InputManager.Instance.ProcessInput(input);
         }
     }
 

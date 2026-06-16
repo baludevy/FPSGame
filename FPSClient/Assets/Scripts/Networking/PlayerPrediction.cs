@@ -73,7 +73,7 @@ public class PlayerPrediction : MonoBehaviour {
 
         for (uint i = tick + 1; i <= lastSimulatedTick; i++) {
             uint index = i % NetworkSettings.inputBufferSize;
-            PlayerInput input = SendInput.Instance.inputHistory[index];
+            PlayerInput input = InputManager.Instance.inputHistory[index];
 
             if (input == null) {
                 Debug.Log("fuck");

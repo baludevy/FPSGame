@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-public class SendInput : MonoBehaviour {
-    public static SendInput Instance;
+public class InputManager : MonoBehaviour {
+    public static InputManager Instance;
 
     public PlayerInput[] inputHistory = new PlayerInput[NetworkSettings.inputBufferSize];
 
@@ -92,11 +92,8 @@ public class SendInput : MonoBehaviour {
         lastSentTick = lastCompletedTick;
     }
 
-    private bool lastShoot;
-
     public void ProcessInput(PlayerInput input) {
         PlayerPrediction.Instance.PredictState(input);
-        // if (input.shoot && !lastShoot) Shoot();
-        lastShoot = input.shoot;
+        // if (input.shoot) Shoot();
     }
 }

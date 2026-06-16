@@ -213,7 +213,7 @@ public class PlayerMovement : MonoBehaviour {
         }
 
         if (!wasGrounded && grounded && MoveCamera.Instance != null) {
-            MoveCamera.Instance.BobOnce(new Vector3(0f, fallSpeed * 0.8f, 0f));
+            MoveCamera.Instance.BobOnce(new Vector3(0f, fallSpeed * 0.6f, 0f));
         }
     }
 
@@ -361,6 +361,7 @@ public class PlayerMovement : MonoBehaviour {
 
         rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
         rb.AddForce(Vector3.up * jumpForce * 1.5f, ForceMode.Impulse);
+        WeaponEffects.Instance.BobOnce(Vector3.up * 0.5f);
     }
 
     public void Look() {

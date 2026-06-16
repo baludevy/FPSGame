@@ -1,8 +1,8 @@
 ﻿using UnityEngine;
 
 public static class TickSync {
-    private const int targetSamples = 8;
-    private const float pingInterval = 0.05f;
+    private const int targetSamples = 2;
+    private const float pingInterval = 0.01f;
 
     private static bool syncing;
     private static float lastPingTime;
