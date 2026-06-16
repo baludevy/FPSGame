@@ -8,6 +8,8 @@ public class WeaponEffects : MonoBehaviour {
 
     [Header("Bob")] public float bobMultiplier = 1f;
     public float bobSpeed = 15f;
+    private Vector3 desiredRotBob;
+    private Vector3 rotBobOffset;
 
     [Header("Movement bob")] public float moveBobX = 0.04f;
     public float moveBobY = 0.03f;
@@ -35,7 +37,10 @@ public class WeaponEffects : MonoBehaviour {
     private Vector3 recoilRotCurrent;
     private Vector3 recoilRotTarget;
 
-    private float nextFire;
+    [Header("Strafe Tilt")] public float strafeTiltAmount = 4f;
+    public float strafeTiltSmooth = 8f;
+
+    private float currentStrafeTilt;
 
     private Vector3 initialPosition;
     private Vector3 desiredBob;
@@ -77,7 +82,8 @@ public class WeaponEffects : MonoBehaviour {
 
         transform.localRotation = Quaternion.Slerp(
             transform.localRotation,
-            targetRot * GetBreathRot() * Quaternion.Euler(recoilRotCurrent),
+            targetRot * GetBreathRot() * Quaternion.Euler(recoilRotCurrent) * Quaternion.Euler(rotBobOffset) *
+            Quaternion.Euler(0f, 0f, GetStrafeTilt()),
             smooth * Time.deltaTime
         );
     }
@@ -107,9 +113,9 @@ public class WeaponEffects : MonoBehaviour {
     }
 
     private Vector3 GetMoveBob() {
-        if (PlayerMovement.Instance == null) return Vector3.zero;
+        if (LocalPlayer.Instance == null) return Vector3.zero;
 
-        PlayerMovement movement = PlayerMovement.Instance;
+        PlayerMovement movement = LocalPlayer.Instance.movement;
 
         float fallOffset = Mathf.Clamp(-movement.fallSpeed * fallOffsetMultiplier, 0f, fallOffsetMax);
 
@@ -137,8 +143,25 @@ public class WeaponEffects : MonoBehaviour {
         );
     }
 
+    private float GetStrafeTilt() {
+        if (LocalPlayer.Instance == null) return 0f;
+
+        Rigidbody rb = LocalPlayer.Instance.movement.rb;
+
+        float sidewaysVel = Vector3.Dot(rb.velocity, transform.parent.right);
+
+        float targetTilt = -sidewaysVel * strafeTiltAmount;
+        currentStrafeTilt = Mathf.Lerp(currentStrafeTilt, targetTilt, Time.deltaTime * strafeTiltSmooth);
+
+        return currentStrafeTilt;
+    }
+
     public void BobOnce(Vector3 direction) {
         desiredBob += direction * bobMultiplier;
+    }
+
+    public void RotBobOnce(Vector3 rotation) {
+        desiredRotBob += rotation * bobMultiplier;
     }
 
     private void UpdateBob() {
@@ -153,6 +176,9 @@ public class WeaponEffects : MonoBehaviour {
             desiredBob,
             Time.deltaTime * bobSpeed
         );
+
+        desiredRotBob = Vector3.Lerp(desiredRotBob, Vector3.zero, Time.deltaTime * bobSpeed * 0.5f);
+        rotBobOffset = Vector3.Lerp(rotBobOffset, desiredRotBob, Time.deltaTime * bobSpeed);
     }
 
     private void UpdateRecoil() {

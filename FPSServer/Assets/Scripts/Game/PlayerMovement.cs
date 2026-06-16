@@ -10,8 +10,6 @@ public class PlayerMovement : MonoBehaviour {
     public Rigidbody rb;
     public ParticleSystem ps;
 
-    public TickInvoker tickInvoker = new();
-
     //movement
     public float moveSpeed = 4000f;
     public float runSpeed = 12f;
@@ -66,6 +64,8 @@ public class PlayerMovement : MonoBehaviour {
     private Vector3 lastMoveSpeed;
     private CapsuleCollider playerCollider;
 
+    public Player player;
+
     private void Awake() {
         rb = GetComponent<Rigidbody>();
         playerCollider = GetComponent<CapsuleCollider>();
@@ -78,7 +78,7 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     public void AdvanceLogic() {
-        tickInvoker.Step();
+        player.invoker.Step();
         CheckGrounded();
         CheckWalls();
         Movement();
@@ -91,12 +91,10 @@ public class PlayerMovement : MonoBehaviour {
 
         x = inp.x;
         y = inp.y;
-        orientation.localRotation = Quaternion.Euler(0f, inp.orientation, 0f);
+        orientation.localRotation = Quaternion.Euler(0f, inp.yaw, 0f);
         jumping = inp.jumping;
         crouching = inp.crouching;
     }
-    
-    
 
     public void Movement() {
         rb.AddForce(Vector3.down * NetworkSettings.tickTime * 12.5f);
@@ -310,7 +308,7 @@ public class PlayerMovement : MonoBehaviour {
             Vector3 pushNormal = wallNormalVector;
 
             sameWallOnCooldown = true;
-            tickInvoker.Invoke(ResetSameWallCooldown, 64);
+            player.invoker.Invoke(ResetSameWallCooldown, 64);
             readyToJump = false;
 
             rb.velocity = new Vector3(rb.velocity.x, 0, rb.velocity.z);
@@ -321,7 +319,7 @@ public class PlayerMovement : MonoBehaviour {
             currentFacingWallId = 0;
             wallrunBoostUsed = false;
 
-            tickInvoker.Invoke(ResetJump, 10);
+            player.invoker.Invoke(ResetJump, 10);
             return;
         }
 

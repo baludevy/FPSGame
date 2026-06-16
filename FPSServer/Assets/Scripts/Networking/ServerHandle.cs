@@ -34,7 +34,8 @@ public class ServerHandle {
                 renderTick = packet.ReadFloat(),
                 x = packet.ReadFloat(),
                 y = packet.ReadFloat(),
-                orientation = packet.ReadFloat(),
+                yaw = packet.ReadFloat(),
+                pitch = packet.ReadFloat(),
                 jumping = packet.ReadBool(),
                 crouching = packet.ReadBool(),
                 shoot = packet.ReadBool(),
@@ -45,6 +46,6 @@ public class ServerHandle {
 
         Player player = Server.clients[fromClient].player;
 
-        player.InputBuffer.AddInputsToQueue(inputs, timestamp);
+        player.inputBuffer.AddInputsToQueue(inputs, timestamp);
     }
 }

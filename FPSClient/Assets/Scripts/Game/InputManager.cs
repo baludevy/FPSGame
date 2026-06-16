@@ -1,26 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
-using Object = UnityEngine.Object;
 
 public class InputManager : MonoBehaviour {
-    public static InputManager Instance;
+    public static PlayerInput[] inputHistory = new PlayerInput[NetworkSettings.inputBufferSize];
 
-    public PlayerInput[] inputHistory = new PlayerInput[NetworkSettings.inputBufferSize];
+    public static uint lastSentTick;
 
-    public uint lastSentTick;
+    private static List<PlayerInput> playerInputs = new();
 
-    private List<PlayerInput> playerInputs = new();
-
-    private float x;
-    private float y;
-    private bool jumping;
-    private bool crouching;
-    private bool shoot;
-
-    private void Awake() {
-        Instance = this;
-    }
+    private static float x;
+    private static float y;
+    private static bool jumping;
+    private static bool crouching;
+    private static bool shoot;
 
     public void Update() {
         SampleInput();
@@ -40,7 +32,8 @@ public class InputManager : MonoBehaviour {
             renderTick = SnapshotManager.clientRenderTick,
             x = x,
             y = y,
-            orientation = PlayerMovement.Instance.desiredX,
+            yaw = LocalPlayer.Instance.movement.desiredX,
+            pitch = LocalPlayer.Instance.movement.cameraRot.x,
             jumping = jumping,
             crouching = crouching,
             shoot = shoot,
@@ -52,9 +45,8 @@ public class InputManager : MonoBehaviour {
         return input;
     }
 
-    public void SendPlayerInputs() {
-        if (PlayerMovement.Instance == null) return;
-        if (Instance == null) return;
+    public static void SendPlayerInputs() {
+        if (LocalPlayer.Instance == null) return;
 
         int bufferSize = NetworkSettings.inputBufferSize;
 
@@ -67,7 +59,7 @@ public class InputManager : MonoBehaviour {
 
         if (firstUnsents <= lastCompletedTick)
             for (uint t = firstUnsents; t <= lastCompletedTick; t++) {
-                PlayerInput input = Instance.inputHistory[t % bufferSize];
+                PlayerInput input = inputHistory[t % bufferSize];
                 if (input != null && input.tick == t)
                     playerInputs.Add(input);
             }
@@ -77,7 +69,7 @@ public class InputManager : MonoBehaviour {
 
             if (inputTick >= firstUnsents) continue;
 
-            PlayerInput input = Instance.inputHistory[inputTick % bufferSize];
+            PlayerInput input = inputHistory[inputTick % bufferSize];
             if (input != null && input.tick == inputTick)
                 playerInputs.Add(input);
         }
@@ -94,6 +86,6 @@ public class InputManager : MonoBehaviour {
 
     public void ProcessInput(PlayerInput input) {
         PlayerPrediction.Instance.PredictState(input);
-        // if (input.shoot) Shoot();
+        if (input.shoot) LocalPlayer.Instance.weaponController.Shoot();
     }
 }

@@ -30,6 +30,8 @@ public class SnapshotManager : MonoBehaviour {
     }
 
     public void OnUpdateReceived(GameUpdate update) {
+        if(LocalPlayer.Instance == null) return;
+        
         if (update.serverTick > serverTick) {
             serverTick = update.serverTick;
             snapshotBufferOffset = Math.Max(0, (int)serverTick - Mathf.RoundToInt(clientRenderTick) - 1);
@@ -45,7 +47,7 @@ public class SnapshotManager : MonoBehaviour {
         if (update.serverTick > lastReconciledTick) {
             lastReconciledTick = update.serverTick;
 
-            if (PlayerMovement.Instance != null)
+            if (LocalPlayer.Instance.movement != null)
                 ThreadManager.ExecuteOnMainThread(() =>
                     PlayerPrediction.CompareServerState(update.movementState, update.serverTick));
         }

@@ -35,10 +35,10 @@ public class MoveCamera : MonoBehaviour {
     private void Update() {
         if (smooth) {
             transform.position = Vector3.Lerp(transform.position,
-                player.position + bobOffset + crouchOffset + offset, NetworkSettings.tickTime * 5);
+                player.position + desyncOffset + bobOffset + crouchOffset + offset, NetworkSettings.tickTime * 5);
         }
         else {
-            transform.position = player.position + bobOffset + crouchOffset + offset;
+            transform.position = player.position + bobOffset + crouchOffset + desyncOffset + offset;
         }
 
         UpdateFov();

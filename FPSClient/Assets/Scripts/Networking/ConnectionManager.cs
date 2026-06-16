@@ -20,7 +20,9 @@ public static class ConnectionManager {
 
         NetworkUIManager.Instance.EnableConnectUI();
         CursorManager.EnableCursor();
+        
         ConnectionStatistics.Reset();
+        SnapshotManager.Instance.Reset();
 
         TickTimer.doTick = false;
         TickTimer.timeScale = 1f;

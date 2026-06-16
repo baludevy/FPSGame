@@ -12,7 +12,7 @@ public class SpeedMeter : MonoBehaviour {
     }
 
     void Update() {
-        speed = PlayerMovement.Instance.rb.velocity.magnitude;
+        speed = LocalPlayer.Instance.movement.rb.velocity.magnitude;
     }
 
     void OnGUI() {

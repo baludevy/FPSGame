@@ -1,39 +1,32 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
+﻿using UnityEngine;
 
 
 public class Player : MonoBehaviour {
     public int id;
     public string username;
 
-    public InputBuffer InputBuffer;
-    public PlayerMovement movement;
+    public TickInvoker invoker;
 
-    public bool shoot;
+    public InputBuffer inputBuffer;
+    public PlayerMovement movement;
+    public WeaponController weaponController;
+
+    public Transform camera;
 
     public void Initialize(int id, string username) {
         this.id = id;
         this.username = username;
 
-        InputBuffer = new InputBuffer();
-        InputBuffer.Initialize();
+        inputBuffer = new InputBuffer();
+        inputBuffer.Initialize();
+        invoker = new TickInvoker();
     }
 
     public void ProcessInput(PlayerInput input) {
-        if (input.shoot && !shoot) Shoot(input);
-        shoot = input.shoot;
-
         movement.SetInput(input);
+        invoker.Step();
+        camera.rotation = Quaternion.Euler(input.pitch, input.yaw, 0);
+
         movement.AdvanceLogic();
-    }
-
-    public void Shoot(PlayerInput input) {
-        foreach (Client client in Server.clients.Values) {
-            Player player = client.player;
-
-            if (player == null || player.id == id)
-                continue;
-        }
     }
 }

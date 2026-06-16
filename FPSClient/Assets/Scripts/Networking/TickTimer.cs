@@ -40,8 +40,8 @@ public class TickTimer : MonoBehaviour {
             tick++;
         }
 
-        if (PlayerMovement.Instance != null && tick - 1 > InputManager.Instance.lastSentTick)
-            InputManager.Instance.SendPlayerInputs();
+        if (LocalPlayer.Instance != null && tick - 1 > InputManager.lastSentTick)
+            InputManager.SendPlayerInputs();
     }
 
     public float GetTime() {
@@ -49,10 +49,11 @@ public class TickTimer : MonoBehaviour {
     }
 
     private void ProcessTick() {
-        if (PlayerMovement.Instance != null) {
-            PlayerInput input = InputManager.Instance.GatherInput(tick);
+        if (LocalPlayer.Instance != null) {
+            PlayerInput input = LocalPlayer.Instance.input.GatherInput(tick);
 
-            InputManager.Instance.ProcessInput(input);
+            LocalPlayer.Instance.invoker.Step();
+            LocalPlayer.Instance.input.ProcessInput(input);
         }
     }
 

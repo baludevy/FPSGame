@@ -11,8 +11,6 @@ public class PlayerMovement : MonoBehaviour {
     public Rigidbody rb;
     public ParticleSystem ps;
 
-    public TickInvoker tickInvoker = new();
-
     //Rotation and look
     private float xRotation;
     private float sensitivity = 50f;
@@ -70,10 +68,7 @@ public class PlayerMovement : MonoBehaviour {
     public float fallSpeed;
     private CapsuleCollider playerCollider;
 
-    public static PlayerMovement Instance { get; private set; }
-
     private void Awake() {
-        Instance = this;
         rb = GetComponent<Rigidbody>();
         playerCollider = GetComponent<CapsuleCollider>();
         playerHeight = playerCollider.bounds.size.y;
@@ -93,7 +88,6 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     public void AdvanceLogic() {
-        tickInvoker.Step();
         CheckGrounded();
         CheckWalls();
         Movement();
@@ -107,7 +101,7 @@ public class PlayerMovement : MonoBehaviour {
 
         x = inp.x;
         y = inp.y;
-        orientation.localRotation = Quaternion.Euler(0f, inp.orientation, 0f);
+        orientation.localRotation = Quaternion.Euler(0f, inp.yaw, 0f);
         jumping = inp.jumping;
         crouching = inp.crouching;
     }
@@ -212,8 +206,9 @@ public class PlayerMovement : MonoBehaviour {
             surfing = false;
         }
 
-        if (!wasGrounded && grounded && MoveCamera.Instance != null) {
+        if (!wasGrounded && grounded) {
             MoveCamera.Instance.BobOnce(new Vector3(0f, fallSpeed * 0.6f, 0f));
+            WeaponEffects.Instance.RotBobOnce(new Vector3(15f, 0f, 0f));
         }
     }
 
@@ -344,7 +339,7 @@ public class PlayerMovement : MonoBehaviour {
             Vector3 pushNormal = wallNormalVector;
 
             sameWallOnCooldown = true;
-            tickInvoker.Invoke(ResetSameWallCooldown, 64);
+            LocalPlayer.Instance.invoker.Invoke(ResetSameWallCooldown, 64);
             readyToJump = false;
 
             rb.velocity = new Vector3(rb.velocity.x, 0, rb.velocity.z);
@@ -355,13 +350,14 @@ public class PlayerMovement : MonoBehaviour {
             wallrunBoostUsed = false;
             currentFacingWallId = 0;
 
-            tickInvoker.Invoke(ResetJump, 10);
+            LocalPlayer.Instance.invoker.Invoke(ResetJump, 10);
             return;
         }
 
         rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
         rb.AddForce(Vector3.up * jumpForce * 1.5f, ForceMode.Impulse);
         WeaponEffects.Instance.BobOnce(Vector3.up * 0.5f);
+        WeaponEffects.Instance.RotBobOnce(new Vector3(-20f, 0f, 0f));
     }
 
     public void Look() {

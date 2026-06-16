@@ -52,10 +52,14 @@ public class NetworkManager : MonoBehaviour {
 
         foreach (Client client in Server.clients.Values) {
             if (client.player != null) {
-                PlayerInput input = client.player.InputBuffer.GetInputFromQueue(tick);
+                PlayerInput input = client.player.inputBuffer.GetInputFromQueue(tick);
 
                 if (input != null) {
                     client.player.ProcessInput(input);
+                    
+                    if (input.shoot) {
+                        client.player.weaponController.Shoot(input, lagCompensation);
+                    }
                 }
             }
         }
@@ -79,10 +83,10 @@ public class NetworkManager : MonoBehaviour {
         Player toPlayer = Server.clients[toClient].player;
 
         update.serverTick = tick;
-        update.inputBufferOffset = toPlayer.InputBuffer.GetBufferOffset();
+        update.inputBufferOffset = toPlayer.inputBuffer.GetBufferOffset();
 
-        update.clientSendTime = toPlayer.InputBuffer.latestTimestamp;
-        update.serverReceiveTime = toPlayer.InputBuffer.latestReceived;
+        update.clientSendTime = toPlayer.inputBuffer.latestTimestamp;
+        update.serverReceiveTime = toPlayer.inputBuffer.latestReceived;
 
         foreach (Client client in Server.clients.Values) {
             Player player = client.player;

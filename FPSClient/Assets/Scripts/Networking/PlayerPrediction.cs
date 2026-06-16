@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 
 public class PlayerPrediction : MonoBehaviour {
-    private const float positionErrorThreshold = 0.001f;
+    private const float positionErrorThreshold = 0.000001f;
     public static PlayerPrediction Instance;
 
     private static Vector3[] positionHistory = new Vector3[NetworkSettings.inputBufferSize];
@@ -22,7 +22,7 @@ public class PlayerPrediction : MonoBehaviour {
 
         Vector3 interpolatedPos = Vector3.Lerp(
             lastPredictedPos,
-            PlayerMovement.Instance.transform.position,
+            LocalPlayer.Instance.movement.transform.position,
             interpolationFactor
         );
 
@@ -33,18 +33,18 @@ public class PlayerPrediction : MonoBehaviour {
     public void PredictState(PlayerInput input) {
         uint i = input.tick % NetworkSettings.inputBufferSize;
 
-        lastPredictedPos = PlayerMovement.Instance.transform.position;
+        lastPredictedPos = LocalPlayer.Instance.movement.transform.position;
 
-        PlayerMovement.Instance.SetInput(input);
+        LocalPlayer.Instance.movement.SetInput(input);
 
-        PlayerMovement.Instance.AdvanceLogic();
+        LocalPlayer.Instance.movement.AdvanceLogic();
 
         Physics.SyncTransforms();
 
         Physics.Simulate(NetworkSettings.tickTime);
 
-        positionHistory[i] = PlayerMovement.Instance.transform.position;
-        velocityHistory[i] = PlayerMovement.Instance.rb.velocity;
+        positionHistory[i] = LocalPlayer.Instance.movement.transform.position;
+        velocityHistory[i] = LocalPlayer.Instance.movement.rb.velocity;
     }
 
     public static void CompareServerState(MovementState serverState, uint tick) {
@@ -54,17 +54,17 @@ public class PlayerPrediction : MonoBehaviour {
 
         float errorSqrMag = (serverState.position - prePosition).sqrMagnitude;
         if (errorSqrMag > positionErrorThreshold) {
-            // Debug.Log($"Desync by {errorSqrMag}, tick: {tick}");
+            Debug.Log($"Desync by {errorSqrMag}, tick: {tick}");
             SynchronizeMovement(serverState, tick);
         }
     }
 
     private static void SynchronizeMovement(MovementState serverState, uint tick) {
-        Vector3 prePosition = PlayerMovement.Instance.transform.position;
+        Vector3 prePosition = LocalPlayer.Instance.movement.transform.position;
 
-        PlayerMovement.Instance.transform.position = serverState.position;
-        PlayerMovement.Instance.rb.velocity = serverState.velocity;
-        PlayerMovement.Instance.orientation.rotation =
+        LocalPlayer.Instance.movement.transform.position = serverState.position;
+        LocalPlayer.Instance.movement.rb.velocity = serverState.velocity;
+        LocalPlayer.Instance.movement.orientation.rotation =
             Quaternion.Euler(0f, serverState.orientation, 0f);
 
         uint lastSimulatedTick = TickTimer.tick - 1;
@@ -73,26 +73,26 @@ public class PlayerPrediction : MonoBehaviour {
 
         for (uint i = tick + 1; i <= lastSimulatedTick; i++) {
             uint index = i % NetworkSettings.inputBufferSize;
-            PlayerInput input = InputManager.Instance.inputHistory[index];
+            PlayerInput input = InputManager.inputHistory[index];
 
             if (input == null) {
                 Debug.Log("fuck");
                 continue;
             }
 
-            PlayerMovement.Instance.SetInput(input);
+            LocalPlayer.Instance.movement.SetInput(input);
 
-            PlayerMovement.Instance.AdvanceLogic();
+            LocalPlayer.Instance.movement.AdvanceLogic();
 
             Physics.SyncTransforms();
             Physics.Simulate(NetworkSettings.tickTime);
 
-            positionHistory[index] = PlayerMovement.Instance.transform.position;
-            velocityHistory[index] = PlayerMovement.Instance.rb.velocity;
+            positionHistory[index] = LocalPlayer.Instance.movement.transform.position;
+            velocityHistory[index] = LocalPlayer.Instance.movement.rb.velocity;
         }
 
-        Vector3 offsetPosition = PlayerMovement.Instance.transform.position - prePosition;
-        MoveCamera.Instance.desyncOffset = -offsetPosition;
+        Vector3 offsetPosition = LocalPlayer.Instance.movement.transform.position - prePosition;
+        // MoveCamera.Instance.desyncOffset = -offsetPosition;
 
         MoveCamera.Instance.smooth = false;
     }

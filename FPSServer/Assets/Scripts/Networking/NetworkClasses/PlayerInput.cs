@@ -7,7 +7,8 @@ public class PlayerInput {
     public float x;
     public float y;
 
-    public float orientation;
+    public float yaw;
+    public float pitch;
 
     public bool jumping;
     public bool crouching;
