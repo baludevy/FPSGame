@@ -5,31 +5,30 @@ using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour {
     //Assignables
-    public Transform playerCam;
     public Transform orientation;
-    public Rigidbody rb;
-    public ParticleSystem ps;
+    private Rigidbody rb;
 
     //movement
-    public float moveSpeed = 4000f;
-    public float runSpeed = 12f;
-    public bool grounded, wasGrounded, cancellingGrounded;
+    private float moveSpeed = 4000f;
+    private float runSpeed = 12f;
+    private bool grounded, wasGrounded, cancellingGrounded;
     public LayerMask whatIsGround;
 
-    public float counterMovement = 0.175f;
+    private float counterMovement = 0.175f;
     private float threshold = 0.01f;
-    public float maxSlopeAngle = 35f;
+    private float maxSlopeAngle = 35f;
 
     //crouch
-    public float slideForce = 400;
-    public float slideCounterMovement = 0.01f;
+    private float slideForce = 10;
+    private float slideCounterMovement = 0.01f;
+    private Vector3 baseScale;
 
     //jumping
     private bool readyToJump = true;
     public float jumpForce = 9f;
 
     //wallrunning
-    public bool wallRunning;
+    private bool wallRunning;
     private bool surfing;
     private float wallRunRotation;
     private bool readyToWallrun = true;
@@ -47,8 +46,8 @@ public class PlayerMovement : MonoBehaviour {
 
     //input
     private float x, y;
-    public bool jumping, sprinting, crouching;
-    public Vector3 cameraRot;
+    private bool jumping, sprinting, crouching;
+    private Vector3 cameraRot;
     private float desiredX;
 
     //sliding
@@ -75,6 +74,7 @@ public class PlayerMovement : MonoBehaviour {
     private void Start() {
         readyToJump = true;
         wallNormalVector = Vector3.up;
+        baseScale = transform.localScale;
     }
 
     public void AdvanceLogic() {
@@ -146,10 +146,10 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void StartCrouch() {
-        transform.localScale = new Vector3(1.2f, 1.25f, 1.2f);
-        transform.localPosition = new Vector3(transform.position.x, transform.position.y - 0.75f, transform.position.z);
+        transform.localScale = new Vector3(baseScale.x, baseScale.y - 0.5f, baseScale.z);
+        transform.localPosition = new Vector3(transform.position.x, transform.position.y - 0.5f, transform.position.z);
 
-        playerHeight = 2.5f;
+        playerHeight = transform.localScale.y * playerCollider.height;
 
         if (grounded && rb.velocity.magnitude > 2f) {
             rb.AddForce(orientation.forward * slideForce, ForceMode.Impulse);
@@ -157,10 +157,10 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void StopCrouch() {
-        transform.localScale = new Vector3(1.2f, 2f, 1.2f);
-        transform.localPosition = new Vector3(transform.position.x, transform.position.y + 0.75f, transform.position.z);
+        transform.localScale = baseScale;
+        transform.localPosition = new Vector3(transform.position.x, transform.position.y + 0.5f, transform.position.z);
 
-        playerHeight = 4f;
+        playerHeight = transform.localScale.y * playerCollider.height;
     }
 
     public void CheckGrounded() {
@@ -318,7 +318,7 @@ public class PlayerMovement : MonoBehaviour {
             currentFacingWallId = 0;
             wallrunBoostUsed = false;
 
-            player.invoker.Invoke(ResetJump, 8);
+            player.invoker.Invoke(ResetJump, 16);
             return;
         }
 
@@ -410,5 +410,33 @@ public class PlayerMovement : MonoBehaviour {
     private void ResetSameWallCooldown() {
         sameWallOnCooldown = false;
         lastWallInstanceId = 0;
+    }
+
+    public Rigidbody GetRb() {
+        return rb;
+    }
+
+    public Transform GetOrientation() {
+        return orientation;
+    }
+
+    public float GetFallSpeed() {
+        return fallSpeed;
+    }
+
+    public bool IsGrounded() {
+        return grounded;
+    }
+
+    public bool IsWallRunning() {
+        return wallRunning;
+    }
+
+    public bool IsCrouching() {
+        return crouching;
+    }
+
+    public Vector2 GetCameraRot() {
+        return new Vector2(cameraRot.x, desiredX);
     }
 }

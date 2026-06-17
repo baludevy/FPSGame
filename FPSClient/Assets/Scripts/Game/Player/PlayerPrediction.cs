@@ -41,7 +41,7 @@ public class PlayerPrediction : MonoBehaviour {
         uint i = tick % NetworkSettings.inputHistorySize;
 
         positionHistory[i] = LocalPlayer.Instance.movement.transform.position;
-        velocityHistory[i] = LocalPlayer.Instance.movement.rb.velocity;
+        velocityHistory[i] = LocalPlayer.Instance.movement.GetRb().velocity;
     }
 
     public static void CompareServerState(MovementState serverState, uint tick) {
@@ -58,14 +58,12 @@ public class PlayerPrediction : MonoBehaviour {
 
     private static void SynchronizeMovement(MovementState serverState, uint tick) {
         LocalPlayer.Instance.movement.transform.position = serverState.position;
-        LocalPlayer.Instance.movement.rb.velocity = serverState.velocity;
-        LocalPlayer.Instance.movement.orientation.rotation =
+        LocalPlayer.Instance.movement.GetRb().velocity = serverState.velocity;
+        LocalPlayer.Instance.movement.GetOrientation().rotation =
             Quaternion.Euler(0f, serverState.orientation, 0f);
 
         uint lastSimulatedTick = FixedClock.tick - 1;
-
-        MoveCamera.Instance.smooth = true;
-
+        
         for (uint i = tick + 1; i <= lastSimulatedTick; i++) {
             uint index = i % NetworkSettings.inputHistorySize;
             PlayerInput input = InputManager.inputHistory[index];
@@ -81,9 +79,7 @@ public class PlayerPrediction : MonoBehaviour {
             Physics.Simulate(NetworkSettings.tickTime);
 
             positionHistory[index] = LocalPlayer.Instance.movement.transform.position;
-            velocityHistory[index] = LocalPlayer.Instance.movement.rb.velocity;
+            velocityHistory[index] = LocalPlayer.Instance.movement.GetRb().velocity;
         }
-
-        MoveCamera.Instance.smooth = false;
     }
 }

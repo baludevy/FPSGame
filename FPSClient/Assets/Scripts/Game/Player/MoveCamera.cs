@@ -2,31 +2,29 @@
 
 public class MoveCamera : MonoBehaviour {
     public Transform player;
+
     public Vector3 offset;
-    public static MoveCamera Instance;
-    public bool smooth;
-    public PlayerMovement playerMovement;
-    private float desiredTilt;
-    private float tilt;
-    private Vector3 desiredBob;
+    public Vector3 crouchOffset;
     public Vector3 bobOffset;
+
+    public bool smooth;
+    private Vector3 desiredBob;
+
     private float bobSpeed = 15f;
     private float bobMultiplier = 0.5f;
-    public Vector3 desyncOffset;
-    public Vector3 crouchOffset;
-    public Camera cam;
+
     private float baseFov = 90f;
     private float targetFov;
-    private float fovVelocity;
-    private float fovSmoothTime = 0.3f;
-    private float maxFovOffset = 10f;
-    private float speedThreshold = 15f;
-    private float maxSpeedForFov = 35f;
 
-    private void Awake() {
-        Instance = this;
-        if (cam == null) cam = GetComponent<Camera>();
-    }
+    private float fovVelocity;
+    private float speedThreshold = 12f;
+    private float maxSpeedForFov = 35f;
+    
+    private float fovSmoothTime = 0.2f;
+    private float maxFovOffset = 15f;
+
+    public PlayerMovement playerMovement;
+    public Camera cam;
 
     private void Start() {
         if (cam != null) baseFov = cam.fieldOfView;
@@ -35,41 +33,30 @@ public class MoveCamera : MonoBehaviour {
     private void Update() {
         if (smooth) {
             transform.position = Vector3.Lerp(transform.position,
-                player.position + desyncOffset + bobOffset + crouchOffset + offset, NetworkSettings.tickTime * 5);
+                player.position + bobOffset + crouchOffset + offset, NetworkSettings.tickTime * 5);
         }
         else {
-            transform.position = player.position + bobOffset + crouchOffset + desyncOffset + offset;
+            transform.position = player.position + bobOffset + crouchOffset + offset;
         }
 
         UpdateFov();
-    }
-
-    private void LateUpdate() {
         UpdateBob();
-
-        Vector3 cameraRot = playerMovement.cameraRot;
-        cameraRot.x = Mathf.Clamp(cameraRot.x, -90f, 90f);
-        transform.rotation = Quaternion.Euler(cameraRot);
-        Vector3 eulerAngles = transform.rotation.eulerAngles;
-        transform.rotation = Quaternion.Euler(eulerAngles);
     }
 
     private void UpdateFov() {
-        if (cam == null || playerMovement == null || playerMovement.rb == null) return;
-
         if (baseFov <= 0) {
             baseFov = cam.fieldOfView;
             return;
         }
 
-        float currentSpeed = playerMovement.rb.velocity.magnitude;
+        float currentSpeed = playerMovement.GetRb().velocity.magnitude;
 
         float speedFactor = Mathf.InverseLerp(speedThreshold, maxSpeedForFov, currentSpeed);
         float speedFovOffset = speedFactor * maxFovOffset;
 
-        bool isWallRunning = playerMovement.wallRunning;
+        bool isWallRunning = playerMovement.IsWallRunning();
 
-        float wallrunFovOffset = isWallRunning ? maxFovOffset : 0f;
+        float wallrunFovOffset = isWallRunning ? 10 : 0f;
 
         targetFov = baseFov + Mathf.Max(speedFovOffset, wallrunFovOffset);
         targetFov = Mathf.Clamp(targetFov, baseFov, baseFov + maxFovOffset);
@@ -81,8 +68,8 @@ public class MoveCamera : MonoBehaviour {
         Vector3 vector = ClampVector(bobDirection * 0.15f, -3f, 3f);
         desiredBob = vector * bobMultiplier;
 
-        if (WeaponEffects.Instance != null)
-            WeaponEffects.Instance.BobOnce(-vector);
+        if (MoveWeapon.Instance != null)
+            MoveWeapon.Instance.BobOnce(-vector);
     }
 
     private void UpdateBob() {
@@ -92,9 +79,5 @@ public class MoveCamera : MonoBehaviour {
 
     private Vector3 ClampVector(Vector3 vec, float min, float max) {
         return new Vector3(Mathf.Clamp(vec.x, min, max), Mathf.Clamp(vec.y, min, max), Mathf.Clamp(vec.z, min, max));
-    }
-
-    public void OnDrawGizmos() {
-        if (Camera.current != cam) return;
     }
 }

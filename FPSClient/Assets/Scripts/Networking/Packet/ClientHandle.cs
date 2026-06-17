@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Net;
-using Unity.Mathematics;
 using UnityEngine;
 
 public class ClientHandle {
@@ -85,6 +84,6 @@ public class ClientHandle {
     public static void LagCompVisual(Packet packet) {
         Vector3 pos = packet.ReadVector3();
 
-        Object.Instantiate(PrefabManager.Instance.lagCompHitbox, pos, Quaternion.identity);
+        // Object.Instantiate(PrefabManager.Instance.lagCompHitbox, pos, Quaternion.identity);
     }
 }

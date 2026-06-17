@@ -7,10 +7,12 @@ public class LocalPlayer : FixedBehaviour {
     public PlayerPrediction prediction;
     public InputManager input;
     public WeaponController weapon;
+    public MoveCamera moveCamera;
 
     private void Awake() {
-        if (Instance == null)
+        if (Instance == null) {
             Instance = this;
+        }
         else {
             Destroy(gameObject);
         }
@@ -30,7 +32,7 @@ public class LocalPlayer : FixedBehaviour {
         if (currentInput.shoot) {
             weapon.Shoot();
         }
-        
+
         Physics.Simulate(NetworkSettings.tickTime);
 
         prediction.SaveState(tick);

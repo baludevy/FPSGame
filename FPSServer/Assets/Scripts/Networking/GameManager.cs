@@ -1,5 +1,4 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class GameManager : FixedBehaviour {
     public static GameManager Instance;
@@ -9,8 +8,9 @@ public class GameManager : FixedBehaviour {
     public LagCompensation lagCompensation = new LagCompensation();
 
     private void Awake() {
-        if (Instance == null)
+        if (Instance == null) {
             Instance = this;
+        }
         else {
             Destroy(gameObject);
         }
@@ -20,17 +20,10 @@ public class GameManager : FixedBehaviour {
         foreach (Client client in Server.clients.Values) {
             if (client.player != null) {
                 PlayerInput input = client.player.inputBuffer.GetInputFromQueue(FixedClock.tick);
-
-                if (input != null) {
-                    client.player.HandleInput(input);
-
-                    if (input.shoot) {
-                        client.player.weaponController.Shoot(input, lagCompensation);
-                    }
-                }
+                client.player.HandleInput(input);
             }
         }
-        
+
         Physics.Simulate(NetworkSettings.tickTime);
 
         lagCompensation.SaveSnapshot(GetWorldSnapshot());
@@ -65,7 +58,7 @@ public class GameManager : FixedBehaviour {
                     id = player.id,
                     position = player.transform.position,
                     orientation = player.movement.orientation.eulerAngles.y,
-                    velocity = player.movement.rb.velocity
+                    velocity = player.movement.GetRb().velocity
                 };
             }
         }
@@ -75,6 +68,7 @@ public class GameManager : FixedBehaviour {
         ServerSend.GameUpdate(toClient, update);
     }
 
+
     private WorldSnapshot GetWorldSnapshot() {
         WorldSnapshot snapshot = new WorldSnapshot() {
             tick = FixedClock.tick,
@@ -83,15 +77,9 @@ public class GameManager : FixedBehaviour {
         foreach (Client client in Server.clients.Values) {
             Player player = client.player;
 
-            if (player == null) continue;
-
-            PlayerState playerState = new PlayerState {
-                id = player.id,
-                position = player.transform.position,
-                crouching = player.movement.crouching
-            };
-
-            snapshot.playerStates.Add(playerState);
+            if (player != null) {
+                snapshot.playerStates.Add(player.GetState());
+            }
         }
 
         return snapshot;
@@ -105,15 +93,9 @@ public class GameManager : FixedBehaviour {
         foreach (Client client in Server.clients.Values) {
             Player player = client.player;
 
-            if (player == null || player.id == forPlayer) continue;
-
-            PlayerState playerState = new PlayerState {
-                id = player.id,
-                position = player.transform.position,
-                crouching = player.movement.crouching,
-            };
-
-            snapshot.playerStates.Add(playerState);
+            if (player != null || player.id != forPlayer) {
+                snapshot.playerStates.Add(player.GetState());
+            }
         }
 
         return snapshot;

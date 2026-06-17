@@ -44,8 +44,7 @@ public class SnapshotBuffer {
                 return true;
             }
         }
-
-        // Outside range — clamp to nearest end
+        
         if (renderTick < buffer[0].serverTick) {
             from = to = buffer[0];
         }

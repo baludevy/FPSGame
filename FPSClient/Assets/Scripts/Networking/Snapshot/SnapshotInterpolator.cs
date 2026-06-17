@@ -56,10 +56,11 @@ public class SnapshotInterpolator {
             if (!GameManager.players.TryGetValue(toState.id, out PlayerManager player) || player == null) continue;
 
             Vector3 fromPos = fromPositions.TryGetValue(toState.id, out Vector3 pos) ? pos : toState.position;
+            
             player.transform.position = Vector3.Lerp(fromPos, toState.position, t);
             player.transform.localScale = toState.crouching
-                ? new Vector3(1.2f, 1.25f, 1.2f)
-                : new Vector3(1.2f, 2f, 1.2f);
+                ? new Vector3(1.25f, 1.25f, 1.25f)
+                : new Vector3(1.25f, 1.75f, 1.25f);
         }
     }
 }

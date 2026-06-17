@@ -8,8 +8,7 @@ public class PlayerMovement : MonoBehaviour {
     //Assignables
     public Transform playerCam;
     public Transform orientation;
-    public Rigidbody rb;
-    public ParticleSystem ps;
+    private Rigidbody rb;
 
     //Rotation and look
     private float xRotation;
@@ -17,32 +16,33 @@ public class PlayerMovement : MonoBehaviour {
     private float sensMultiplier = 1f;
 
     //movement
-    public float moveSpeed = 4000f;
-    public float runSpeed = 12f;
-    public bool grounded, wasGrounded, cancellingGrounded;
+    private float moveSpeed = 4000f;
+    private float runSpeed = 12f;
+    private bool grounded, wasGrounded, cancellingGrounded;
     public LayerMask whatIsGround;
 
-    public float counterMovement = 0.175f;
+    private float counterMovement = 0.175f;
     private float threshold = 0.01f;
-    public float maxSlopeAngle = 35f;
+    private float maxSlopeAngle = 35f;
 
     //crouch
-    public float slideForce = 400;
-    public float slideCounterMovement = 0.01f;
+    private float slideForce = 10;
+    private float slideCounterMovement = 0.01f;
+    private Vector3 baseScale;
 
     //jumping
     private bool readyToJump = true;
-    public float jumpForce = 9f;
+    private float jumpForce = 9f;
 
     //wallrunning
-    public bool wallRunning;
+    private bool wallRunning;
     private bool surfing;
     private float wallRunRotation;
     private bool readyToWallrun = true;
     private float actualWallRotation;
     private float wallRotationVel;
-    public bool wallrunBoostUsed;
-    public int wallRunTicks;
+    private bool wallrunBoostUsed;
+    private int wallRunTicks;
     private bool pressingTowardWall;
     private int wallAttachTicks;
     private int lastWallInstanceId = 0;
@@ -54,8 +54,8 @@ public class PlayerMovement : MonoBehaviour {
     //input
     private float x, y;
     private bool jumping, sprinting, crouching;
-    public Vector3 cameraRot;
-    public float desiredX;
+    private Vector3 cameraRot;
+    private float desiredX;
 
     //sliding
     private Vector3 normalVector = Vector3.up;
@@ -64,20 +64,19 @@ public class PlayerMovement : MonoBehaviour {
     private float slideSlowdown;
 
     //other
-    private ParticleSystem.EmissionModule psEmission;
-    public float fallSpeed;
+    private float fallSpeed;
     private CapsuleCollider playerCollider;
 
     private void Awake() {
         rb = GetComponent<Rigidbody>();
         playerCollider = GetComponent<CapsuleCollider>();
         playerHeight = playerCollider.bounds.size.y;
-        psEmission = ps.emission;
     }
 
     private void Start() {
         readyToJump = true;
         wallNormalVector = Vector3.up;
+        baseScale = transform.localScale;
         CursorManager.DisableCursor();
         CameraShake();
     }
@@ -154,17 +153,15 @@ public class PlayerMovement : MonoBehaviour {
 
         rb.AddForce(orientation.forward * (inputY * moveSpeed * NetworkSettings.tickTime * multX * multY));
         rb.AddForce(orientation.right * (inputX * moveSpeed * NetworkSettings.tickTime * multX));
-
-        SpeedLines();
     }
 
     private void StartCrouch() {
-        transform.localScale = new Vector3(1.2f, 1.25f, 1.2f);
-        transform.localPosition = new Vector3(transform.position.x, transform.position.y - 0.75f, transform.position.z);
+        transform.localScale = new Vector3(baseScale.x, baseScale.y - 0.5f, baseScale.z);
+        transform.localPosition = new Vector3(transform.position.x, transform.position.y - 0.5f, transform.position.z);
 
-        MoveCamera.Instance.crouchOffset = new Vector3(0f, -0.5f, 0f);
-        
-        playerHeight = 2.5f;
+        LocalPlayer.Instance.moveCamera.crouchOffset = new Vector3(0f, -1f, 0f);
+
+        playerHeight = transform.localScale.y * playerCollider.height;
 
         if (grounded && rb.velocity.magnitude > 2f) {
             rb.AddForce(orientation.forward * slideForce, ForceMode.Impulse);
@@ -172,23 +169,12 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void StopCrouch() {
-        transform.localScale = new Vector3(1.2f, 2f, 1.2f);
-        transform.localPosition = new Vector3(transform.position.x, transform.position.y + 0.75f, transform.position.z);
+        transform.localScale = baseScale;
+        transform.localPosition = new Vector3(transform.position.x, transform.position.y + 0.5f, transform.position.z);
 
-        MoveCamera.Instance.crouchOffset = new Vector3(0f, 0f, 0f);
+        LocalPlayer.Instance.moveCamera.crouchOffset = new Vector3(0f, 0f, 0f);
 
-        playerHeight = 4f;
-    }
-
-    private void SpeedLines() {
-        float viewAngleFactor = Mathf.Max(1f, Vector3.Angle(rb.velocity, playerCam.forward) * 0.5f);
-
-        if (grounded && !wallRunning) {
-            psEmission.rateOverTimeMultiplier = 0f;
-        }
-        else {
-            psEmission.rateOverTimeMultiplier = rb.velocity.magnitude / viewAngleFactor;
-        }
+        playerHeight = transform.localScale.y * playerCollider.height;
     }
 
     public void CheckGrounded() {
@@ -211,8 +197,8 @@ public class PlayerMovement : MonoBehaviour {
         }
 
         if (!wasGrounded && grounded) {
-            MoveCamera.Instance.BobOnce(new Vector3(0f, fallSpeed * 0.6f, 0f));
-            WeaponEffects.Instance.RotBobOnce(new Vector3(15f, 0f, 0f));
+            LocalPlayer.Instance.moveCamera.BobOnce(new Vector3(0f, fallSpeed * 0.6f, 0f));
+            MoveWeapon.Instance.RotBobOnce(new Vector3(15f, 0f, 0f));
         }
     }
 
@@ -354,15 +340,15 @@ public class PlayerMovement : MonoBehaviour {
             wallrunBoostUsed = false;
             currentFacingWallId = 0;
 
-            TickInvoker.Invoke(ResetJump, 8);
+            TickInvoker.Invoke(ResetJump, 16);
             return;
         }
 
         rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
         rb.AddForce(Vector3.up * jumpForce * 1.5f, ForceMode.Impulse);
 
-        WeaponEffects.Instance.BobOnce(Vector3.up * 0.5f);
-        WeaponEffects.Instance.RotBobOnce(new Vector3(-20f, 0f, 0f));
+        MoveWeapon.Instance.BobOnce(Vector3.up * 0.5f);
+        MoveWeapon.Instance.RotBobOnce(new Vector3(-20f, 0f, 0f));
     }
 
     public void Look() {
@@ -473,5 +459,33 @@ public class PlayerMovement : MonoBehaviour {
     private void ResetSameWallCooldown() {
         sameWallOnCooldown = false;
         lastWallInstanceId = 0;
+    }
+
+    public Rigidbody GetRb() {
+        return rb;
+    }
+
+    public Transform GetOrientation() {
+        return orientation;
+    }
+
+    public float GetFallSpeed() {
+        return fallSpeed;
+    }
+
+    public bool IsGrounded() {
+        return grounded;
+    }
+
+    public bool IsWallRunning() {
+        return wallRunning;
+    }
+
+    public bool IsCrouching() {
+        return crouching;
+    }
+
+    public Vector3 GetCameraRot() {
+        return new Vector3(cameraRot.x, desiredX, actualWallRotation);
     }
 }

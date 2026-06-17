@@ -9,8 +9,8 @@ public class WeaponController : MonoBehaviour {
 
     public void Shoot(PlayerInput input, LagCompensation lagCompensation) {
         if (!canFire) return;
-        Vector3 origin = player.camera.position;
-        Vector3 direction = player.camera.forward;
+        Vector3 origin = player.playerCam.position;
+        Vector3 direction = player.playerCam.forward;
 
         Debug.DrawRay(origin, direction * 1000f, Color.red, 1f);
         List<(Player player, Vector3 originalPosition)> moved = new List<(Player, Vector3)>();
@@ -25,14 +25,6 @@ public class WeaponController : MonoBehaviour {
                 client.player.transform.position = targetState.position;
             }
         }
-
-        /* foreach (Client client in Server.clients.Values) {
-            Player targetPlayer = client.player;
-
-            if (targetPlayer == null || client.player.id == player.id) continue;
-
-            ServerSend.LagCompVisual(player.id, targetPlayer.transform.position);
-        } */
 
 
         Player hitPlayer = null;

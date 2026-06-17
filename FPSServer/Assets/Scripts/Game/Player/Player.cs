@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 
-
 public class Player : MonoBehaviour {
     public int id;
     public string username;
@@ -11,7 +10,7 @@ public class Player : MonoBehaviour {
     public PlayerMovement movement;
     public WeaponController weaponController;
 
-    public Transform camera;
+    public Transform playerCam;
 
     public void Initialize(int id, string username) {
         this.id = id;
@@ -25,8 +24,20 @@ public class Player : MonoBehaviour {
     public void HandleInput(PlayerInput input) {
         movement.SetInput(input);
         invoker.Step();
-        camera.rotation = Quaternion.Euler(input.pitch, input.yaw, 0);
+        playerCam.rotation = Quaternion.Euler(input.pitch, input.yaw, 0);
+
+        if (input.shoot) {
+            weaponController.Shoot(input, GameManager.Instance.lagCompensation);
+        }
 
         movement.AdvanceLogic();
+    }
+
+    public PlayerState GetState() {
+        return new PlayerState {
+            id = id,
+            position = transform.position,
+            crouching = movement.IsCrouching()
+        };
     }
 }

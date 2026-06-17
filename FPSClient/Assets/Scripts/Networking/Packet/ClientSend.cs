@@ -1,10 +1,9 @@
 ﻿using System.Collections.Generic;
-using UnityEngine;
 
 public class ClientSend {
     public static int packetsSent;
     public static int bytesSent;
-    
+
     private static void SendTCPData(Packet packet) {
         packet.WriteLength();
 
@@ -16,7 +15,7 @@ public class ClientSend {
 
     private static void SendUDPData(Packet packet) {
         packet.WriteLength();
-        
+
         packetsSent++;
         bytesSent += packet.Length();
 
@@ -37,7 +36,7 @@ public class ClientSend {
     public static void SyncTick(float clientSendTime) {
         using (Packet packet = new Packet((int)ClientPackets.syncTick)) {
             packet.Write(clientSendTime);
-            
+
             SendUDPData(packet);
         }
     }
@@ -45,21 +44,21 @@ public class ClientSend {
     public static void PlayerInput(List<PlayerInput> inputs) {
         using (Packet packet = new Packet((int)ClientPackets.playerInput)) {
             packet.Write((byte)inputs.Count);
-            
+
             packet.Write(FixedClock.GetTime());
-            
+
             foreach (PlayerInput input in inputs) {
                 packet.Write(input.tick);
                 packet.Write(input.renderTick);
                 packet.Write(input.x);
                 packet.Write(input.y);
-                packet.Write(input.yaw);
                 packet.Write(input.pitch);
+                packet.Write(input.yaw);
                 packet.Write(input.jumping);
                 packet.Write(input.crouching);
                 packet.Write(input.shoot);
             }
-            
+
             SendUDPData(packet);
         }
     }

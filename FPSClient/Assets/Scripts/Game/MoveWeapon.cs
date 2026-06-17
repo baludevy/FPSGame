@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 
-public class WeaponEffects : MonoBehaviour {
-    public static WeaponEffects Instance;
+public class MoveWeapon : MonoBehaviour {
+    public static MoveWeapon Instance;
 
     [Header("Weapon Sway")] public float smooth = 10f;
     public float swayMult = 2f;
@@ -28,8 +28,8 @@ public class WeaponEffects : MonoBehaviour {
     [Header("Recoil")] public Vector3 recoilPosition;
     public Vector3 recoilRotation;
 
-    public float recoilReturnSpeed = 12f;
-    public float recoilSnappiness = 20f;
+    public float recoilReturnSpeed = 30f;
+    public float recoilSnappiness = 100f;
 
     private Vector3 recoilPosCurrent;
     private Vector3 recoilPosTarget;
@@ -37,8 +37,8 @@ public class WeaponEffects : MonoBehaviour {
     private Vector3 recoilRotCurrent;
     private Vector3 recoilRotTarget;
 
-    [Header("Strafe Tilt")] public float strafeTiltAmount = 4f;
-    public float strafeTiltSmooth = 8f;
+    [Header("Strafe Tilt")] public float strafeTiltAmount = 0.1f;
+    public float strafeTiltSmooth = 30f;
 
     private float currentStrafeTilt;
 
@@ -117,15 +117,15 @@ public class WeaponEffects : MonoBehaviour {
 
         PlayerMovement movement = LocalPlayer.Instance.movement;
 
-        float fallOffset = Mathf.Clamp(-movement.fallSpeed * fallOffsetMultiplier, 0f, fallOffsetMax);
+        float fallOffset = Mathf.Clamp(-movement.GetFallSpeed() * fallOffsetMultiplier, 0f, fallOffsetMax);
 
-        bool canBob = movement.grounded || movement.wallRunning;
+        bool canBob = (movement.IsGrounded() || movement.IsWallRunning()) && !movement.IsCrouching();
         if (!canBob) {
             moveBobTimer = 0f;
             return new Vector3(0f, fallOffset, 0f);
         }
 
-        Rigidbody rb = movement.rb;
+        Rigidbody rb = movement.GetRb();
         float horizontalSpeed = new Vector3(rb.velocity.x, 0f, rb.velocity.z).magnitude;
 
         if (horizontalSpeed < moveBobSpeedThreshold) {
@@ -133,12 +133,11 @@ public class WeaponEffects : MonoBehaviour {
             return new Vector3(0f, fallOffset, 0f);
         }
 
-        float speedFactor = Mathf.Clamp01(horizontalSpeed / movement.runSpeed);
-        moveBobTimer += Time.deltaTime * moveBobFrequency * speedFactor;
+        moveBobTimer += Time.deltaTime * moveBobFrequency;
 
         return new Vector3(
-            Mathf.Cos(moveBobTimer * 0.5f) * moveBobX * speedFactor,
-            Mathf.Abs(Mathf.Sin(moveBobTimer)) * moveBobY * speedFactor + fallOffset,
+            Mathf.Cos(moveBobTimer * 0.5f) * moveBobX,
+            Mathf.Abs(Mathf.Sin(moveBobTimer)) * moveBobY + fallOffset,
             0f
         );
     }
@@ -146,7 +145,7 @@ public class WeaponEffects : MonoBehaviour {
     private float GetStrafeTilt() {
         if (LocalPlayer.Instance == null) return 0f;
 
-        Rigidbody rb = LocalPlayer.Instance.movement.rb;
+        Rigidbody rb = LocalPlayer.Instance.movement.GetRb();
 
         float sidewaysVel = Vector3.Dot(rb.velocity, transform.parent.right);
 
