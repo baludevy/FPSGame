@@ -1,11 +1,10 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class PrefabManager : MonoBehaviour {
     public static PrefabManager Instance;
 
-    public GameObject lagCompClient;
-    public GameObject lagCompServer;
+    public GameObject currentHitbox;
+    public GameObject lagCompHitbox;
 
     private void Awake() {
         Instance = this;

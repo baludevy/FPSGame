@@ -84,14 +84,14 @@ public class NetworkDebug : MonoBehaviour {
         packetLoss.text = $"loss: {ConnectionStatistics.packetLoss * 100:F0}%";
         jitter.text = $"jitter: {ConnectionStatistics.jitter * 1000:F0}ms";
 
-        inputBufferOffset.text = $"ibuf: {TimeScaler.Instance.currentBufferOffset}";
-        inputBufferTarget.text = $"target: {NetworkSettings.targetInpBufferOffset}";
+        inputBufferOffset.text = $"ibuf: {TimeScaler.GetBufferOffset()}";
+        inputBufferTarget.text = $"target: {NetworkSettings.targetInpBufferSize}";
 
         snapshotBufferOffset.text = $"sbuf: {SnapshotManager.snapshotBufferOffset}";
         snapshotBufferTarget.text = $"target: {NetworkSettings.interpTime / NetworkSettings.tickTime}";
 
-        clientTick.text = $"cl tick: {TickTimer.tick}";
-        clientTimescale.text = $"rate: {NetworkSettings.tickRate * TickTimer.timeScale:F2}";
+        clientTick.text = $"cl tick: {FixedClock.tick}";
+        clientTimescale.text = $"rate: {NetworkSettings.tickRate * FixedClock.timeScale:F2}";
 
         serverTick.text = $"srv tick: {SnapshotManager.serverTick}";
         renderTick.text = $"rnd tick: {Mathf.RoundToInt(SnapshotManager.clientRenderTick)}";

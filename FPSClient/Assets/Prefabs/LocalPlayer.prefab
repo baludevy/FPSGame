@@ -26,7 +26,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.5, y: 2.5, z: 1.5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7879140484323673379}
@@ -3219,7 +3219,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 1335595927676222055}
-  offset: {x: 0, y: 1, z: 0}
+  offset: {x: 0, y: 1.25, z: 0}
   smooth: 0
   playerMovement: {fileID: 6894953828135802274}
   bobOffset: {x: 0, y: 0, z: 0}
@@ -4260,15 +4260,15 @@ MonoBehaviour:
   fallOffsetMax: 0.15
   breathing: 1
   breathingSpeed: 1
-  breathingPosX: 0.008
-  breathingPosY: 0.01
-  breathingRotX: 0.5
-  breathingRotZ: 0.25
+  breathingPosX: 0.003
+  breathingPosY: 0.005
+  breathingRotX: 0.2
+  breathingRotZ: 0.05
   recoilPosition: {x: 0, y: 0, z: -0.6}
   recoilRotation: {x: -3, y: 0, z: 0}
   recoilReturnSpeed: 30
   recoilSnappiness: 100
-  strafeTiltAmount: 0.3
+  strafeTiltAmount: 0.1
   strafeTiltSmooth: 30
 --- !u!1 &5148591043403026011
 GameObject:
@@ -5360,7 +5360,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1.5, z: 1}
+  m_LocalScale: {x: 1.2, y: 2, z: 1.2}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6204896519706765736}
@@ -5781,8 +5781,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   movement: {fileID: 6894953828135802274}
+  prediction: {fileID: 1834420175924387594}
   input: {fileID: 3119952534548067594}
-  weaponController: {fileID: 7223600544718296794}
+  weapon: {fileID: 7223600544718296794}
 --- !u!1 &8373198703807839454
 GameObject:
   m_ObjectHideFlags: 0

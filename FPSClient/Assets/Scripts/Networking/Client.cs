@@ -35,8 +35,8 @@ public class Client : MonoBehaviour {
         Disconnect();
     }
 
-    public void ConnectToServer(string ip) {
-        this.ip = ip;
+    public void ConnectToServer(string targetIp) {
+        ip = targetIp;
 
         InitializeClientData();
         tcp.Connect();
@@ -130,7 +130,7 @@ public class Client : MonoBehaviour {
                 using (Packet packet = new Packet(capturedBytes)) {
                     int packetId = packet.ReadInt();
 
-                    if (false) {
+                    if (packetId == 100) {
                         packetHandlers[packetId](packet);
 
                         ClientHandle.packetsReceived++;
@@ -270,6 +270,7 @@ public class Client : MonoBehaviour {
             { (int)ServerPackets.syncTick, ClientHandle.SyncTick },
             { (int)ServerPackets.spawnPlayer, ClientHandle.SpawnPlayer },
             { (int)ServerPackets.gameUpdate, ClientHandle.GameUpdate },
+            { (int)ServerPackets.lagCompVisual, ClientHandle.LagCompVisual },
         };
     }
 
@@ -277,17 +278,8 @@ public class Client : MonoBehaviour {
         if (!IsConnected) return;
         IsConnected = false;
 
-        try {
-            tcp?.socket?.Close();
-        }
-        catch {
-        }
-
-        try {
-            udp?.socket?.Close();
-        }
-        catch {
-        }
+        tcp?.socket?.Close();
+        udp?.socket?.Close();
 
         // disconnect on main thread
         ThreadManager.ExecuteOnMainThread(() => { ConnectionManager.OnDisconnect(); });

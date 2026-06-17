@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using UnityEngine;
-
 
 
 public class GameManager : MonoBehaviour {
@@ -22,9 +18,9 @@ public class GameManager : MonoBehaviour {
 
     private void Start() {
         QualitySettings.vSyncCount = 1;
-        Application.targetFrameRate = 200;
+        Application.targetFrameRate = 0;
     }
-    
+
     public void SpawnPlayer(int id, string username, Vector3 position, Quaternion rotation) {
         GameObject player;
         if (id == Client.Instance.myId) {

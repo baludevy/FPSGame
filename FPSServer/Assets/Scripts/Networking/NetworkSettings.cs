@@ -4,5 +4,5 @@
     public const int tickRate = 64;
     public const float tickTime = 1f / tickRate;
     public const int inputBufferSize = 1024;
-    public const uint maxLagCompensationTicks = 128;
+    public const uint maxLagCompensationTicks = 32;
 }

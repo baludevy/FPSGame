@@ -31,7 +31,7 @@ public class InputBuffer {
 
     public void AddInputsToQueue(List<PlayerInput> inputs, float timestamp) {
         latestTimestamp = timestamp;
-        latestReceived = NetworkManager.Instance.GetTime();
+        latestReceived = FixedClock.GetTime();
 
         foreach (PlayerInput input in inputs) {
             if (input.tick > latestTick) latestTick = input.tick;
@@ -44,8 +44,8 @@ public class InputBuffer {
         }
     }
 
-    public sbyte GetBufferOffset() {
-        long offset = (long)latestTick - NetworkManager.tick;
+    public sbyte GetBufferSize() {
+        long offset = (long)latestTick - FixedClock.tick;
         return (sbyte)Mathf.Clamp((int)offset, sbyte.MinValue, sbyte.MaxValue);
     }
 }

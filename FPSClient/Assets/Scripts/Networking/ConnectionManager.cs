@@ -4,9 +4,9 @@ public static class ConnectionManager {
     public static void OnConnect() {
         ClientSend.WelcomeReceived();
         NetworkUIManager.Instance.DisableConnectUI();
-        
+
+        FixedClock.Reset();
         TickSync.StartSync();
-        TickTimer.doTick = true;
 
         Debug.Log("Connected.");
     }
@@ -23,13 +23,8 @@ public static class ConnectionManager {
         
         ConnectionStatistics.Reset();
         SnapshotManager.Instance.Reset();
-
-        TickTimer.doTick = false;
-        TickTimer.timeScale = 1f;
-
-        TickTimer.tick = 0;
-        SnapshotManager.clientRenderTick = 0;
-        SnapshotManager.serverTick = 0;
+        
+        FixedClock.Reset();
 
         Debug.Log("Disconnected :(");
     }

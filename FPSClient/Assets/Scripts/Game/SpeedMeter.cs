@@ -1,18 +1,17 @@
-﻿using System;
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 
 public class SpeedMeter : MonoBehaviour {
     private float speed;
     private TMP_Text counter;
 
-    private void Start()
-    {
+    private void Start() {
         counter = GetComponent<TMP_Text>();
     }
 
     void Update() {
-        speed = LocalPlayer.Instance.movement.rb.velocity.magnitude;
+        if (LocalPlayer.Instance != null)
+            speed = LocalPlayer.Instance.movement.rb.velocity.magnitude;
     }
 
     void OnGUI() {

@@ -116,7 +116,7 @@ public static class ConnectionStatistics {
 
         float lossPercentage = packetLoss * 100f;
 
-        NetworkSettings.targetInpBufferOffset = calculatedBuffer;
+        NetworkSettings.targetInpBufferSize = calculatedBuffer;
 
         NetworkSettings.interpTime = Math.Max(1, calculatedBuffer) * NetworkSettings.tickTime;
 

@@ -50,7 +50,6 @@ public class Client {
                 }
             }
             catch (ObjectDisposedException) {
-            
             }
             catch (Exception ex) {
                 Debug.LogException(ex);
@@ -72,11 +71,19 @@ public class Client {
                 _stream.BeginRead(_receiveBuffer, 0, dataBufferSize, ReceiveCallback, null);
             }
             catch (ObjectDisposedException) {
-                try { Server.clients[_id]?.Disconnect(); } catch { }
+                try {
+                    Server.clients[_id]?.Disconnect();
+                }
+                catch {
+                }
             }
             catch (Exception ex) {
                 Debug.LogException(ex);
-                try { Server.clients[_id]?.Disconnect(); } catch { }
+                try {
+                    Server.clients[_id]?.Disconnect();
+                }
+                catch {
+                }
             }
         }
 
@@ -95,19 +102,15 @@ public class Client {
             while (packetLength > 0 && packetLength <= _receivedData.UnreadLength()) {
                 byte[] packetBytes = _receivedData.ReadBytes(packetLength);
                 byte[] capturedBytes = packetBytes;
-            
-                using (Packet packet = new Packet(capturedBytes))
-                {
+
+                using (Packet packet = new Packet(capturedBytes)) {
                     int packetId = packet.ReadInt();
-                    
-                    if (false)
-                    {
+
+                    if (packetId == 100) {
                         Server.packetHandlers[packetId](_id, packet);
                     }
-                    else
-                    {
-                        ThreadManager.ExecuteOnMainThread(() =>
-                        {
+                    else {
+                        ThreadManager.ExecuteOnMainThread(() => {
                             using Packet p = new Packet(capturedBytes);
 
                             int id = p.ReadInt();
@@ -133,8 +136,10 @@ public class Client {
             try {
                 Socket?.Close();
             }
-            catch (ObjectDisposedException) { }
-            catch (SocketException) { }
+            catch (ObjectDisposedException) {
+            }
+            catch (SocketException) {
+            }
             catch (Exception ex) {
                 Debug.LogException(ex);
             }
@@ -163,21 +168,20 @@ public class Client {
             Server.SendUDPData(EndPoint, packet);
         }
 
-        public void HandleData(Packet packetData)
-        {
+        public void HandleData(Packet packetData) {
             int packetLength = packetData.ReadInt();
             byte[] packetBytes = packetData.ReadBytes(packetLength);
             byte[] capturedBytes = packetBytes;
-            
+
             using (Packet packet = new Packet(capturedBytes)) {
                 int packetId = packet.ReadInt();
 
                 if (packetId == (int)ClientPackets.playerInput) {
                     Server.packetHandlers[packetId](_id, packet);
-                    return; 
+                    return;
                 }
             }
-            
+
             ThreadManager.ExecuteOnMainThread(() => {
                 using (Packet packet = new Packet(capturedBytes)) {
                     int packetId = packet.ReadInt();
@@ -190,9 +194,9 @@ public class Client {
             EndPoint = null;
         }
     }
-    
+
     public void SendIntoGame(string playerName) {
-        player = NetworkManager.Instance.InstantiatePlayer();
+        player = GameManager.Instance.InstantiatePlayer();
 
         player.Initialize(id, playerName);
 
@@ -214,11 +218,7 @@ public class Client {
     }
 
     public void Disconnect() {
-        if (player != null) {
-            Debug.Log($"{player.username} ({player.id}) left.");
-        } else {
-            Debug.Log($"Client {id} disconnected before spawning.");
-        }
+        Debug.Log($"{player.username} ({player.id}) left.");
 
         ThreadManager.ExecuteOnMainThread(() => {
             if (player != null) {
