@@ -7,5 +7,5 @@
     public static int inputRedundancy = 1;
     public static int targetInpBufferSize = 1;
 
-    public static float interpTime = 0.05f;
+    public static float interpTime = 0.015625f;
 }

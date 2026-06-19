@@ -207,8 +207,8 @@ QualitySettings:
     terrainFadeLength: 5
     terrainMaxTrees: 50
     excludedTargetPlatforms:
-    - Standalone
     - Server
+    - Standalone
   - serializedVersion: 3
     name: Very High
     pixelLightCount: 3

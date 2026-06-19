@@ -26,10 +26,10 @@ public class ServerHandle {
 
         float timestamp = packet.ReadFloat();
 
-        List<PlayerInput> inputs = new List<PlayerInput>();
+        List<InputData> inputs = new List<InputData>();
 
         for (int i = 0; i < inputCount; i++) {
-            PlayerInput input = new PlayerInput {
+            InputData inputData = new InputData {
                 tick = packet.ReadUInt(),
                 renderTick = packet.ReadFloat(),
                 x = packet.ReadFloat(),
@@ -41,7 +41,7 @@ public class ServerHandle {
                 shoot = packet.ReadBool(),
             };
 
-            inputs.Add(input);
+            inputs.Add(inputData);
         }
 
         Player player = Server.clients[fromClient].player;

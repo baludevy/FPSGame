@@ -2,38 +2,38 @@
 using UnityEngine;
 
 public class InputBuffer {
-    private PlayerInput[] inputQueue;
-    private PlayerInput lastValidInput;
+    private InputData[] inputQueue;
+    private InputData lastValidInputData;
 
     public uint latestTick;
     public float latestTimestamp;
     public float latestReceived;
 
     public void Initialize() {
-        inputQueue = new PlayerInput[NetworkSettings.inputBufferSize];
-        lastValidInput = new PlayerInput();
+        inputQueue = new InputData[NetworkSettings.inputBufferSize];
+        lastValidInputData = new InputData();
     }
 
-    public PlayerInput GetInputFromQueue(uint tick) {
-        PlayerInput input = inputQueue[tick % NetworkSettings.inputBufferSize];
+    public InputData GetInputFromQueue(uint tick) {
+        InputData inputData = inputQueue[tick % NetworkSettings.inputBufferSize];
 
-        if (input != null && input.tick == tick) {
-            lastValidInput = input;
-            return input;
+        if (inputData != null && inputData.tick == tick) {
+            lastValidInputData = inputData;
+            return inputData;
         }
 
-        PlayerInput fallbackInput = new PlayerInput {
+        InputData fallbackInputData = new InputData {
             tick = tick
         };
 
-        return fallbackInput;
+        return fallbackInputData;
     }
 
-    public void AddInputsToQueue(List<PlayerInput> inputs, float timestamp) {
+    public void AddInputsToQueue(List<InputData> inputs, float timestamp) {
         latestTimestamp = timestamp;
         latestReceived = FixedClock.GetTime();
 
-        foreach (PlayerInput input in inputs) {
+        foreach (InputData input in inputs) {
             if (input.tick > latestTick) latestTick = input.tick;
 
             uint i = input.tick % NetworkSettings.inputBufferSize;

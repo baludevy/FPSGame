@@ -1,15 +1,13 @@
 ﻿using UnityEngine;
 
 public class Player : MonoBehaviour {
-    public int id;
-    public string username;
+    [HideInInspector] public int id;
+    [HideInInspector] public string username;
 
     public TickInvoker invoker;
-
     public InputBuffer inputBuffer;
     public PlayerMovement movement;
     public WeaponController weaponController;
-
     public Transform playerCam;
 
     public void Initialize(int id, string username) {
@@ -21,13 +19,13 @@ public class Player : MonoBehaviour {
         invoker = new TickInvoker();
     }
 
-    public void HandleInput(PlayerInput input) {
-        movement.SetInput(input);
+    public void HandleInput(InputData inputData) {
+        movement.SetInput(inputData);
         invoker.Step();
-        playerCam.rotation = Quaternion.Euler(input.pitch, input.yaw, 0);
+        playerCam.rotation = Quaternion.Euler(inputData.pitch, inputData.yaw, 0);
 
-        if (input.shoot) {
-            weaponController.Shoot(input, GameManager.Instance.lagCompensation);
+        if (inputData.shoot) {
+            weaponController.Shoot(inputData, GameManager.Instance.lagCompensation);
         }
 
         movement.AdvanceLogic();
@@ -36,7 +34,7 @@ public class Player : MonoBehaviour {
     public PlayerState GetState() {
         return new PlayerState {
             id = id,
-            position = transform.position,
+            position = movement.transform.position,
             crouching = movement.IsCrouching()
         };
     }

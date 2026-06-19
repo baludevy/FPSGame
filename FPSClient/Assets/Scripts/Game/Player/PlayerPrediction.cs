@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 
 public class PlayerPrediction : MonoBehaviour {
-    private const float positionErrorThreshold = 0.000001f;
+    private const float positionErrorThreshold = 0.001f;
 
     private static Vector3[] positionHistory = new Vector3[NetworkSettings.inputHistorySize];
     private static Vector3[] velocityHistory = new Vector3[NetworkSettings.inputHistorySize];
@@ -30,10 +30,10 @@ public class PlayerPrediction : MonoBehaviour {
         visualPlayer.rotation = transform.rotation;
     }
 
-    public void PredictState(PlayerInput input) {
+    public void PredictState(InputData inputData) {
         lastPredictedPos = LocalPlayer.Instance.movement.transform.position;
 
-        LocalPlayer.Instance.movement.SetInput(input);
+        LocalPlayer.Instance.movement.SetInput(inputData);
         LocalPlayer.Instance.movement.AdvanceLogic();
     }
 
@@ -51,7 +51,7 @@ public class PlayerPrediction : MonoBehaviour {
 
         float errorSqrMag = (serverState.position - prePosition).sqrMagnitude;
         if (errorSqrMag > positionErrorThreshold) {
-            Debug.Log($"Desync by {errorSqrMag}, tick: {tick}");
+            // Debug.Log($"Desync by {errorSqrMag}, tick: {tick}");
             SynchronizeMovement(serverState, tick);
         }
     }
@@ -66,14 +66,14 @@ public class PlayerPrediction : MonoBehaviour {
         
         for (uint i = tick + 1; i <= lastSimulatedTick; i++) {
             uint index = i % NetworkSettings.inputHistorySize;
-            PlayerInput input = InputManager.inputHistory[index];
+            InputData inputData = PlayerInput.inputHistory[index];
 
-            if (input == null) {
+            if (inputData == null) {
                 // Debug.Log("fuck");
                 continue;
             }
 
-            LocalPlayer.Instance.movement.SetInput(input);
+            LocalPlayer.Instance.movement.SetInput(inputData);
             LocalPlayer.Instance.movement.AdvanceLogic();
             
             Physics.Simulate(NetworkSettings.tickTime);

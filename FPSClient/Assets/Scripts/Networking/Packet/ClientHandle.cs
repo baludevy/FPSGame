@@ -76,8 +76,7 @@ public class ClientHandle {
             movementState = movementState,
             worldSnapshot = snapshot,
         };
-
-        SnapshotManager.Instance.OnUpdateReceived(update);
+        // SnapshotManager.Instance.OnUpdateReceived(update);
     }
 
 

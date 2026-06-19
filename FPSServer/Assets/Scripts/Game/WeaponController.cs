@@ -7,7 +7,7 @@ public class WeaponController : MonoBehaviour {
     private bool canFire = true;
     public bool enableLagComp = true;
 
-    public void Shoot(PlayerInput input, LagCompensation lagCompensation) {
+    public void Shoot(InputData inputData, LagCompensation lagCompensation) {
         if (!canFire) return;
         Vector3 origin = player.playerCam.position;
         Vector3 direction = player.playerCam.forward;
@@ -16,7 +16,7 @@ public class WeaponController : MonoBehaviour {
         List<(Player player, Vector3 originalPosition)> moved = new List<(Player, Vector3)>();
 
         if (enableLagComp) {
-            WorldSnapshot rewoundSnapshot = lagCompensation.GetRewoundSnapshot(input.renderTick);
+            WorldSnapshot rewoundSnapshot = lagCompensation.GetRewoundSnapshot(inputData.renderTick);
             foreach (PlayerState targetState in rewoundSnapshot.playerStates) {
                 if (targetState.id == player.id) continue;
                 if (!Server.clients.TryGetValue(targetState.id, out Client client) || client.player == null) continue;

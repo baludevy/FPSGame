@@ -1,13 +1,14 @@
 ﻿using UnityEngine;
+using UnityEngine.Serialization;
 
 public class LocalPlayer : FixedBehaviour {
     public static LocalPlayer Instance;
 
     public PlayerMovement movement;
     public PlayerPrediction prediction;
-    public InputManager input;
+    public PlayerInput playerInput;
     public WeaponController weapon;
-    public MoveCamera moveCamera;
+    public PlayerCamera playerCamera;
 
     private void Awake() {
         if (Instance == null) {
@@ -19,17 +20,17 @@ public class LocalPlayer : FixedBehaviour {
     }
 
     private void Update() {
-        input.SampleInput();
+        playerInput.SampleInput();
     }
 
     public override void UpdateFixed() {
         uint tick = FixedClock.tick;
 
-        PlayerInput currentInput = input.GatherInput(tick);
+        InputData currentInputData = playerInput.GatherInput(tick);
 
-        prediction.PredictState(currentInput);
+        prediction.PredictState(currentInputData);
 
-        if (currentInput.shoot) {
+        if (currentInputData.shoot) {
             weapon.Shoot();
         }
         

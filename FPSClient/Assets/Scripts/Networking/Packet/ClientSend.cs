@@ -41,13 +41,13 @@ public class ClientSend {
         }
     }
 
-    public static void PlayerInput(List<PlayerInput> inputs) {
+    public static void PlayerInput(List<InputData> inputs) {
         using (Packet packet = new Packet((int)ClientPackets.playerInput)) {
             packet.Write((byte)inputs.Count);
 
             packet.Write(FixedClock.GetTime());
 
-            foreach (PlayerInput input in inputs) {
+            foreach (InputData input in inputs) {
                 packet.Write(input.tick);
                 packet.Write(input.renderTick);
                 packet.Write(input.x);

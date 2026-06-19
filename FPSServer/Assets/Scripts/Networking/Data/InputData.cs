@@ -1,4 +1,6 @@
-﻿public class PlayerInput {
+﻿using UnityEngine;
+
+public class InputData {
     public uint tick;
     public float renderTick;
 

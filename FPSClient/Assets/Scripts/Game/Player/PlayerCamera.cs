@@ -1,55 +1,70 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
-public class MoveCamera : MonoBehaviour {
-    public Transform player;
+public class PlayerCamera : MonoBehaviour {
+    [SerializeField] private PlayerMovement playerMovement;
+    [SerializeField] private Camera cam;
+    [SerializeField] private Transform player;
 
-    public Vector3 offset;
-    public Vector3 crouchOffset;
-    public Vector3 bobOffset;
+    [Header("Look")] [SerializeField] private float sensitivity = 50f;
+    private float maxLookAngle = 90f;
 
-    public bool smooth;
+    private float xRotation;
+    private float desiredX;
+    private Vector3 cameraRot;
+
+    [Header("")] [SerializeField] private Vector3 offset;
+    private Vector3 bobOffset;
+    [HideInInspector] public float wallRotation;
+
+    [Header("Position bobbing")] [SerializeField]
+    private float bobSpeed = 15f;
+
+    [SerializeField] private float bobMultiplier = 0.5f;
     private Vector3 desiredBob;
 
-    private float bobSpeed = 15f;
-    private float bobMultiplier = 0.5f;
+    [Header("Rotation bobbing")] [SerializeField]
+    private float bobRotSpeed = 12f;
 
+    [SerializeField] private float bobRotMultiplier = 1f;
     private Vector3 desiredBobRot;
     private Vector3 bobRotOffset;
 
-    private float bobRotSpeed = 12f;
-    private float bobRotMultiplier = 1f;
-
-    private float baseFov = 95f;
-    private float targetFov;
-
+    [Header("Fov")] [SerializeField] private float fovSmoothTime = 0.12f;
+    private float maxFovOffset = 10f;
     private float fovVelocity;
 
-    private float fovSmoothTime = 0.12f;
-    private float maxFovOffset = 10f;
+    private float baseFov;
+    private float targetFov;
 
     private float baseYaw;
     private float basePitch;
     private float baseRoll;
-
-    public PlayerMovement playerMovement;
-    public Camera cam;
 
     private void Start() {
         if (cam != null) baseFov = cam.fieldOfView;
     }
 
     private void Update() {
-        if (smooth) {
-            transform.position = Vector3.Lerp(transform.position,
-                player.position + bobOffset + crouchOffset + offset, NetworkSettings.tickTime * 5);
-        }
-        else {
-            transform.position = player.position + bobOffset + crouchOffset + offset;
-        }
+        Look();
+    }
+
+    private void LateUpdate() {
+        transform.position = player.position + bobOffset + offset;
 
         UpdateFov();
         UpdateBob();
         UpdateBobRot();
+    }
+
+    public void Look() {
+        float mouseX = Input.GetAxis("Mouse X") * sensitivity;
+        float mouseY = Input.GetAxis("Mouse Y") * sensitivity;
+
+        desiredX += mouseX;
+        xRotation = Mathf.Clamp(xRotation - mouseY, -maxLookAngle, maxLookAngle);
+
+        SetRotation(desiredX, xRotation, wallRotation);
     }
 
     private void UpdateFov() {
@@ -57,7 +72,7 @@ public class MoveCamera : MonoBehaviour {
             baseFov = cam.fieldOfView;
             return;
         }
-        
+
         float fovOffset = 0;
 
         if (playerMovement.IsSliding())
@@ -83,18 +98,18 @@ public class MoveCamera : MonoBehaviour {
     }
 
     private void UpdateBob() {
-        desiredBob = Vector3.Lerp(desiredBob, Vector3.zero, Time.deltaTime * bobSpeed * 0.5f);
+        desiredBob = Vector3.Lerp(desiredBob, Vector3.zero, Time.deltaTime * bobSpeed);
         bobOffset = Vector3.Lerp(bobOffset, desiredBob, Time.deltaTime * bobSpeed);
     }
 
     private void UpdateBobRot() {
-        desiredBobRot = Vector3.Lerp(desiredBobRot, Vector3.zero, Time.deltaTime * bobRotSpeed * 0.5f);
+        desiredBobRot = Vector3.Lerp(desiredBobRot, Vector3.zero, Time.deltaTime * bobRotSpeed);
         bobRotOffset = Vector3.Lerp(bobRotOffset, desiredBobRot, Time.deltaTime * bobRotSpeed);
 
         ApplyFinalRotation();
     }
 
-    public void SetLookRotation(float yaw, float pitch, float roll) {
+    public void SetRotation(float yaw, float pitch, float roll) {
         baseYaw = yaw;
         basePitch = Mathf.Clamp(pitch, -85f, 85f);
         baseRoll = roll;
@@ -107,6 +122,10 @@ public class MoveCamera : MonoBehaviour {
         Quaternion bobRot = Quaternion.Euler(bobRotOffset);
 
         transform.localRotation = baseRot * bobRot;
+    }
+
+    public Vector3 GetCameraRot() {
+        return new Vector3(cameraRot.x, desiredX, wallRotation);
     }
 
     private Vector3 ClampVector(Vector3 vec, float min, float max) {

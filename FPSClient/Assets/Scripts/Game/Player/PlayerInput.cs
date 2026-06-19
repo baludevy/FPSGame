@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 
-public class InputManager : MonoBehaviour {
-    public static PlayerInput[] inputHistory = new PlayerInput[NetworkSettings.inputHistorySize];
+public class PlayerInput : MonoBehaviour {
+    public static InputData[] inputHistory = new InputData[NetworkSettings.inputHistorySize];
 
     public static uint lastSentTick;
 
-    private static List<PlayerInput> playerInputs = new();
+    private static List<InputData> playerInputs = new();
 
     private static float x;
     private static float y;
@@ -22,23 +22,23 @@ public class InputManager : MonoBehaviour {
         shoot = Input.GetKey(KeyCode.Mouse0);
     }
 
-    public PlayerInput GatherInput(uint tick) {
-        PlayerInput input = new PlayerInput {
+    public InputData GatherInput(uint tick) {
+        InputData inputData = new InputData {
             tick = tick,
             renderTick = SnapshotManager.clientRenderTick,
             x = x,
             y = y,
-            pitch = LocalPlayer.Instance.movement.GetCameraRot().x,
-            yaw = LocalPlayer.Instance.movement.GetCameraRot().y,
+            pitch = LocalPlayer.Instance.playerCamera.GetCameraRot().x,
+            yaw = LocalPlayer.Instance.playerCamera.GetCameraRot().y,
             jumping = jumping,
             crouching = crouching,
             shoot = shoot,
         };
 
-        uint i = input.tick % NetworkSettings.inputHistorySize;
-        inputHistory[i] = input;
+        uint i = inputData.tick % NetworkSettings.inputHistorySize;
+        inputHistory[i] = inputData;
 
-        return input;
+        return inputData;
     }
 
     public static void SendPlayerInputs() {
@@ -55,9 +55,9 @@ public class InputManager : MonoBehaviour {
 
         if (firstUnsents <= lastCompletedTick)
             for (uint t = firstUnsents; t <= lastCompletedTick; t++) {
-                PlayerInput input = inputHistory[t % bufferSize];
-                if (input != null && input.tick == t)
-                    playerInputs.Add(input);
+                InputData inputData = inputHistory[t % bufferSize];
+                if (inputData != null && inputData.tick == t)
+                    playerInputs.Add(inputData);
             }
 
         for (uint i = 0; i < NetworkSettings.inputRedundancy; i++) {
@@ -65,9 +65,9 @@ public class InputManager : MonoBehaviour {
 
             if (inputTick >= firstUnsents) continue;
 
-            PlayerInput input = inputHistory[inputTick % bufferSize];
-            if (input != null && input.tick == inputTick)
-                playerInputs.Add(input);
+            InputData inputData = inputHistory[inputTick % bufferSize];
+            if (inputData != null && inputData.tick == inputTick)
+                playerInputs.Add(inputData);
         }
 
         if (playerInputs.Count == 0) return;

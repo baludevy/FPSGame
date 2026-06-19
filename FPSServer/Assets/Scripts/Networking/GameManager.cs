@@ -19,8 +19,8 @@ public class GameManager : FixedBehaviour {
     public override void UpdateFixed() {
         foreach (Client client in Server.clients.Values) {
             if (client.player != null) {
-                PlayerInput input = client.player.inputBuffer.GetInputFromQueue(FixedClock.tick);
-                client.player.HandleInput(input);
+                InputData inputData = client.player.inputBuffer.GetInputFromQueue(FixedClock.tick);
+                client.player.HandleInput(inputData);
             }
         }
         
@@ -58,7 +58,7 @@ public class GameManager : FixedBehaviour {
             if (player.id == toClient) {
                 update.movementState = new MovementState() {
                     id = player.id,
-                    position = player.transform.position,
+                    position = player.GetState().position,
                     orientation = player.movement.orientation.eulerAngles.y,
                     velocity = player.movement.GetRb().velocity
                 };

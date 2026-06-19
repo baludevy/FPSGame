@@ -3218,13 +3218,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c724ca0afd034b00acad20936c389d3e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 1335595927676222055}
-  offset: {x: 0, y: 1, z: 0}
-  crouchOffset: {x: 0, y: 0, z: 0}
-  bobOffset: {x: 0, y: 0, z: 0}
-  smooth: 0
   playerMovement: {fileID: 6894953828135802274}
   cam: {fileID: 7765145262286749140}
+  player: {fileID: 1335595927676222055}
+  sensitivity: 1
+  offset: {x: 0, y: 1, z: 0}
+  wallRotation: 0
+  bobSpeed: 15
+  bobMultiplier: 0.5
+  bobRotSpeed: 12
+  bobRotMultiplier: 1
+  fovSmoothTime: 0.12
 --- !u!1 &1485059727020006009
 GameObject:
   m_ObjectHideFlags: 0
@@ -4976,7 +4980,7 @@ Camera:
     height: 1
   near clip plane: 0.01
   far clip plane: 1000
-  field of view: 95
+  field of view: 110
   orthographic: 0
   orthographic size: 5
   m_Depth: -1
@@ -5289,7 +5293,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: abb18eee7a9d431998fbd88958fc0251, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerCam: {fileID: 9024498760287833430}
   orientation: {fileID: 6204896519706765736}
   whatIsGround:
     serializedVersion: 2
@@ -5310,10 +5313,10 @@ MonoBehaviour:
   slideMinSpeed: 5
   slideEndSpeed: 3
   wallRunSpeed: 35
-  wallRunAcceleration: 2000
+  wallRunAcceleration: 1500
   wallRunMaxFallSpeed: -1.5
   wallRunIdleMaxFallSpeed: -5
-  wallRunDistance: 1.5
+  wallRunDistance: 2
   wallRunCameraTilt: 10
   wallRunCameraTiltSmooth: 0.15
   initialWallBoost: 14
@@ -5632,9 +5635,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   movement: {fileID: 6894953828135802274}
   prediction: {fileID: 1834420175924387594}
-  input: {fileID: 3119952534548067594}
+  playerInput: {fileID: 3119952534548067594}
   weapon: {fileID: 7223600544718296794}
-  moveCamera: {fileID: 6585625272212848305}
+  playerCamera: {fileID: 6585625272212848305}
 --- !u!1 &8865191027546475563
 GameObject:
   m_ObjectHideFlags: 0

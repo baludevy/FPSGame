@@ -47,7 +47,7 @@ public class SnapshotInterpolator {
         float t = tickDelta > 0f ? (renderTick - from.serverTick) / tickDelta : 0f;
         t = Mathf.Clamp01(t);
 
-        var fromPositions = new Dictionary<int, Vector3>(from.playerStates.Count);
+        Dictionary<int, Vector3> fromPositions = new Dictionary<int, Vector3>(from.playerStates.Count);
         foreach (PlayerState state in from.playerStates)
             fromPositions[state.id] = state.position;
 
@@ -56,7 +56,7 @@ public class SnapshotInterpolator {
             if (!GameManager.players.TryGetValue(toState.id, out PlayerManager player) || player == null) continue;
 
             Vector3 fromPos = fromPositions.TryGetValue(toState.id, out Vector3 pos) ? pos : toState.position;
-            
+
             player.transform.position = Vector3.Lerp(fromPos, toState.position, t);
             player.transform.localScale = toState.crouching
                 ? new Vector3(1.25f, 1.25f, 1.25f)

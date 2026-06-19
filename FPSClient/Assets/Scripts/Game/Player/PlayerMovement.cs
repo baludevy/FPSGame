@@ -1,29 +1,13 @@
-﻿using System;
-using UnityEngine;
-using UnityEngine.Serialization;
+﻿using UnityEngine;
 
 // ReSharper disable All
 
 public class PlayerMovement : MonoBehaviour {
     //Assignables
-    public Transform playerCam;
     public Transform orientation;
     public LayerMask whatIsGround;
     private Rigidbody rb;
     private CapsuleCollider playerCollider;
-
-    //Look
-    private float sensitivity = 50f;
-    private float sensMultiplier = 1f;
-    private float maxLookAngle = 90f;
-
-    private float xRotation;
-    private float desiredX;
-    private Vector3 cameraRot;
-
-    private float wallRunRotation;
-    private float actualWallRotation;
-    private float wallRotationVel;
 
     //Ground check
     private bool grounded;
@@ -49,6 +33,8 @@ public class PlayerMovement : MonoBehaviour {
     public float slideCooldown = 1.5f;
     public float slideMinSpeed = 4f;
     public float slideEndSpeed = 3f;
+    private bool slideCooldownActive;
+    private int cancelSlideCooldownAction;
 
     [Header("Wallrunning")] public float wallRunSpeed = 35f;
     public float wallRunAcceleration = 3000f;
@@ -65,8 +51,10 @@ public class PlayerMovement : MonoBehaviour {
     public float wallRunMaxTime = 3f;
     private int cancelWallRunAction;
     private bool wallRunning, startingWallRun;
+    private float wallRunRotation;
+    private float actualWallRotation;
+    private float wallRotationVel;
 
-    private float lastSlideTime = -10f;
     private bool sliding;
     private bool airSlide;
     private Vector3 normalVector = Vector3.up;
@@ -98,10 +86,6 @@ public class PlayerMovement : MonoBehaviour {
         CursorManager.DisableCursor();
     }
 
-    private void Update() {
-        Look();
-    }
-
     public void AdvanceLogic() {
         CheckGrounded();
         CheckWalls();
@@ -114,7 +98,18 @@ public class PlayerMovement : MonoBehaviour {
         wasCrouching = crouching;
     }
 
-    public void SetInput(PlayerInput inp) {
+    private void Update() {
+        actualWallRotation = Mathf.SmoothDamp(
+            actualWallRotation,
+            wallRunRotation,
+            ref wallRotationVel,
+            wallRunCameraTiltSmooth
+        );
+
+        LocalPlayer.Instance.playerCamera.wallRotation = actualWallRotation;
+    }
+
+    public void SetInput(InputData inp) {
         if (inp.crouching && !crouching) {
             StartCrouch();
         }
@@ -147,6 +142,10 @@ public class PlayerMovement : MonoBehaviour {
         //landed this frame
         if (!wasGrounded && grounded) {
             OnLanding();
+        }
+
+        if (startingWallRun) {
+            rb.AddForce(-wallNormalVector, ForceMode.Acceleration);
         }
 
         if (wallRunning) {
@@ -196,11 +195,11 @@ public class PlayerMovement : MonoBehaviour {
             rb.AddForce(moveForward * y * acceleration * NetworkSettings.tickTime * mult);
 
             rb.velocity = Vector3.ProjectOnPlane(rb.velocity, normalVector);
-            rb.AddForce(-normalVector * 10 * NetworkSettings.tickTime, ForceMode.Acceleration);
+            rb.AddForce(-normalVector, ForceMode.Acceleration);
 
             if (Mathf.Abs(x) < threshold && Mathf.Abs(y) < threshold) {
                 Vector3 gravityAlongSlope = Vector3.ProjectOnPlane(Physics.gravity, normalVector);
-                rb.AddForce(-gravityAlongSlope - normalVector * 10 * NetworkSettings.tickTime, ForceMode.Acceleration);
+                rb.AddForce(-gravityAlongSlope - normalVector, ForceMode.Acceleration);
             }
         }
     }
@@ -248,8 +247,8 @@ public class PlayerMovement : MonoBehaviour {
         float fallSpeed = Mathf.Abs(lastFallSpeed);
 
         if (fallSpeed > 10f) {
-            LocalPlayer.Instance.moveCamera.BobOnce(Vector3.down * fallSpeed * 0.5f);
-            LocalPlayer.Instance.moveCamera.BobRotOnce(Vector3.right * fallSpeed * 0.15f);
+            LocalPlayer.Instance.playerCamera.BobOnce(Vector3.down * fallSpeed * 0.5f);
+            LocalPlayer.Instance.playerCamera.BobRotOnce(Vector3.right * fallSpeed * 0.15f);
         }
     }
 
@@ -265,16 +264,14 @@ public class PlayerMovement : MonoBehaviour {
         Vector3 vel = rb.velocity;
         Vector3 flatVel = Vector3.ProjectOnPlane(vel, normalVector);
         rb.velocity = flatVel;
-        MoveWeapon.Instance.BobOnce(Vector3.up * 0.4f);
-        LocalPlayer.Instance.moveCamera.BobRotOnce(Vector3.right * 3f);
+        LocalPlayer.Instance.playerCamera.BobRotOnce(Vector3.right * 3f);
 
         rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
     }
 
-    private void StartCrouch()
-    {
+    private void StartCrouch() {
         transform.localScale = crouchScale;
-        if(grounded) {
+        if (grounded) {
             float heightDiff = baseScale.y - crouchScale.y;
             transform.localPosition = new Vector3(transform.position.x, transform.position.y - heightDiff,
                 transform.position.z);
@@ -288,31 +285,41 @@ public class PlayerMovement : MonoBehaviour {
             airSlide = true;
     }
 
-    private void StopCrouch()
-    {
+    private void StopCrouch() {
         transform.localScale = baseScale;
         if (grounded) {
             float heightDiff = baseScale.y - crouchScale.y;
             transform.localPosition = new Vector3(transform.position.x, transform.position.y + heightDiff,
                 transform.position.z);
         }
-        
+
         airSlide = false;
     }
 
     private void Slide() {
-        sliding = true;
-
         Vector3 slopeVel = Vector3.ProjectOnPlane(rb.velocity, normalVector);
         float speed = slopeVel.magnitude;
 
-        if (speed < 0.01f || Time.time - lastSlideTime < slideCooldown) return;
-        lastSlideTime = Time.time;
+        if (speed < 0.01f || slideCooldownActive) return;
+
+        sliding = true;
+        slideCooldownActive = true;
+        TickInvoker.Cancel(cancelSlideCooldownAction);
+        cancelSlideCooldownAction = TickInvoker.Invoke(EndSlideCooldown, TickUtil.SecondsToTick(slideCooldown));
 
         Vector3 dir = slopeVel / speed;
+
+        if (y < 0f) {
+            return;
+        }
+
         float add = Mathf.Clamp(maxSlideSpeed - speed, 0f, slideBoost);
 
         rb.AddForce(dir * add, ForceMode.VelocityChange);
+    }
+
+    private void EndSlideCooldown() {
+        slideCooldownActive = false;
     }
 
     private void SlideFriction() {
@@ -337,7 +344,6 @@ public class PlayerMovement : MonoBehaviour {
     // called when wall is found
     private void PreWallRun() {
         startingWallRun = true;
-        rb.AddForce(-wallNormalVector, ForceMode.Impulse);
     }
 
     // called on wall contact
@@ -351,7 +357,18 @@ public class PlayerMovement : MonoBehaviour {
         Vector3 flatVel = new Vector3(vel.x, 0, vel.z);
 
         float wallDot = Vector3.Dot(flatVel, wallNormalVector);
-        rb.velocity = flatVel - wallDot * wallNormalVector;
+        flatVel -= wallDot * wallNormalVector;
+
+        Vector3 camFlatDir = Vector3.ProjectOnPlane(orientation.forward, wallNormalVector);
+        if (camFlatDir.sqrMagnitude > 0.001f) {
+            camFlatDir.Normalize();
+            float camDot = Vector3.Dot(flatVel, camFlatDir);
+            if (camDot < 0f) {
+                flatVel -= camDot * 0.8f * camFlatDir;
+            }
+        }
+
+        rb.velocity = flatVel;
 
         if (!jumping)
             rb.AddForce(Vector3.up * initialWallBoost, ForceMode.Impulse);
@@ -361,13 +378,15 @@ public class PlayerMovement : MonoBehaviour {
     public void WallRunning() {
         if (!wallRunning) return;
 
-        rb.AddForce(-wallNormalVector * NetworkSettings.tickTime * acceleration);
-
         Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
         float currentSpeed = flatVel.magnitude;
 
+        Vector3 camFlatDir = Vector3.ProjectOnPlane(orientation.forward, wallNormalVector);
+        Vector3 flatDir = camFlatDir.sqrMagnitude > 0.001f
+            ? camFlatDir.normalized
+            : (flatVel.sqrMagnitude > 0.001f ? flatVel.normalized : orientation.forward);
+
         if (currentSpeed < wallRunSpeed && y > threshold) {
-            Vector3 flatDir = flatVel.sqrMagnitude > 0.001f ? flatVel.normalized : orientation.forward;
             float speedDelta = wallRunSpeed - currentSpeed;
             float accel = Mathf.Min(speedDelta, wallRunAcceleration * NetworkSettings.tickTime);
 
@@ -516,33 +535,26 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     public void CheckWalls() {
+        if (grounded || wallRunning) return;
+
         Vector3 origin = transform.position;
+        Vector3[] directions = { orientation.right, -orientation.right, orientation.forward };
 
-        Vector3[] directions = {
-            orientation.right,
-            -orientation.right,
-            orientation.forward,
-            -orientation.forward
-        };
+        RaycastHit hit;
+        if (TryFindWall(origin, directions, wallRunDistance, out hit)) {
+            wallNormalVector = hit.normal;
+            Vector3 flatVel = Vector3.ProjectOnPlane(rb.velocity, normalVector);
 
-        RaycastHit farHit, nearHit;
-        bool foundWall = TryFindWall(origin, directions, wallRunDistance, out farHit);
-        bool hitWall = TryFindWall(origin, directions, 1f, out nearHit);
+            Vector3 toWall = -hit.normal;
+            float approachSpeed = Vector3.Dot(rb.velocity, toWall);
 
-        if (foundWall)
-            wallNormalVector = farHit.normal;
-
-        Vector3 flatVel = Vector3.ProjectOnPlane(rb.velocity, normalVector);
-
-        if (ShouldStartWallRun(flatVel, foundWall, farHit.normal, out bool canStartPreRun)) {
-            if (canStartPreRun) {
-                PreWallRun();
-            }
-        }
-
-        if (ShouldStartWallRun(flatVel, hitWall, nearHit.normal, out bool canStartRun)) {
-            if (canStartRun) {
-                StartWallRun();
+            if (flatVel.magnitude > 1f && approachSpeed > 0.5f) {
+                if (hit.distance > 1f && !startingWallRun) {
+                    PreWallRun();
+                }
+                else if (hit.distance <= 1f) {
+                    StartWallRun();
+                }
             }
         }
     }
@@ -572,30 +584,13 @@ public class PlayerMovement : MonoBehaviour {
 
     private void FindWallRunRotation() {
         if (startingWallRun || wallRunning) {
-            float cameraAngle = playerCam.rotation.eulerAngles.y;
+            float cameraAngle = LocalPlayer.Instance.playerCamera.GetCameraRot().y;
             float wallAngle = Vector3.SignedAngle(Vector3.forward, wallNormalVector, Vector3.up);
             wallRunRotation = (-Mathf.DeltaAngle(cameraAngle, wallAngle) / 90f) * wallRunCameraTilt;
         }
         else {
             wallRunRotation = 0f;
         }
-    }
-
-    public void Look() {
-        float mouseX = Input.GetAxis("Mouse X") * sensitivity * Time.fixedDeltaTime * sensMultiplier;
-        float mouseY = Input.GetAxis("Mouse Y") * sensitivity * Time.fixedDeltaTime * sensMultiplier;
-
-        desiredX += mouseX;
-        xRotation = Mathf.Clamp(xRotation - mouseY, -maxLookAngle, maxLookAngle);
-
-        actualWallRotation = Mathf.SmoothDamp(
-            actualWallRotation,
-            wallRunRotation,
-            ref wallRotationVel,
-            wallRunCameraTiltSmooth
-        );
-
-        LocalPlayer.Instance.moveCamera.SetLookRotation(desiredX, xRotation, actualWallRotation);
     }
 
     public Vector2 FindVelRelativeToLook() {
@@ -614,7 +609,8 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private bool IsWall(Vector3 v) {
-        return Math.Abs(90f - Vector3.Angle(Vector3.up, v)) < 0.1f;
+        float angle = Vector3.Angle(Vector3.up, v);
+        return angle >= 80f && angle <= 100f;
     }
 
     public Rigidbody GetRb() {
@@ -643,9 +639,5 @@ public class PlayerMovement : MonoBehaviour {
 
     public bool IsSliding() {
         return sliding;
-    }
-
-    public Vector3 GetCameraRot() {
-        return new Vector3(cameraRot.x, desiredX, actualWallRotation);
     }
 }

@@ -33,11 +33,10 @@ public class MoveWeapon : MonoBehaviour {
 
     private Vector3 recoilPosCurrent;
     private Vector3 recoilPosTarget;
-
     private Vector3 recoilRotCurrent;
     private Vector3 recoilRotTarget;
 
-    [Header("Strafe Tilt")] public float strafeTiltAmount = 0.1f;
+    [Header("Strafe tilt")] public float strafeTiltAmount = 0.1f;
     public float strafeTiltSmooth = 30f;
 
     private float currentStrafeTilt;

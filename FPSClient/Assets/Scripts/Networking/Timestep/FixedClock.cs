@@ -38,8 +38,8 @@ public class FixedClock : MonoBehaviour {
             tick++;
         }
 
-        if (LocalPlayer.Instance != null && tick - 1 > InputManager.lastSentTick)
-            InputManager.SendPlayerInputs();
+        if (LocalPlayer.Instance != null && tick - 1 > PlayerInput.lastSentTick)
+            PlayerInput.SendPlayerInputs();
     }
 
     private static void Advance() {
