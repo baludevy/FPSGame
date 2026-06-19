@@ -32,6 +32,8 @@ public class LocalPlayer : FixedBehaviour {
         if (currentInput.shoot) {
             weapon.Shoot();
         }
+        
+        Physics.SyncTransforms();
 
         Physics.Simulate(NetworkSettings.tickTime);
 

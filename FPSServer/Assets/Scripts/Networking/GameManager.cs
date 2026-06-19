@@ -23,7 +23,9 @@ public class GameManager : FixedBehaviour {
                 client.player.HandleInput(input);
             }
         }
-
+        
+        Physics.SyncTransforms();
+        
         Physics.Simulate(NetworkSettings.tickTime);
 
         lagCompensation.SaveSnapshot(GetWorldSnapshot());

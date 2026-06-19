@@ -11,7 +11,8 @@ public class SpeedMeter : MonoBehaviour {
 
     void Update() {
         if (LocalPlayer.Instance != null)
-            speed = LocalPlayer.Instance.movement.GetRb().velocity.magnitude;
+            speed = new Vector3(LocalPlayer.Instance.movement.GetRb().velocity.x, 0,
+                LocalPlayer.Instance.movement.GetRb().velocity.z).magnitude;
     }
 
     void OnGUI() {

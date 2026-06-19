@@ -13,15 +13,23 @@ public class MoveCamera : MonoBehaviour {
     private float bobSpeed = 15f;
     private float bobMultiplier = 0.5f;
 
-    private float baseFov = 90f;
+    private Vector3 desiredBobRot;
+    private Vector3 bobRotOffset;
+
+    private float bobRotSpeed = 12f;
+    private float bobRotMultiplier = 1f;
+
+    private float baseFov = 95f;
     private float targetFov;
 
     private float fovVelocity;
-    private float speedThreshold = 12f;
-    private float maxSpeedForFov = 35f;
-    
-    private float fovSmoothTime = 0.2f;
-    private float maxFovOffset = 15f;
+
+    private float fovSmoothTime = 0.12f;
+    private float maxFovOffset = 10f;
+
+    private float baseYaw;
+    private float basePitch;
+    private float baseRoll;
 
     public PlayerMovement playerMovement;
     public Camera cam;
@@ -41,6 +49,7 @@ public class MoveCamera : MonoBehaviour {
 
         UpdateFov();
         UpdateBob();
+        UpdateBobRot();
     }
 
     private void UpdateFov() {
@@ -48,17 +57,13 @@ public class MoveCamera : MonoBehaviour {
             baseFov = cam.fieldOfView;
             return;
         }
+        
+        float fovOffset = 0;
 
-        float currentSpeed = playerMovement.GetRb().velocity.magnitude;
+        if (playerMovement.IsSliding())
+            fovOffset = 8;
 
-        float speedFactor = Mathf.InverseLerp(speedThreshold, maxSpeedForFov, currentSpeed);
-        float speedFovOffset = speedFactor * maxFovOffset;
-
-        bool isWallRunning = playerMovement.IsWallRunning();
-
-        float wallrunFovOffset = isWallRunning ? 10 : 0f;
-
-        targetFov = baseFov + Mathf.Max(speedFovOffset, wallrunFovOffset);
+        targetFov = baseFov + fovOffset;
         targetFov = Mathf.Clamp(targetFov, baseFov, baseFov + maxFovOffset);
 
         cam.fieldOfView = Mathf.SmoothDamp(cam.fieldOfView, targetFov, ref fovVelocity, fovSmoothTime);
@@ -69,12 +74,39 @@ public class MoveCamera : MonoBehaviour {
         desiredBob = vector * bobMultiplier;
 
         if (MoveWeapon.Instance != null)
-            MoveWeapon.Instance.BobOnce(-vector);
+            MoveWeapon.Instance.BobOnce(-vector * 0.7f);
+    }
+
+    public void BobRotOnce(Vector3 bobDirection) {
+        Vector3 rot = ClampVector(bobDirection * 2f, -5f, 5f);
+        desiredBobRot = rot * bobRotMultiplier;
     }
 
     private void UpdateBob() {
         desiredBob = Vector3.Lerp(desiredBob, Vector3.zero, Time.deltaTime * bobSpeed * 0.5f);
         bobOffset = Vector3.Lerp(bobOffset, desiredBob, Time.deltaTime * bobSpeed);
+    }
+
+    private void UpdateBobRot() {
+        desiredBobRot = Vector3.Lerp(desiredBobRot, Vector3.zero, Time.deltaTime * bobRotSpeed * 0.5f);
+        bobRotOffset = Vector3.Lerp(bobRotOffset, desiredBobRot, Time.deltaTime * bobRotSpeed);
+
+        ApplyFinalRotation();
+    }
+
+    public void SetLookRotation(float yaw, float pitch, float roll) {
+        baseYaw = yaw;
+        basePitch = Mathf.Clamp(pitch, -85f, 85f);
+        baseRoll = roll;
+
+        ApplyFinalRotation();
+    }
+
+    private void ApplyFinalRotation() {
+        Quaternion baseRot = Quaternion.Euler(basePitch, baseYaw, baseRoll);
+        Quaternion bobRot = Quaternion.Euler(bobRotOffset);
+
+        transform.localRotation = baseRot * bobRot;
     }
 
     private Vector3 ClampVector(Vector3 vec, float min, float max) {

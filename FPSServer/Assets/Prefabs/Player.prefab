@@ -204,8 +204,35 @@ MonoBehaviour:
   whatIsGround:
     serializedVersion: 2
     m_Bits: 8
-  jumpForce: 9
   player: {fileID: 5627394223454358460}
+  acceleration: 4000
+  maxRunSpeed: 12
+  counterMovement: 0.2
+  threshold: 0.01
+  maxSlopeAngle: 35
+  jumpForce: 14
+  airAcceleration: 32
+  maxAirSpeed: 14
+  slideBoost: 12
+  maxSlideSpeed: 24
+  slideFriction: 0.7
+  slideStopSpeed: 2
+  slideCooldown: 0.8
+  slideMinSpeed: 5
+  slideEndSpeed: 3
+  wallRunSpeed: 35
+  wallRunAcceleration: 2000
+  wallRunMaxFallSpeed: -1.5
+  wallRunIdleMaxFallSpeed: -5
+  wallRunDistance: 1.5
+  initialWallBoost: 14
+  wallKickImpulse: 8
+  wallKickParallelImpulse: 1
+  wallKickInwardImpulse: 3
+  sameWallCooldown: 0.3
+  wallRunMaxTime: 3
+  crouchScale: {x: 1.25, y: 1, z: 1.25}
+  maxCrouchSpeed: 5
 --- !u!114 &2669858997991989375
 MonoBehaviour:
   m_ObjectHideFlags: 0

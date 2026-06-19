@@ -4918,7 +4918,6 @@ GameObject:
   - component: {fileID: 5869546901506640934}
   - component: {fileID: 7765145262286749140}
   - component: {fileID: 929397181157351689}
-  - component: {fileID: 1703437262116342295}
   - component: {fileID: 5400989650650611250}
   m_Layer: 6
   m_Name: Camera
@@ -4977,7 +4976,7 @@ Camera:
     height: 1
   near clip plane: 0.01
   far clip plane: 1000
-  field of view: 90
+  field of view: 95
   orthographic: 0
   orthographic size: 5
   m_Depth: -1
@@ -5003,20 +5002,6 @@ AudioListener:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7498915253486849432}
   m_Enabled: 1
---- !u!114 &1703437262116342295
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7498915253486849432}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 23b7cac3ae07a494cb3823b3624e5fe9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  DefaultPosInfluence: {x: 0.15, y: 0.15, z: 0.15}
-  DefaultRotInfluence: {x: 1, y: 1, z: 1}
 --- !u!114 &5400989650650611250
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5197,7 +5182,7 @@ GameObject:
   - component: {fileID: 3119952534548067594}
   - component: {fileID: 1834420175924387594}
   m_Layer: 6
-  m_Name: Player
+  m_Name: Character
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5309,6 +5294,36 @@ MonoBehaviour:
   whatIsGround:
     serializedVersion: 2
     m_Bits: 8
+  acceleration: 4000
+  maxRunSpeed: 12
+  counterMovement: 0.2
+  threshold: 0.01
+  maxSlopeAngle: 35
+  jumpForce: 14
+  airAcceleration: 32
+  maxAirSpeed: 14
+  slideBoost: 12
+  maxSlideSpeed: 24
+  slideFriction: 0.7
+  slideStopSpeed: 2
+  slideCooldown: 0.8
+  slideMinSpeed: 5
+  slideEndSpeed: 3
+  wallRunSpeed: 35
+  wallRunAcceleration: 2000
+  wallRunMaxFallSpeed: -1.5
+  wallRunIdleMaxFallSpeed: -5
+  wallRunDistance: 1.5
+  wallRunCameraTilt: 10
+  wallRunCameraTiltSmooth: 0.15
+  initialWallBoost: 14
+  wallKickImpulse: 8
+  wallKickParallelImpulse: 1
+  wallKickInwardImpulse: 3
+  sameWallCooldown: 0.3
+  wallRunMaxTime: 3
+  crouchScale: {x: 1.25, y: 1, z: 1.25}
+  maxCrouchSpeed: 5
 --- !u!54 &316666422998045112
 Rigidbody:
   m_ObjectHideFlags: 0
