@@ -17,7 +17,7 @@ public class Client : MonoBehaviour {
     public TCP tcp;
     public UDP udp;
 
-    public static volatile bool IsConnected;
+    public static bool IsConnected;
 
     private delegate void PacketHandler(Packet packet);
 

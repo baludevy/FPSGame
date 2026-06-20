@@ -31,7 +31,7 @@ public class PlayerCamera : MonoBehaviour {
     private Vector3 bobRotOffset;
 
     [Header("Fov")] [SerializeField] private float fovSmoothTime = 0.12f;
-    private float maxFovOffset = 10f;
+    [SerializeField] private float maxFovOffset = 15f;
     private float fovVelocity;
 
     private float baseFov;
@@ -75,8 +75,10 @@ public class PlayerCamera : MonoBehaviour {
 
         float fovOffset = 0;
 
-        if (playerMovement.IsSliding())
-            fovOffset = 8;
+        if (playerMovement.IsSliding()) {
+            float speedT = Mathf.InverseLerp(0f, playerMovement.maxSlideSpeed, playerMovement.GetSpeed());
+            fovOffset = Mathf.Lerp(0f, maxFovOffset, speedT);
+        }
 
         targetFov = baseFov + fovOffset;
         targetFov = Mathf.Clamp(targetFov, baseFov, baseFov + maxFovOffset);

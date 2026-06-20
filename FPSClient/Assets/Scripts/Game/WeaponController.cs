@@ -9,7 +9,7 @@ public class WeaponController : MonoBehaviour {
     public void Shoot() {
         if (!canFire) return;
 
-        MoveWeapon.Instance.AddRecoil();
+        // MoveWeapon.Instance.AddRecoil();
         PlayShootSound();
 
         canFire = false;

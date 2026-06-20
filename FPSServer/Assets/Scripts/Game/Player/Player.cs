@@ -26,7 +26,7 @@ public class Player : MonoBehaviour {
 
         if (inputData.shoot) {
             weaponController.Shoot(inputData, GameManager.Instance.lagCompensation);
-        }
+        }  
 
         movement.AdvanceLogic();
     }

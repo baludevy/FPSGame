@@ -42,7 +42,7 @@ public class PlayerInput : MonoBehaviour {
     }
 
     public static void SendPlayerInputs() {
-        if (LocalPlayer.Instance == null) return;
+        if (LocalPlayer.Instance == null || !Client.IsConnected) return;
 
         int bufferSize = NetworkSettings.inputHistorySize;
 

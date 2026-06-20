@@ -3198,7 +3198,7 @@ Transform:
   m_GameObject: {fileID: 1452902974940444512}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: 0}
+  m_LocalPosition: {x: 0, y: 1.3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3222,13 +3222,14 @@ MonoBehaviour:
   cam: {fileID: 7765145262286749140}
   player: {fileID: 1335595927676222055}
   sensitivity: 1
-  offset: {x: 0, y: 1, z: 0}
+  offset: {x: 0, y: 1.3, z: 0}
   wallRotation: 0
   bobSpeed: 15
   bobMultiplier: 0.5
   bobRotSpeed: 12
   bobRotMultiplier: 1
   fovSmoothTime: 0.12
+  maxFovOffset: 10
 --- !u!1 &1485059727020006009
 GameObject:
   m_ObjectHideFlags: 0
@@ -4240,7 +4241,7 @@ Transform:
   m_GameObject: {fileID: 5226125972610035935}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0.675, y: -0.8, z: 2.1}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -4980,7 +4981,7 @@ Camera:
     height: 1
   near clip plane: 0.01
   far clip plane: 1000
-  field of view: 110
+  field of view: 100
   orthographic: 0
   orthographic size: 5
   m_Depth: -1
@@ -5303,7 +5304,7 @@ MonoBehaviour:
   threshold: 0.01
   maxSlopeAngle: 35
   jumpForce: 14
-  airAcceleration: 32
+  airAcceleration: 25
   maxAirSpeed: 14
   slideBoost: 12
   maxSlideSpeed: 24
@@ -5312,21 +5313,19 @@ MonoBehaviour:
   slideCooldown: 0.8
   slideMinSpeed: 5
   slideEndSpeed: 3
-  wallRunSpeed: 35
+  wallRunSpeed: 30
   wallRunAcceleration: 1500
   wallRunMaxFallSpeed: -1.5
   wallRunIdleMaxFallSpeed: -5
-  wallRunDistance: 2
-  wallRunCameraTilt: 10
+  wallRunDistance: 1.5
+  wallRunCameraTilt: 11
   wallRunCameraTiltSmooth: 0.15
   initialWallBoost: 14
-  wallKickImpulse: 8
-  wallKickParallelImpulse: 1
-  wallKickInwardImpulse: 3
-  sameWallCooldown: 0.3
+  wallKickImpulse: 14
   wallRunMaxTime: 3
   crouchScale: {x: 1.25, y: 1, z: 1.25}
   maxCrouchSpeed: 5
+  crouchTransitionSpeed: 10
 --- !u!54 &316666422998045112
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -5932,17 +5931,21 @@ PrefabInstance:
       propertyPath: m_Name
       value: Phantom
       objectReference: {fileID: 0}
+    - target: {fileID: 7427107775523845879, guid: b9cab7d595cdf2445b86aadae6cd7dd6, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7807468822601116749, guid: b9cab7d595cdf2445b86aadae6cd7dd6, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.675
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7807468822601116749, guid: b9cab7d595cdf2445b86aadae6cd7dd6, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.8
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7807468822601116749, guid: b9cab7d595cdf2445b86aadae6cd7dd6, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 2.1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7807468822601116749, guid: b9cab7d595cdf2445b86aadae6cd7dd6, type: 3}
       propertyPath: m_LocalRotation.w

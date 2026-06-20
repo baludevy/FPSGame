@@ -177,7 +177,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   smooth: 10
-  swayMult: 0.8
+  swayMult: 1.2
   bobMultiplier: 0.25
   bobSpeed: 15
   moveBobX: 0.025
@@ -193,10 +193,10 @@ MonoBehaviour:
   breathingRotX: 0.2
   breathingRotZ: 0.05
   recoilPosition: {x: 0, y: 0, z: -0.6}
-  recoilRotation: {x: -3, y: 0, z: 0}
+  recoilRotation: {x: -4, y: 0, z: 0}
   recoilReturnSpeed: 30
   recoilSnappiness: 100
-  strafeTiltAmount: 0.1
+  strafeTiltAmount: 0.3
   strafeTiltSmooth: 30
 --- !u!1 &9144274098279833192
 GameObject:

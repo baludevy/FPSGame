@@ -51,7 +51,7 @@ public class PlayerPrediction : MonoBehaviour {
 
         float errorSqrMag = (serverState.position - prePosition).sqrMagnitude;
         if (errorSqrMag > positionErrorThreshold) {
-            // Debug.Log($"Desync by {errorSqrMag}, tick: {tick}");
+            Debug.Log($"Desync by {errorSqrMag}, tick: {tick}");
             SynchronizeMovement(serverState, tick);
         }
     }

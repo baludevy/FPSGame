@@ -274,7 +274,7 @@ MonoBehaviour:
   threshold: 0.01
   maxSlopeAngle: 35
   jumpForce: 14
-  airAcceleration: 32
+  airAcceleration: 25
   maxAirSpeed: 14
   slideBoost: 12
   maxSlideSpeed: 24
@@ -283,16 +283,13 @@ MonoBehaviour:
   slideCooldown: 0.8
   slideMinSpeed: 5
   slideEndSpeed: 3
-  wallRunSpeed: 35
+  wallRunSpeed: 30
   wallRunAcceleration: 1500
   wallRunMaxFallSpeed: -1.5
   wallRunIdleMaxFallSpeed: -5
-  wallRunDistance: 2
+  wallRunDistance: 1.5
   initialWallBoost: 14
-  wallKickImpulse: 8
-  wallKickParallelImpulse: 1
-  wallKickInwardImpulse: 3
-  sameWallCooldown: 0.3
+  wallKickImpulse: 14
   wallRunMaxTime: 3
   crouchScale: {x: 1.25, y: 1, z: 1.25}
   maxCrouchSpeed: 5
