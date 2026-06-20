@@ -5923,6 +5923,22 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6941523399725121203}
     m_Modifications:
+    - target: {fileID: 3503901594328004776, guid: b9cab7d595cdf2445b86aadae6cd7dd6, type: 3}
+      propertyPath: bobFrequency
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 3503901594328004776, guid: b9cab7d595cdf2445b86aadae6cd7dd6, type: 3}
+      propertyPath: bobPosAmount
+      value: 0.03
+      objectReference: {fileID: 0}
+    - target: {fileID: 3503901594328004776, guid: b9cab7d595cdf2445b86aadae6cd7dd6, type: 3}
+      propertyPath: bobRampSpeed
+      value: 16
+      objectReference: {fileID: 0}
+    - target: {fileID: 3503901594328004776, guid: b9cab7d595cdf2445b86aadae6cd7dd6, type: 3}
+      propertyPath: bobRotAmount
+      value: 4.5
+      objectReference: {fileID: 0}
     - target: {fileID: 4900114115466908830, guid: b9cab7d595cdf2445b86aadae6cd7dd6, type: 3}
       propertyPath: audioSource
       value: 

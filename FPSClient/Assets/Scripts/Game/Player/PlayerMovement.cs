@@ -242,6 +242,9 @@ public class PlayerMovement : MonoBehaviour {
         if (fallSpeed > 10f) {
             LocalPlayer.Instance.playerCamera.BobOnce(Vector3.down * fallSpeed * 0.5f);
             LocalPlayer.Instance.playerCamera.BobRotOnce(Vector3.right * fallSpeed * 0.15f);
+            
+            MoveWeapon.Instance.BobPos(Vector3.up * fallSpeed * 0.15f);
+            MoveWeapon.Instance.BobRot(Vector3.left * fallSpeed * 3f);
         }
     }
 
@@ -260,6 +263,10 @@ public class PlayerMovement : MonoBehaviour {
         rb.velocity = flatVel;
 
         LocalPlayer.Instance.playerCamera.BobRotOnce(Vector3.right * 3f);
+        
+        MoveWeapon.Instance.BobPos(Vector3.down * 0.1f);
+        MoveWeapon.Instance.BobRot(Vector3.right * 3f);
+        
         rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
     }
 

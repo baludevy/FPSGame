@@ -89,9 +89,6 @@ public class PlayerCamera : MonoBehaviour {
     public void BobOnce(Vector3 bobDirection) {
         Vector3 vector = ClampVector(bobDirection * 0.15f, -3f, 3f);
         desiredBob = vector * bobMultiplier;
-
-        if (MoveWeapon.Instance != null)
-            MoveWeapon.Instance.BobOnce(-vector * 0.7f);
     }
 
     public void BobRotOnce(Vector3 bobDirection) {

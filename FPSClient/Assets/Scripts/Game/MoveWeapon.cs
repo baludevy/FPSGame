@@ -3,197 +3,167 @@
 public class MoveWeapon : MonoBehaviour {
     public static MoveWeapon Instance;
 
-    [Header("Weapon Sway")] public float smooth = 10f;
-    public float swayMult = 2f;
+    [Header("Rotational sway")]
+    public float swayMult = 0.5f;
+    public float stiffness = 400f;
+    public float damping = 28f;
+    public float maxSway = 0.15f;
 
-    [Header("Bob")] public float bobMultiplier = 1f;
-    public float bobSpeed = 15f;
-    private Vector3 desiredRotBob;
-    private Vector3 rotBobOffset;
+    [Header("Positional sway")]
+    public float posSwayMult = 0.15f;
+    public float posStiffness = 300f;
+    public float posDamping = 22f;
+    public float maxPosSway = 0.03f;
 
-    [Header("Movement bob")] public float moveBobX = 0.04f;
-    public float moveBobY = 0.03f;
-    public float moveBobFrequency = 10f;
-    public float moveBobSpeedThreshold = 0.1f;
-    public float fallOffsetMultiplier = 0.003f;
-    public float fallOffsetMax = 0.3f;
+    [Header("Tilt")]
+    public float tiltMult = 1.2f;
+    public float maxTilt = 4f;
 
-    [Header("Breathing")] public bool breathing = true;
-    public float breathingSpeed = 1.2f;
-    public float breathingPosX = 0.01f;
-    public float breathingPosY = 0.015f;
-    public float breathingRotX = 0.5f;
-    public float breathingRotZ = 0.25f;
+    [Header("Fall inertia")]
+    public float fallInertiaMult = 0.01f;
+    public float fallInertiaStiffness = 200f;
+    public float fallInertiaDamping = 18f;
+    public float maxFallInertia = 0.06f;
 
-    [Header("Recoil")] public Vector3 recoilPosition;
-    public Vector3 recoilRotation;
+    [Header("Bob")]
+    public float bobSpeed = 3f;
+    public float bobRefSpeed = 5.5f;
+    public float bobXAmount = 0.008f;
+    public float bobYAmount = 0.005f;
+    public float bobRollAmount = 0.5f;
+    public float bobWeightSpeed = 4f;
+    public float bobSnapSpeed = 15f;
 
-    public float recoilReturnSpeed = 30f;
-    public float recoilSnappiness = 100f;
+    [Header("Bob kick (land or jump)")]
+    public float bobKickStiffness = 250f;
+    public float bobKickDamping = 18f;
 
-    private Vector3 recoilPosCurrent;
-    private Vector3 recoilPosTarget;
-    private Vector3 recoilRotCurrent;
-    private Vector3 recoilRotTarget;
+    private Vector3 currentRot;
+    private Vector3 rotVelocity;
+    private Vector3 currentPos;
+    private Vector3 posVelocity;
 
-    [Header("Strafe tilt")] public float strafeTiltAmount = 0.1f;
-    public float strafeTiltSmooth = 30f;
+    private Vector3 fallOffset;
+    private Vector3 fallVelocity;
 
-    private float currentStrafeTilt;
+    private Vector3 bobPos;
+    private Vector3 bobRot;
+    private float bobCycle;
+    private float currentBobWeight;
 
-    private Vector3 initialPosition;
-    private Vector3 desiredBob;
-    private Vector3 bobOffset;
-    private float moveBobTimer;
+    private Vector3 kickPos;
+    private Vector3 kickPosVelocity;
+    private Vector3 kickRot;
+    private Vector3 kickRotVelocity;
+
+    private Quaternion baseRotation;
+    private Vector3 basePosition;
 
     private void Awake() {
+        if (Instance != null && Instance != this) {
+            Destroy(gameObject);
+            return;
+        }
         Instance = this;
     }
 
     private void Start() {
-        initialPosition = transform.localPosition;
+        baseRotation = transform.localRotation;
+        basePosition = transform.localPosition;
     }
 
-    private void Update() {
-        float x = Input.GetAxisRaw("Mouse X");
-        float y = Input.GetAxisRaw("Mouse Y");
+    private void LateUpdate() {
+        float dt = Time.deltaTime;
 
-        Quaternion rotX = Quaternion.AngleAxis(-y * swayMult, Vector3.right);
-        Quaternion rotY = Quaternion.AngleAxis(x * swayMult, Vector3.up);
-        Quaternion targetRot = rotX * rotY;
+        // mouse sway
+        float mouseX = Input.GetAxis("Mouse X");
+        float mouseY = Input.GetAxis("Mouse Y");
 
-        UpdateBob();
-
-        UpdateRecoil();
-
-        Vector3 targetPos =
-            initialPosition +
-            bobOffset +
-            GetBreathPos() +
-            GetMoveBob() +
-            recoilPosCurrent;
-
-        transform.localPosition = Vector3.Lerp(
-            transform.localPosition,
-            targetPos,
-            smooth * Time.deltaTime
+        Vector3 rotTarget = new Vector3(
+            -mouseY * swayMult,
+             mouseX * swayMult,
+            -mouseX * tiltMult
         );
+        rotTarget.x = Mathf.Clamp(rotTarget.x, -maxSway, maxSway);
+        rotTarget.y = Mathf.Clamp(rotTarget.y, -maxSway, maxSway);
+        rotTarget.z = Mathf.Clamp(rotTarget.z, -maxTilt, maxTilt);
 
-        transform.localRotation = Quaternion.Slerp(
-            transform.localRotation,
-            targetRot * GetBreathRot() * Quaternion.Euler(recoilRotCurrent) * Quaternion.Euler(rotBobOffset) *
-            Quaternion.Euler(0f, 0f, GetStrafeTilt()),
-            smooth * Time.deltaTime
-        );
-    }
+        Vector3 rotForce = (rotTarget - currentRot) * stiffness - rotVelocity * damping;
+        rotVelocity += rotForce * dt;
+        currentRot += rotVelocity * dt;
 
-    private Vector3 GetBreathPos() {
-        if (!breathing) return Vector3.zero;
+        Vector3 posTarget = new Vector3(-mouseX, -mouseY, 0f) * posSwayMult;
+        posTarget = Vector3.ClampMagnitude(posTarget, maxPosSway);
 
-        float t = Time.time * breathingSpeed;
+        Vector3 posForce = (posTarget - currentPos) * posStiffness - posVelocity * posDamping;
+        posVelocity += posForce * dt;
+        currentPos += posVelocity * dt;
 
-        return new Vector3(
-            Mathf.Sin(t * 0.8f) * breathingPosX,
-            Mathf.Sin(t) * breathingPosY,
-            0f
-        );
-    }
-
-    private Quaternion GetBreathRot() {
-        if (!breathing) return Quaternion.identity;
-
-        float t = Time.time * breathingSpeed;
-
-        return Quaternion.Euler(
-            Mathf.Sin(t) * breathingRotX,
-            0f,
-            Mathf.Sin(t * 0.5f) * breathingRotZ
-        );
-    }
-
-    private Vector3 GetMoveBob() {
-        if (LocalPlayer.Instance == null) return Vector3.zero;
-
-        PlayerMovement movement = LocalPlayer.Instance.movement;
-
-        float fallOffset = Mathf.Clamp(-movement.GetFallSpeed() * fallOffsetMultiplier, 0f, fallOffsetMax);
-
-        bool canBob = (movement.IsGrounded() || movement.IsWallRunning()) && !movement.IsCrouching();
-        if (!canBob) {
-            moveBobTimer = 0f;
-            return new Vector3(0f, fallOffset, 0f);
-        }
-
-        Rigidbody rb = movement.GetRb();
-        float horizontalSpeed = new Vector3(rb.velocity.x, 0f, rb.velocity.z).magnitude;
-
-        if (horizontalSpeed < moveBobSpeedThreshold) {
-            moveBobTimer = 0f;
-            return new Vector3(0f, fallOffset, 0f);
-        }
-
-        moveBobTimer += Time.deltaTime * moveBobFrequency;
-
-        return new Vector3(
-            Mathf.Cos(moveBobTimer * 0.5f) * moveBobX,
-            Mathf.Abs(Mathf.Sin(moveBobTimer)) * moveBobY + fallOffset,
-            0f
-        );
-    }
-
-    private float GetStrafeTilt() {
-        if (LocalPlayer.Instance == null) return 0f;
-
+        // fall inertia
         Rigidbody rb = LocalPlayer.Instance.movement.GetRb();
+        float fallSpeed = rb.velocity.y;
 
-        float sidewaysVel = Vector3.Dot(rb.velocity, transform.parent.right);
+        Vector3 fallTarget = new Vector3(0f, fallSpeed, 0f) * fallInertiaMult;
+        fallTarget = Vector3.ClampMagnitude(fallTarget, maxFallInertia);
 
-        float targetTilt = -sidewaysVel * strafeTiltAmount;
-        currentStrafeTilt = Mathf.Lerp(currentStrafeTilt, targetTilt, Time.deltaTime * strafeTiltSmooth);
+        Vector3 fallForce = (fallTarget - fallOffset) * fallInertiaStiffness - fallVelocity * fallInertiaDamping;
+        fallVelocity += fallForce * dt;
+        fallOffset += fallVelocity * dt;
 
-        return currentStrafeTilt;
-    }
+        // bob
+        Vector3 localVel = transform.parent.InverseTransformDirection(rb.velocity);
+        float horizontalSpeed = new Vector3(localVel.x, 0f, localVel.z).magnitude;
 
-    public void BobOnce(Vector3 direction) {
-        desiredBob += direction * bobMultiplier;
-    }
+        bool isGrounded = LocalPlayer.Instance.movement.IsGrounded();
+        bool isWallRunning = LocalPlayer.Instance.movement.IsWallRunning();
+        bool isSliding = LocalPlayer.Instance.movement.IsSliding();
 
-    public void RotBobOnce(Vector3 rotation) {
-        desiredRotBob += rotation * bobMultiplier;
-    }
+        float targetBobWeight = 0f;
 
-    private void UpdateBob() {
-        desiredBob = Vector3.Lerp(
-            desiredBob,
-            Vector3.zero,
-            Time.deltaTime * bobSpeed * 0.5f
+        if (isGrounded && !isWallRunning && !isSliding) {
+            targetBobWeight = Mathf.Clamp01(horizontalSpeed / bobRefSpeed);
+        }
+
+        if (targetBobWeight > 0.05f) {
+            currentBobWeight = Mathf.MoveTowards(currentBobWeight, targetBobWeight, dt * bobWeightSpeed);
+            bobCycle += dt * bobSpeed * (horizontalSpeed / bobRefSpeed);
+        }
+        else {
+            currentBobWeight = Mathf.MoveTowards(currentBobWeight, 0f, dt * bobSnapSpeed);
+            bobCycle = Mathf.MoveTowards(bobCycle, Mathf.Round(bobCycle / Mathf.PI) * Mathf.PI, dt * bobSnapSpeed);
+        }
+
+        float bobOffsetX = Mathf.Sin(bobCycle) * bobXAmount * currentBobWeight;
+        float bobOffsetY = Mathf.Sin(bobCycle * 2f) * bobYAmount * currentBobWeight;
+        float bobRoll = Mathf.Sin(bobCycle) * bobRollAmount * currentBobWeight;
+
+        bobPos = new Vector3(bobOffsetX, bobOffsetY, 0f);
+        bobRot = new Vector3(0f, 0f, bobRoll);
+
+        // kick springs (driven by BobPos/BobRot calls)
+        Vector3 kickPosForce = -kickPos * bobKickStiffness - kickPosVelocity * bobKickDamping;
+        kickPosVelocity += kickPosForce * dt;
+        kickPos += kickPosVelocity * dt;
+
+        Vector3 kickRotForce = -kickRot * bobKickStiffness - kickRotVelocity * bobKickDamping;
+        kickRotVelocity += kickRotForce * dt;
+        kickRot += kickRotVelocity * dt;
+
+        // final
+        transform.localPosition = basePosition + currentPos + fallOffset + bobPos + kickPos;
+
+        transform.localRotation = baseRotation * Quaternion.Euler(
+            currentRot.x + bobRot.x + kickRot.x,
+            currentRot.y + bobRot.y + kickRot.y,
+            currentRot.z + bobRot.z + kickRot.z
         );
-
-        bobOffset = Vector3.Lerp(
-            bobOffset,
-            desiredBob,
-            Time.deltaTime * bobSpeed
-        );
-
-        desiredRotBob = Vector3.Lerp(desiredRotBob, Vector3.zero, Time.deltaTime * bobSpeed * 0.5f);
-        rotBobOffset = Vector3.Lerp(rotBobOffset, desiredRotBob, Time.deltaTime * bobSpeed);
     }
-
-    private void UpdateRecoil() {
-        recoilRotTarget = Vector3.Lerp(recoilRotTarget, Vector3.zero, Time.deltaTime * recoilReturnSpeed);
-        recoilPosTarget = Vector3.Lerp(recoilPosTarget, Vector3.zero, Time.deltaTime * recoilReturnSpeed);
-
-        recoilRotCurrent = Vector3.Lerp(recoilRotCurrent, recoilRotTarget, Time.deltaTime * recoilSnappiness);
-        recoilPosCurrent = Vector3.Lerp(recoilPosCurrent, recoilPosTarget, Time.deltaTime * recoilSnappiness);
+    
+    public void BobPos(Vector3 kick) {
+        kickPosVelocity += kick;
     }
-
-    public void AddRecoil() {
-        recoilRotTarget += new Vector3(
-            recoilRotation.x + Random.Range(-1f, 1f),
-            recoilRotation.y + Random.Range(-1f, 1f),
-            recoilRotation.z + Random.Range(-1f, 1f)
-        );
-
-        recoilPosTarget += recoilPosition;
+    
+    public void BobRot(Vector3 kick) {
+        kickRotVelocity += kick;
     }
 }
