@@ -60,8 +60,7 @@ public class PlayerMovement : MonoBehaviour {
 
     private bool wallRunning, startingWallRun, preWallRunning;
     private int cancelWallRunAction;
-
-    // 0 = fully standing, 1 = fully crouched. Drives the smooth scale lerp.
+    
     private float crouchAmount;
 
     private void Awake() {
@@ -364,20 +363,27 @@ public class PlayerMovement : MonoBehaviour {
         }
     }
 
-    public void WallRunning() {
+    private void WallRunning() {
         Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
         float currentSpeed = flatVel.magnitude;
+        
+        Vector3 rawForwardFlat = Vector3.ProjectOnPlane(orientation.forward, Vector3.up);
+        if (rawForwardFlat.sqrMagnitude > 0.001f) {
+            rawForwardFlat = rawForwardFlat.normalized;
+        }
 
         Vector3 camWallDir = Vector3.ProjectOnPlane(orientation.forward, wallNormalVector);
         camWallDir = Vector3.ProjectOnPlane(camWallDir, Vector3.up);
 
-        Vector3 flatDir = orientation.forward;
-        if (camWallDir.sqrMagnitude > 0.001f) {
-            flatDir = camWallDir.normalized;
-        }
-        else if (flatVel.sqrMagnitude > 0.001f) {
-            flatDir = flatVel.normalized;
-        }
+        Vector3 tangentDir = camWallDir.sqrMagnitude > 0.001f
+            ? camWallDir.normalized
+            : (flatVel.sqrMagnitude > 0.001f ? flatVel.normalized : rawForwardFlat);
+        
+        float awayAngle = Vector3.Angle(orientation.forward, wallNormalVector);
+
+        float stickAmount = Mathf.Clamp01(Mathf.InverseLerp(5, 90, awayAngle));
+
+        Vector3 flatDir = Vector3.Lerp(rawForwardFlat, tangentDir, stickAmount);
 
         if (currentSpeed < wallRunSpeed && y > threshold) {
             float speedDelta = wallRunSpeed - currentSpeed;
@@ -385,7 +391,7 @@ public class PlayerMovement : MonoBehaviour {
             rb.AddForce(flatDir * accel);
         }
         else if (currentSpeed > wallRunSpeed) {
-            rb.velocity -= flatVel * 2f * NetworkSettings.tickTime;
+            rb.velocity -= flatVel * 0.1f * NetworkSettings.tickTime;
         }
 
         if (!jumping) {
@@ -393,7 +399,6 @@ public class PlayerMovement : MonoBehaviour {
             if (IsPressingTowardWall(wallNormalVector)) {
                 targetFall = wallRunMaxFallSpeed;
             }
-
             if (rb.velocity.y < targetFall) {
                 rb.velocity = new Vector3(rb.velocity.x, targetFall, rb.velocity.z);
             }
