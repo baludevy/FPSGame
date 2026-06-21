@@ -381,7 +381,7 @@ public class PlayerMovement : MonoBehaviour {
         
         float awayAngle = Vector3.Angle(orientation.forward, wallNormalVector);
 
-        float stickAmount = Mathf.Clamp01(Mathf.InverseLerp(5, 90, awayAngle));
+        float stickAmount = Mathf.Clamp01(Mathf.InverseLerp(20, 50, awayAngle));
 
         Vector3 flatDir = Vector3.Lerp(rawForwardFlat, tangentDir, stickAmount);
 
