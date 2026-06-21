@@ -21,6 +21,7 @@ public class PlayerMovement : MonoBehaviour {
 
     [Header("Sliding")] public float slideBoost = 6f;
     public float maxSlideSpeed = 22f;
+    public float slideSlopeAccel = 2.8f;
     public float slideFriction = 1.2f;
     public float slideStopSpeed = 2f;
     public float slideCooldown = 1.5f;
@@ -329,6 +330,9 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void SlideFriction() {
+        Vector3 gravityAlongSlope = Vector3.ProjectOnPlane(Physics.gravity, normalVector);
+        rb.AddForce(gravityAlongSlope * slideSlopeAccel, ForceMode.Acceleration);
+
         Vector3 vel = rb.velocity;
         Vector3 slopeDir = Vector3.ProjectOnPlane(vel, normalVector);
         float speed = slopeDir.magnitude;

@@ -278,12 +278,13 @@ MonoBehaviour:
   maxAirSpeed: 14
   slideBoost: 12
   maxSlideSpeed: 24
+  slideSlopeAccel: 2.8
   slideFriction: 0.7
   slideStopSpeed: 2
   slideCooldown: 0.8
   slideMinSpeed: 5
   slideEndSpeed: 3
-  wallRunSpeed: 30
+  wallRunSpeed: 35
   wallRunAcceleration: 1500
   wallRunMaxFallSpeed: -1.5
   wallRunIdleMaxFallSpeed: -5
@@ -293,6 +294,7 @@ MonoBehaviour:
   wallRunMaxTime: 3
   crouchScale: {x: 1.25, y: 1, z: 1.25}
   maxCrouchSpeed: 5
+  crouchTransitionSpeed: 10
 --- !u!114 &3718825833143043134
 MonoBehaviour:
   m_ObjectHideFlags: 0
