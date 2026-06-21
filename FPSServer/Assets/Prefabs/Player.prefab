@@ -107,7 +107,7 @@ Transform:
   m_GameObject: {fileID: 3691992140519621472}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: 0}
+  m_LocalPosition: {x: 0, y: 1.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -250,7 +250,7 @@ Rigidbody:
   m_IsKinematic: 0
   m_Interpolate: 0
   m_Constraints: 112
-  m_CollisionDetection: 1
+  m_CollisionDetection: 3
 --- !u!114 &7873954872763873855
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -269,28 +269,28 @@ MonoBehaviour:
     m_Bits: 8
   player: {fileID: 1280456300248806326}
   acceleration: 4000
-  maxRunSpeed: 12
+  maxRunSpeed: 11
   counterMovement: 0.2
   threshold: 0.01
   maxSlopeAngle: 35
   jumpForce: 14
   airAcceleration: 25
-  maxAirSpeed: 14
+  maxAirSpeed: 11
   slideBoost: 12
-  maxSlideSpeed: 24
-  slideSlopeAccel: 2.8
+  maxSlideSpeed: 20
+  slideSlopeAccel: 1.3
   slideFriction: 0.7
   slideStopSpeed: 2
   slideCooldown: 0.8
   slideMinSpeed: 5
   slideEndSpeed: 3
-  wallRunSpeed: 35
+  wallRunSpeed: 28
   wallRunAcceleration: 1500
   wallRunMaxFallSpeed: -1.5
   wallRunIdleMaxFallSpeed: -5
   wallRunDistance: 1.5
-  initialWallBoost: 14
-  wallKickImpulse: 14
+  initialWallBoost: 12
+  wallKickImpulse: 9
   wallRunMaxTime: 3
   crouchScale: {x: 1.25, y: 1, z: 1.25}
   maxCrouchSpeed: 5
