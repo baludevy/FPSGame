@@ -38,6 +38,13 @@ public class MoveWeapon : MonoBehaviour {
     public float bobKickStiffness = 250f;
     public float bobKickDamping = 18f;
 
+    [Header("Recoil")]
+    public Vector3 recoilKick = new Vector3(0f, 0.02f, -0.04f);   // positional punch (x, y, z)
+    public Vector3 recoilRotKick = new Vector3(-8f, 0f, 0f);      // rotational punch in degrees (pitch, yaw, roll)
+    public float recoilRotSideScatter = 3f;                       // random yaw/roll spread per shot, 0 to disable
+    public float recoilStiffness = 220f;
+    public float recoilDamping = 16f;
+
     private Vector3 currentRot;
     private Vector3 rotVelocity;
     private Vector3 currentPos;
@@ -55,6 +62,11 @@ public class MoveWeapon : MonoBehaviour {
     private Vector3 kickPosVelocity;
     private Vector3 kickRot;
     private Vector3 kickRotVelocity;
+
+    private Vector3 recoilPos;
+    private Vector3 recoilPosVelocity;
+    private Vector3 recoilRot;
+    private Vector3 recoilRotVelocity;
 
     private Quaternion baseRotation;
     private Vector3 basePosition;
@@ -149,21 +161,42 @@ public class MoveWeapon : MonoBehaviour {
         kickRotVelocity += kickRotForce * dt;
         kickRot += kickRotVelocity * dt;
 
+        // recoil springs (driven by Recoil calls)
+        Vector3 recoilPosForce = -recoilPos * recoilStiffness - recoilPosVelocity * recoilDamping;
+        recoilPosVelocity += recoilPosForce * dt;
+        recoilPos += recoilPosVelocity * dt;
+
+        Vector3 recoilRotForce = -recoilRot * recoilStiffness - recoilRotVelocity * recoilDamping;
+        recoilRotVelocity += recoilRotForce * dt;
+        recoilRot += recoilRotVelocity * dt;
+
         // final
-        transform.localPosition = basePosition + currentPos + fallOffset + bobPos + kickPos;
+        transform.localPosition = basePosition + currentPos + fallOffset + bobPos + kickPos + recoilPos;
 
         transform.localRotation = baseRotation * Quaternion.Euler(
-            currentRot.x + bobRot.x + kickRot.x,
-            currentRot.y + bobRot.y + kickRot.y,
-            currentRot.z + bobRot.z + kickRot.z
+            currentRot.x + bobRot.x + kickRot.x + recoilRot.x,
+            currentRot.y + bobRot.y + kickRot.y + recoilRot.y,
+            currentRot.z + bobRot.z + kickRot.z + recoilRot.z
         );
     }
-    
+
     public void BobPos(Vector3 kick) {
         kickPosVelocity += kick;
     }
-    
+
     public void BobRot(Vector3 kick) {
         kickRotVelocity += kick;
+    }
+
+    public void Recoil(float mult = 1f) {
+        recoilPos += recoilKick * mult;
+
+        Vector3 rot = recoilRotKick * mult;
+        if (recoilRotSideScatter > 0f) {
+            float scatter = Random.Range(-recoilRotSideScatter, recoilRotSideScatter) * mult;
+            rot.y += scatter;
+            rot.z += scatter * 0.5f;
+        }
+        recoilRot += rot;
     }
 }

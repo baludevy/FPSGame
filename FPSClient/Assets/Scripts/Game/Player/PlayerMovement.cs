@@ -242,9 +242,9 @@ public class PlayerMovement : MonoBehaviour {
         if (fallSpeed > 10f) {
             LocalPlayer.Instance.playerCamera.BobOnce(Vector3.down * fallSpeed * 0.5f);
             LocalPlayer.Instance.playerCamera.BobRotOnce(Vector3.right * fallSpeed * 0.15f);
-            
+
             MoveWeapon.Instance.BobPos(Vector3.up * fallSpeed * 0.15f);
-            MoveWeapon.Instance.BobRot(Vector3.left * fallSpeed * 3f);
+            MoveWeapon.Instance.BobRot(Vector3.left * fallSpeed * 2f);
         }
     }
 
@@ -263,10 +263,10 @@ public class PlayerMovement : MonoBehaviour {
         rb.velocity = flatVel;
 
         LocalPlayer.Instance.playerCamera.BobRotOnce(Vector3.right * 3f);
-        
+
         MoveWeapon.Instance.BobPos(Vector3.down * 0.1f);
-        MoveWeapon.Instance.BobRot(Vector3.right * 3f);
-        
+        MoveWeapon.Instance.BobRot(Vector3.left * 8f);
+
         rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
     }
 
@@ -395,7 +395,7 @@ public class PlayerMovement : MonoBehaviour {
             }
         }
 
-        rb.AddForce(-wallNormalVector * 10f, ForceMode.Acceleration);
+        rb.AddForce(-wallNormalVector * 100f, ForceMode.Acceleration);
     }
 
     private void WallKick() {
@@ -417,9 +417,8 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void ExitWallRunning() {
-        if (IsTouchingWall()) {
+        if(IsTouchingWall())
             return;
-        }
 
         ResetWallRun();
     }
@@ -453,8 +452,13 @@ public class PlayerMovement : MonoBehaviour {
         }
 
         Vector3 origin = transform.position;
-        Vector3[] dirs = { orientation.right, -orientation.right, orientation.forward };
-
+        Vector3[] dirs = {
+            transform.right,
+            -transform.right,
+            transform.forward,
+            -transform.forward
+        };
+        
         if (TryFindWall(origin, dirs, wallRunDistance, out RaycastHit hit)) {
             Bounds bounds = playerCollider.bounds;
 
@@ -544,7 +548,13 @@ public class PlayerMovement : MonoBehaviour {
 
     private bool IsTouchingWall() {
         Bounds bounds = playerCollider.bounds;
-        Vector3[] dirs = { orientation.right, -orientation.right, orientation.forward, -orientation.forward };
+        Vector3[] dirs =
+        {
+            transform.right,
+            -transform.right,
+            transform.forward,
+            -transform.forward
+        };
 
         foreach (Vector3 dir in dirs) {
             if (Physics.Raycast(bounds.center, dir, out RaycastHit hit, bounds.extents.x + 0.1f, whatIsGround,
