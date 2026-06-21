@@ -38,6 +38,7 @@ public class LocalPlayer : FixedBehaviour {
 
         Physics.Simulate(NetworkSettings.tickTime);
 
+        // PlayerInput.SendPlayerInputs();
         prediction.SaveState(tick);
     }
 }

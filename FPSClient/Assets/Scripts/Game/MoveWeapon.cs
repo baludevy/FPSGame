@@ -3,30 +3,25 @@
 public class MoveWeapon : MonoBehaviour {
     public static MoveWeapon Instance;
 
-    [Header("Rotational sway")]
-    public float swayMult = 0.5f;
+    [Header("Rotational sway")] public float swayMult = 0.5f;
     public float stiffness = 400f;
     public float damping = 28f;
     public float maxSway = 0.15f;
 
-    [Header("Positional sway")]
-    public float posSwayMult = 0.15f;
+    [Header("Positional sway")] public float posSwayMult = 0.15f;
     public float posStiffness = 300f;
     public float posDamping = 22f;
     public float maxPosSway = 0.03f;
 
-    [Header("Tilt")]
-    public float tiltMult = 1.2f;
+    [Header("Tilt")] public float tiltMult = 1.2f;
     public float maxTilt = 4f;
 
-    [Header("Fall inertia")]
-    public float fallInertiaMult = 0.01f;
+    [Header("Fall inertia")] public float fallInertiaMult = 0.01f;
     public float fallInertiaStiffness = 200f;
     public float fallInertiaDamping = 18f;
     public float maxFallInertia = 0.06f;
 
-    [Header("Bob")]
-    public float bobSpeed = 3f;
+    [Header("Bob")] public float bobSpeed = 3f;
     public float bobRefSpeed = 5.5f;
     public float bobXAmount = 0.008f;
     public float bobYAmount = 0.005f;
@@ -34,14 +29,12 @@ public class MoveWeapon : MonoBehaviour {
     public float bobWeightSpeed = 4f;
     public float bobSnapSpeed = 15f;
 
-    [Header("Bob kick (land or jump)")]
-    public float bobKickStiffness = 250f;
+    [Header("Bob kick (land or jump)")] public float bobKickStiffness = 250f;
     public float bobKickDamping = 18f;
 
-    [Header("Recoil")]
-    public Vector3 recoilKick = new Vector3(0f, 0.02f, -0.04f);   // positional punch (x, y, z)
-    public Vector3 recoilRotKick = new Vector3(-8f, 0f, 0f);      // rotational punch in degrees (pitch, yaw, roll)
-    public float recoilRotSideScatter = 3f;                       // random yaw/roll spread per shot, 0 to disable
+    [Header("Recoil")] public Vector3 recoilKick = new Vector3(0f, 0.02f, -0.04f);
+    public Vector3 recoilRotKick = new Vector3(-8f, 0f, 0f);
+    public float recoilRotSideScatter = 3f;
     public float recoilStiffness = 220f;
     public float recoilDamping = 16f;
 
@@ -76,6 +69,7 @@ public class MoveWeapon : MonoBehaviour {
             Destroy(gameObject);
             return;
         }
+
         Instance = this;
     }
 
@@ -87,51 +81,56 @@ public class MoveWeapon : MonoBehaviour {
     private void LateUpdate() {
         float dt = Time.deltaTime;
 
-        // mouse sway
         float mouseX = Input.GetAxis("Mouse X");
         float mouseY = Input.GetAxis("Mouse Y");
 
-        Vector3 rotTarget = new Vector3(
-            -mouseY * swayMult,
-             mouseX * swayMult,
-            -mouseX * tiltMult
-        );
-        rotTarget.x = Mathf.Clamp(rotTarget.x, -maxSway, maxSway);
-        rotTarget.y = Mathf.Clamp(rotTarget.y, -maxSway, maxSway);
-        rotTarget.z = Mathf.Clamp(rotTarget.z, -maxTilt, maxTilt);
-
-        Vector3 rotForce = (rotTarget - currentRot) * stiffness - rotVelocity * damping;
-        rotVelocity += rotForce * dt;
-        currentRot += rotVelocity * dt;
-
-        Vector3 posTarget = new Vector3(-mouseX, -mouseY, 0f) * posSwayMult;
-        posTarget = Vector3.ClampMagnitude(posTarget, maxPosSway);
-
-        Vector3 posForce = (posTarget - currentPos) * posStiffness - posVelocity * posDamping;
-        posVelocity += posForce * dt;
-        currentPos += posVelocity * dt;
-
-        // fall inertia
         Rigidbody rb = LocalPlayer.Instance.movement.GetRb();
-        float fallSpeed = rb.velocity.y;
-
-        Vector3 fallTarget = new Vector3(0f, fallSpeed, 0f) * fallInertiaMult;
-        fallTarget = Vector3.ClampMagnitude(fallTarget, maxFallInertia);
-
-        Vector3 fallForce = (fallTarget - fallOffset) * fallInertiaStiffness - fallVelocity * fallInertiaDamping;
-        fallVelocity += fallForce * dt;
-        fallOffset += fallVelocity * dt;
-
-        // bob
-        Vector3 localVel = transform.parent.InverseTransformDirection(rb.velocity);
-        float horizontalSpeed = new Vector3(localVel.x, 0f, localVel.z).magnitude;
-
         bool isGrounded = LocalPlayer.Instance.movement.IsGrounded();
         bool isWallRunning = LocalPlayer.Instance.movement.IsWallRunning();
         bool isSliding = LocalPlayer.Instance.movement.IsSliding();
 
-        float targetBobWeight = 0f;
+        UpdateSway(dt, mouseX, mouseY);
+        UpdateFallInertia(dt, rb);
+        UpdateBob(dt, rb, isGrounded, isWallRunning, isSliding);
+        UpdateKickSprings(dt);
+        UpdateRecoilSprings(dt);
 
+        transform.localPosition = basePosition + currentPos + fallOffset + bobPos + kickPos + recoilPos;
+
+        transform.localRotation = baseRotation * Quaternion.Euler(
+            currentRot.x + bobRot.x + kickRot.x + recoilRot.x,
+            currentRot.y + bobRot.y + kickRot.y + recoilRot.y,
+            currentRot.z + bobRot.z + kickRot.z + recoilRot.z
+        );
+    }
+
+    private void UpdateSway(float dt, float mouseX, float mouseY) {
+        Vector3 rotTarget = new Vector3(-mouseY * swayMult, mouseX * swayMult, -mouseX * tiltMult);
+        rotTarget.x = Mathf.Clamp(rotTarget.x, -maxSway, maxSway);
+        rotTarget.y = Mathf.Clamp(rotTarget.y, -maxSway, maxSway);
+        rotTarget.z = Mathf.Clamp(rotTarget.z, -maxTilt, maxTilt);
+
+        SolveSpring(ref currentRot, ref rotVelocity, rotTarget, stiffness, damping, dt);
+
+        Vector3 posTarget = new Vector3(-mouseX, -mouseY, 0f) * posSwayMult;
+        posTarget = Vector3.ClampMagnitude(posTarget, maxPosSway);
+
+        SolveSpring(ref currentPos, ref posVelocity, posTarget, posStiffness, posDamping, dt);
+    }
+
+    private void UpdateFallInertia(float dt, Rigidbody rb) {
+        float fallSpeed = rb.velocity.y;
+        Vector3 fallTarget = new Vector3(0f, fallSpeed, 0f) * fallInertiaMult;
+        fallTarget = Vector3.ClampMagnitude(fallTarget, maxFallInertia);
+
+        SolveSpring(ref fallOffset, ref fallVelocity, fallTarget, fallInertiaStiffness, fallInertiaDamping, dt);
+    }
+
+    private void UpdateBob(float dt, Rigidbody rb, bool isGrounded, bool isWallRunning, bool isSliding) {
+        Vector3 localVel = transform.parent.InverseTransformDirection(rb.velocity);
+        float horizontalSpeed = new Vector3(localVel.x, 0f, localVel.z).magnitude;
+
+        float targetBobWeight = 0f;
         if (isGrounded && !isWallRunning && !isSliding) {
             targetBobWeight = Mathf.Clamp01(horizontalSpeed / bobRefSpeed);
         }
@@ -151,33 +150,46 @@ public class MoveWeapon : MonoBehaviour {
 
         bobPos = new Vector3(bobOffsetX, bobOffsetY, 0f);
         bobRot = new Vector3(0f, 0f, bobRoll);
+    }
 
-        // kick springs (driven by BobPos/BobRot calls)
-        Vector3 kickPosForce = -kickPos * bobKickStiffness - kickPosVelocity * bobKickDamping;
-        kickPosVelocity += kickPosForce * dt;
-        kickPos += kickPosVelocity * dt;
+    private void UpdateKickSprings(float dt) {
+        SolveSpring(ref kickPos, ref kickPosVelocity, Vector3.zero, bobKickStiffness, bobKickDamping, dt);
+        SolveSpring(ref kickRot, ref kickRotVelocity, Vector3.zero, bobKickStiffness, bobKickDamping, dt);
+    }
 
-        Vector3 kickRotForce = -kickRot * bobKickStiffness - kickRotVelocity * bobKickDamping;
-        kickRotVelocity += kickRotForce * dt;
-        kickRot += kickRotVelocity * dt;
+    private void UpdateRecoilSprings(float dt) {
+        SolveSpring(ref recoilPos, ref recoilPosVelocity, Vector3.zero, recoilStiffness, recoilDamping, dt);
+        SolveSpring(ref recoilRot, ref recoilRotVelocity, Vector3.zero, recoilStiffness, recoilDamping, dt);
+    }
 
-        // recoil springs (driven by Recoil calls)
-        Vector3 recoilPosForce = -recoilPos * recoilStiffness - recoilPosVelocity * recoilDamping;
-        recoilPosVelocity += recoilPosForce * dt;
-        recoilPos += recoilPosVelocity * dt;
+    private void SolveSpring(ref Vector3 current, ref Vector3 velocity, Vector3 target, float stiffness, float damping,
+        float dt) {
+        Vector3 displacement = current - target;
+        float dampingRatio = damping / (2f * Mathf.Sqrt(stiffness));
 
-        Vector3 recoilRotForce = -recoilRot * recoilStiffness - recoilRotVelocity * recoilDamping;
-        recoilRotVelocity += recoilRotForce * dt;
-        recoilRot += recoilRotVelocity * dt;
+        if (dampingRatio >= 1f) {
+            float omega = Mathf.Sqrt(stiffness);
+            float exp = Mathf.Exp(-omega * dt);
+            Vector3 c1 = velocity + displacement * omega;
 
-        // final
-        transform.localPosition = basePosition + currentPos + fallOffset + bobPos + kickPos + recoilPos;
+            current = target + (displacement + c1 * dt) * exp;
+            velocity = (velocity - c1 * (omega * dt)) * exp;
+        }
+        else {
+            float omegaN = Mathf.Sqrt(stiffness);
+            float omegaD = omegaN * Mathf.Sqrt(1f - dampingRatio * dampingRatio);
+            float exp = Mathf.Exp(-dampingRatio * omegaN * dt);
 
-        transform.localRotation = baseRotation * Quaternion.Euler(
-            currentRot.x + bobRot.x + kickRot.x + recoilRot.x,
-            currentRot.y + bobRot.y + kickRot.y + recoilRot.y,
-            currentRot.z + bobRot.z + kickRot.z + recoilRot.z
-        );
+            float cos = Mathf.Cos(omegaD * dt);
+            float sin = Mathf.Sin(omegaD * dt);
+
+            Vector3 c1 = displacement;
+            Vector3 c2 = (velocity + displacement * (dampingRatio * omegaN)) / omegaD;
+
+            current = target + (c1 * cos + c2 * sin) * exp;
+            velocity = ((-c1 * omegaD + c2 * (-dampingRatio * omegaN)) * sin +
+                        (c2 * omegaD - c1 * (dampingRatio * omegaN)) * cos) * exp;
+        }
     }
 
     public void BobPos(Vector3 kick) {
@@ -197,6 +209,7 @@ public class MoveWeapon : MonoBehaviour {
             rot.y += scatter;
             rot.z += scatter * 0.5f;
         }
+
         recoilRot += rot;
     }
 }

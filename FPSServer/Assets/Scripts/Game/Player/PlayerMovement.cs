@@ -398,8 +398,6 @@ public class PlayerMovement : MonoBehaviour {
                 rb.velocity = new Vector3(rb.velocity.x, targetFall, rb.velocity.z);
             }
         }
-
-        rb.AddForce(-wallNormalVector * 10f, ForceMode.Acceleration);
     }
 
     private void WallKick() {
@@ -421,11 +419,17 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void ExitWallRunning() {
-        if (IsTouchingWall()) {
+        if (!IsTouchingWall(-wallNormalVector, out RaycastHit hit)) {
+            ResetWallRun();
             return;
         }
 
-        ResetWallRun();
+        if (Vector3.Angle(hit.normal, wallNormalVector) > 45f) {
+            ResetWallRun();
+            return;
+        }
+
+        wallNormalVector = hit.normal;
     }
 
     private void ResetWallRun() {
@@ -457,7 +461,12 @@ public class PlayerMovement : MonoBehaviour {
         }
 
         Vector3 origin = transform.position;
-        Vector3[] dirs = { orientation.right, -orientation.right, orientation.forward };
+        Vector3[] dirs = {
+            transform.right,
+            -transform.right,
+            transform.forward,
+            -transform.forward
+        };
 
         if (TryFindWall(origin, dirs, wallRunDistance, out RaycastHit hit)) {
             Bounds bounds = playerCollider.bounds;
@@ -498,24 +507,13 @@ public class PlayerMovement : MonoBehaviour {
         return new Vector2(mag * Mathf.Cos(v * Mathf.Deg2Rad), mag * Mathf.Cos(u * Mathf.Deg2Rad));
     }
 
-    private bool IsTouchingWall() {
-        Bounds b = playerCollider.bounds;
-        Vector3[] dirs = { orientation.right, -orientation.right, orientation.forward, -orientation.forward };
-
-        foreach (Vector3 dir in dirs) {
-            if (Physics.Raycast(b.center, dir, out RaycastHit hit, b.extents.x + 0.1f, whatIsGround,
-                    QueryTriggerInteraction.Ignore)
-                && IsWall(hit.normal)) {
-                return true;
-            }
-        }
-
-        return false;
+    private bool IsTouchingWall(Vector3 direction) {
+        return IsTouchingWall(direction, out _);
     }
 
-    private bool IsTouchingWall(Vector3 direction) {
+    private bool IsTouchingWall(Vector3 direction, out RaycastHit hit) {
         Bounds b = playerCollider.bounds;
-        if (Physics.Raycast(b.center, direction.normalized, out RaycastHit hit, b.extents.x + 0.1f, whatIsGround,
+        if (Physics.Raycast(b.center, direction.normalized, out hit, b.extents.x + 0.1f, whatIsGround,
                 QueryTriggerInteraction.Ignore)
             && IsWall(hit.normal)) {
             return true;

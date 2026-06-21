@@ -1,8 +1,6 @@
 ﻿using UnityEngine;
 
 public static class TimeScaler {
-    private static int TargetInpBufferSize => NetworkSettings.targetInpBufferSize;
-
     private static float normalTimescale = 1f;
     private static float minTimescale = 0.95f;
     private static float maxTimescale = 1.2f;
@@ -16,6 +14,10 @@ public static class TimeScaler {
     private static float jitterDecay = 1.5f;
     private static float stableLockTime = 2f;
 
+    private static float intervalSmoothing = 0.1f;
+
+    private static int TargetInpBufferSize => NetworkSettings.targetInpBufferSize;
+
     private static int currentBufferSize;
     private static float targetTimescale = 1f;
     private static float currentThreshold;
@@ -26,6 +28,8 @@ public static class TimeScaler {
     private static float lastSampleTime;
     private static bool hasSample;
 
+    private static float expectedInterval = NetworkSettings.tickTime;
+
     public static void AdjustClock(int bufferSize) {
         currentBufferSize = bufferSize;
 
@@ -33,7 +37,12 @@ public static class TimeScaler {
         float deltaTime = hasSample ? Mathf.Max(now - lastSampleTime, 0.0001f) : 0f;
 
         if (hasSample) {
-            float instantJitter = Mathf.Abs(bufferSize - lastBufferOffset);
+            expectedInterval = Mathf.Lerp(expectedInterval, deltaTime, intervalSmoothing);
+
+            float expectedSwing = expectedInterval / NetworkSettings.tickTime;
+            float rawSwing = Mathf.Abs(bufferSize - lastBufferOffset) - expectedSwing;
+            float instantJitter = Mathf.Max(0f, rawSwing);
+
             float k = 1f - Mathf.Exp(-jitterDecay * deltaTime);
             jitter = Mathf.Lerp(jitter, instantJitter, k);
         }
@@ -42,22 +51,19 @@ public static class TimeScaler {
         lastSampleTime = now;
         hasSample = true;
 
-
         float lockIn = Mathf.Clamp01(stableDuration / stableLockTime);
         float floor = Mathf.Lerp(baseThreshold, minThreshold, lockIn);
-
         currentThreshold = floor + jitter * jitterInfluence;
 
         int deviation = bufferSize - TargetInpBufferSize;
         bool withinThreshold = Mathf.Abs(deviation) <= currentThreshold;
 
-        if (withinThreshold) stableDuration += deltaTime;
-        else stableDuration = 0f;
-
         if (withinThreshold) {
+            stableDuration += deltaTime;
             targetTimescale = normalTimescale;
         }
         else {
+            stableDuration = 0f;
             float adjustment = -deviation * sensitivity;
             targetTimescale = Mathf.Clamp(normalTimescale + adjustment, minTimescale, maxTimescale);
         }
@@ -67,5 +73,21 @@ public static class TimeScaler {
 
     public static int GetBufferOffset() {
         return currentBufferSize;
+    }
+
+    public static void Reset() {
+        currentBufferSize = 0;
+        targetTimescale = 1f;
+        currentThreshold = 0f;
+
+        jitter = 0f;
+        stableDuration = 0f;
+        lastBufferOffset = 0;
+        lastSampleTime = 0f;
+        hasSample = false;
+
+        expectedInterval = NetworkSettings.tickTime;
+
+        FixedClock.timeScale = 1f;
     }
 }

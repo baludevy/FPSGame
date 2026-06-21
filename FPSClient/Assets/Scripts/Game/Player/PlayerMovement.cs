@@ -394,8 +394,6 @@ public class PlayerMovement : MonoBehaviour {
                 rb.velocity = new Vector3(rb.velocity.x, targetFall, rb.velocity.z);
             }
         }
-
-        rb.AddForce(-wallNormalVector * 100f, ForceMode.Acceleration);
     }
 
     private void WallKick() {
@@ -417,10 +415,17 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void ExitWallRunning() {
-        if(IsTouchingWall())
+        if (!IsTouchingWall(-wallNormalVector, out RaycastHit hit)) {
+            ResetWallRun();
             return;
+        }
 
-        ResetWallRun();
+        if (Vector3.Angle(hit.normal, wallNormalVector) > 45f) {
+            ResetWallRun();
+            return;
+        }
+
+        wallNormalVector = hit.normal;
     }
 
     private void ResetWallRun() {
@@ -546,31 +551,13 @@ public class PlayerMovement : MonoBehaviour {
         }
     }
 
-    private bool IsTouchingWall() {
-        Bounds bounds = playerCollider.bounds;
-        Vector3[] dirs =
-        {
-            transform.right,
-            -transform.right,
-            transform.forward,
-            -transform.forward
-        };
-
-        foreach (Vector3 dir in dirs) {
-            if (Physics.Raycast(bounds.center, dir, out RaycastHit hit, bounds.extents.x + 0.1f, whatIsGround,
-                    QueryTriggerInteraction.Ignore)
-                && IsWall(hit.normal)) {
-                return true;
-            }
-        }
-
-        return false;
+    private bool IsTouchingWall(Vector3 direction) {
+        return IsTouchingWall(direction, out _);
     }
 
-    private bool IsTouchingWall(Vector3 direction) {
-        Bounds bounds = playerCollider.bounds;
-        if (Physics.Raycast(bounds.center, direction.normalized, out RaycastHit hit, bounds.extents.x + 0.1f,
-                whatIsGround,
+    private bool IsTouchingWall(Vector3 direction, out RaycastHit hit) {
+        Bounds b = playerCollider.bounds;
+        if (Physics.Raycast(b.center, direction.normalized, out hit, b.extents.x + 0.1f, whatIsGround,
                 QueryTriggerInteraction.Ignore)
             && IsWall(hit.normal)) {
             return true;
