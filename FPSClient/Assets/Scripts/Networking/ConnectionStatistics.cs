@@ -5,6 +5,7 @@ public static class ConnectionStatistics {
     public static float ping;
     public static float packetLoss;
     public static float jitter;
+    public static float inputJitter;
     public static float totalRtt;
 
     private static float pingSmooth = 0.1f;
@@ -24,12 +25,14 @@ public static class ConnectionStatistics {
     private static uint latestTick;
     private static bool hasTick;
 
-    public static void AddSample(uint serverTick, float clientReceive, float clientSend, float serverReceive,
-        float serverSend) {
+    public static void UpdateStatistics(uint serverTick, float clientReceive, float clientSend, float serverReceive,
+        float serverSend, float serverInputJitter) {
         float serverProcessTime = serverSend - serverReceive;
 
         float pingSample = clientReceive - clientSend - serverProcessTime;
         float totalRttSample = clientReceive - clientSend + (NetworkSettings.interpTime);
+
+        inputJitter = serverInputJitter;
 
         UpdatePing(pingSample);
         UpdateTotalRtt(totalRttSample);
@@ -121,7 +124,6 @@ public static class ConnectionStatistics {
             receivedCount++;
         }
         else {
-            
         }
 
         received[arrivedSlot] = true;
@@ -137,7 +139,11 @@ public static class ConnectionStatistics {
         int calculatedBuffer = Mathf.CeilToInt(jitterInTicks);
         float lossPercentage = packetLoss * 100f;
 
-        NetworkSettings.targetInpBufferSize = calculatedBuffer;
+        float baseBuffer = 0.005f;
+        float jitterPad = inputJitter * 0.8f;
+        float targetNow = Mathf.Clamp(baseBuffer + jitterPad, baseBuffer, NetworkSettings.tickTime * 4f);
+        NetworkSettings.targetReceiveMargin = Mathf.Lerp(NetworkSettings.targetReceiveMargin, targetNow, 0.1f);
+
         NetworkSettings.interpTime = Math.Max(2, calculatedBuffer) * NetworkSettings.tickTime;
 
         int inputRedundancy = Mathf.Clamp(Mathf.RoundToInt(lossPercentage / 3f), 1, 5);

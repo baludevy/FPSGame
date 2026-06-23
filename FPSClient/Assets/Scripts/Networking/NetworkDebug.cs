@@ -23,6 +23,7 @@ public class NetworkDebug : MonoBehaviour {
     //jitter and loss
     public TMP_Text packetLoss;
     public TMP_Text jitter;
+    public TMP_Text inputJitter;
 
     //input buffer
     public TMP_Text inputBufferOffset;
@@ -58,7 +59,7 @@ public class NetworkDebug : MonoBehaviour {
         InvokeRepeating(nameof(Bandwidth), 0f, 1f);
     }
 
-    public void OnGUI() {
+    public void Update() {
         OtherUI();
     }
 
@@ -82,12 +83,13 @@ public class NetworkDebug : MonoBehaviour {
         totalPing.text = $"total: {ConnectionStatistics.totalRtt * 1000f:F0}ms";
 
         packetLoss.text = $"loss: {ConnectionStatistics.packetLoss * 100:F0}%";
-        jitter.text = $"jitter: {ConnectionStatistics.jitter * 1000:F0}ms";
+        jitter.text = $"client jitter: {ConnectionStatistics.jitter * 1000:F0}ms";
+        inputJitter.text = $"server jitter: {ConnectionStatistics.inputJitter * 1000:F0}ms";
 
-        inputBufferOffset.text = $"ibuf: {TimeScaler.GetBufferOffset()}";
-        inputBufferTarget.text = $"target: {NetworkSettings.targetInpBufferSize}";
+        inputBufferOffset.text = $"srv receive: {TimeScaler.GetCurrentMargin() * 1000:F0} ms";
+        inputBufferTarget.text = $"target: {NetworkSettings.targetReceiveMargin * 1000:F0} ms";
 
-        snapshotBufferOffset.text = $"sbuf: {SnapshotManager.snapshotBufferOffset}";
+        snapshotBufferOffset.text = $"cl receive: {SnapshotManager.snapshotBufferOffset}";
         snapshotBufferTarget.text = $"target: {NetworkSettings.interpTime / NetworkSettings.tickTime}";
 
         clientTick.text = $"cl tick: {FixedClock.tick}";

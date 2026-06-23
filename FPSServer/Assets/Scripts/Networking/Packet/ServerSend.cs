@@ -76,7 +76,8 @@ public class ServerSend {
     public static void GameUpdate(int toClient, GameUpdate update) {
         using (Packet packet = new Packet((int)ServerPackets.gameUpdate)) {
             packet.Write(update.serverTick);
-            packet.Write(update.inputBufferSize);
+            packet.Write(update.serverReceiveMargin);
+            packet.Write(update.serverInputJitter);
 
             packet.Write(update.clientSendTime);
             packet.Write(update.serverSendTime);

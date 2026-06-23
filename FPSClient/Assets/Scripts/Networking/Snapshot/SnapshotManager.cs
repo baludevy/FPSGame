@@ -32,7 +32,7 @@ public class SnapshotManager : MonoBehaviour {
 
     public void OnUpdateReceived(GameUpdate update) {
         if (LocalPlayer.Instance == null) return;
-        
+
         lock (bufferLock) {
             if (update.serverTick <= lastProcessedTick) return;
             lastProcessedTick = update.serverTick;
@@ -43,12 +43,13 @@ public class SnapshotManager : MonoBehaviour {
             snapshotBufferOffset = Math.Max(0, (int)serverTick - Mathf.RoundToInt(clientRenderTick) - 1);
 
             float now = FixedClock.GetTime();
-            ConnectionStatistics.AddSample(
+            ConnectionStatistics.UpdateStatistics(
                 update.serverTick, now,
-                update.clientSendTime, update.serverReceiveTime, update.serverSendTime);
+                update.clientSendTime, update.serverReceiveTime, update.serverSendTime, update.serverInputJitter);
 
             ConnectionStatistics.ApplyAdjustments();
-            TimeScaler.AdjustClock(update.inputBufferSize);
+
+            TimeScaler.AdjustClock(update.serverReceiveMargin);
         }
 
         if (update.serverTick > lastReconciledTick) {

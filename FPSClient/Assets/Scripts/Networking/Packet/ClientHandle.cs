@@ -35,7 +35,8 @@ public class ClientHandle {
 
     public static void GameUpdate(Packet packet) {
         uint serverTick = packet.ReadUInt();
-        sbyte inputBufferSize = packet.ReadSByte();
+        float serverReceiveMargin = packet.ReadFloat();
+        float serverInputJitter = packet.ReadFloat();
 
         float clientSendTime = packet.ReadFloat();
         float serverSendTime = packet.ReadFloat();
@@ -69,7 +70,8 @@ public class ClientHandle {
 
         GameUpdate update = new GameUpdate {
             serverTick = serverTick,
-            inputBufferSize = inputBufferSize,
+            serverReceiveMargin = serverReceiveMargin,
+            serverInputJitter =  serverInputJitter,
             clientSendTime = clientSendTime,
             serverSendTime = serverSendTime,
             serverReceiveTime = serverReceiveTime,

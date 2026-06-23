@@ -1,6 +1,7 @@
 ﻿public class GameUpdate {
     public uint serverTick;
-    public sbyte inputBufferSize;
+    public float serverReceiveMargin;
+    public float serverInputJitter;
 
     public float clientSendTime;
     public float serverSendTime;

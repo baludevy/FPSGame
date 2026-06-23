@@ -43,8 +43,6 @@ public class FixedClock : MonoBehaviour {
     }
 
     private static void Advance() {
-        Debug.Log("tick");
-
         TickSync.Update();
         TickInvoker.Step();
 

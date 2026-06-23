@@ -23,48 +23,44 @@ public class GameManager : FixedBehaviour {
                 client.player.HandleInput(inputData);
             }
         }
-        
+
         Physics.SyncTransforms();
         Physics.Simulate(NetworkSettings.tickTime);
 
-        lagCompensation.SaveSnapshot(GetWorldSnapshot());
+        WorldSnapshot currentSnapshot = GetWorldSnapshot();
+
+        lagCompensation.SaveSnapshot(currentSnapshot);
         lagCompensation.Update();
 
         foreach (Client client in Server.clients.Values) {
             if (client.player != null) {
-                SendPlayerUpdate(client.player.id);
+                SendPlayerUpdate(client.player.id, currentSnapshot);
             }
         }
     }
 
-    private void SendPlayerUpdate(int toClient) {
+    private void SendPlayerUpdate(int toClient, WorldSnapshot sharedSnapshot) {
         GameUpdate update = new GameUpdate();
-
         Player toPlayer = Server.clients[toClient].player;
 
         update.serverTick = FixedClock.tick;
         update.serverSendTime = FixedClock.GetTime();
-        update.inputBufferSize = toPlayer.inputBuffer.GetBufferSize();
+
+        update.serverReceiveMargin = toPlayer.inputBuffer.serverReceiveMargin;
+        update.serverInputJitter = Mathf.Max(0f, toPlayer.inputBuffer.serverInputJitter - 0.005f);
 
         update.clientSendTime = toPlayer.inputBuffer.latestTimestamp;
         update.serverReceiveTime = toPlayer.inputBuffer.latestReceived;
 
-        foreach (Client client in Server.clients.Values) {
-            Player player = client.player;
 
-            if (player == null) continue;
+        update.movementState = new MovementState() {
+            id = toPlayer.id,
+            position = toPlayer.GetState().position,
+            orientation = toPlayer.movement.orientation.eulerAngles.y,
+            velocity = toPlayer.movement.GetRb().velocity
+        };
 
-            if (player.id == toClient) {
-                update.movementState = new MovementState() {
-                    id = player.id,
-                    position = player.GetState().position,
-                    orientation = player.movement.orientation.eulerAngles.y,
-                    velocity = player.movement.GetRb().velocity
-                };
-            }
-        }
-
-        update.worldSnapshot = GetWorldSnapshot();
+        update.worldSnapshot = sharedSnapshot;
 
         ServerSend.GameUpdate(toClient, update);
     }
