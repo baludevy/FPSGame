@@ -57,7 +57,7 @@ public class SnapshotManager : MonoBehaviour {
         }
     }
 
-    private void LateUpdate() {
+    private void Update() {
         lock (bufferLock) {
             if (!interpolator.Advance(buffer, Time.deltaTime)) return;
             interpolator.ApplyToPlayers(buffer, Client.Instance.myId);

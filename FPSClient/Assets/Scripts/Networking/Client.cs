@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using UnityEngine;
 
+// client side - client
 public class Client : MonoBehaviour {
     public static Client Instance;
 
@@ -11,7 +14,6 @@ public class Client : MonoBehaviour {
 
     public string ip = "0.0.0.0";
     public int port = 42069;
-
     public int myId;
 
     public TCP tcp;
@@ -20,15 +22,15 @@ public class Client : MonoBehaviour {
     public static bool IsConnected;
 
     private delegate void PacketHandler(Packet packet);
-
     private static Dictionary<int, PacketHandler> packetHandlers;
 
-    private void Awake() {
-        Instance = this;
-    }
+    private static readonly HashSet<int> _offMainThreadPackets = new() {
+        (int)ServerPackets.gameUpdate
+    };
 
-    private void Start() {
-        tcp = new TCP();
+    private void Awake() {
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        Instance = this;
     }
 
     private void OnApplicationQuit() {
@@ -37,11 +39,15 @@ public class Client : MonoBehaviour {
 
     public void ConnectToServer(string targetIp) {
         ip = targetIp;
-
         InitializeClientData();
-        tcp.Connect();
+        tcp = new TCP();
         udp = new UDP();
+        tcp.Connect();
     }
+
+    // -------------------------------------------------------------------------
+    // TCP
+    // -------------------------------------------------------------------------
 
     public class TCP {
         public TcpClient socket;
@@ -50,6 +56,10 @@ public class Client : MonoBehaviour {
         private Packet _receivedData;
         private byte[] _receiveBuffer;
 
+        private readonly ConcurrentQueue<byte[]> _sendQueue = new();
+        private int _isSending;
+        private volatile bool _disconnected;
+
         public void Connect() {
             socket = new TcpClient {
                 ReceiveBufferSize = dataBufferSize,
@@ -57,117 +67,178 @@ public class Client : MonoBehaviour {
             };
 
             _receiveBuffer = new byte[dataBufferSize];
-            socket.BeginConnect(Instance.ip, Instance.port, ConnectCallback, socket);
+            _disconnected = false;
+
+            socket.BeginConnect(Instance.ip, Instance.port, ConnectCallback, null);
         }
 
         private void ConnectCallback(IAsyncResult result) {
-            socket.EndConnect(result);
+            try {
+                socket.EndConnect(result);
+            }
+            catch (Exception ex) {
+                Debug.LogException(ex);
+                TriggerDisconnect();
+                return;
+            }
 
             if (!socket.Connected) {
+                TriggerDisconnect();
                 return;
             }
 
             IsConnected = true;
-
             _stream = socket.GetStream();
-
             _receivedData = new Packet();
 
             _stream.BeginRead(_receiveBuffer, 0, dataBufferSize, ReceiveCallback, null);
         }
 
+        public void SendData(Packet packet) {
+            if (_disconnected || socket == null) return;
+
+            byte[] data = packet.ToArray();
+            byte[] copy = new byte[data.Length];
+            Buffer.BlockCopy(data, 0, copy, 0, data.Length);
+
+            _sendQueue.Enqueue(copy);
+            TryFlushSendQueue();
+        }
+
+        private void TryFlushSendQueue() {
+            if (Interlocked.CompareExchange(ref _isSending, 1, 0) != 0) return;
+
+            if (!_sendQueue.TryDequeue(out byte[] next)) {
+                Interlocked.Exchange(ref _isSending, 0);
+                if (!_sendQueue.IsEmpty) TryFlushSendQueue();
+                return;
+            }
+
+            NetworkStream stream = _stream;
+            if (stream == null) {
+                Interlocked.Exchange(ref _isSending, 0);
+                return;
+            }
+
+            try {
+                stream.BeginWrite(next, 0, next.Length, SendCallback, null);
+            }
+            catch (ObjectDisposedException) { Interlocked.Exchange(ref _isSending, 0); }
+            catch (Exception ex) {
+                Debug.LogException(ex);
+                Interlocked.Exchange(ref _isSending, 0);
+                TriggerDisconnect();
+            }
+        }
+
+        private void SendCallback(IAsyncResult result) {
+            try {
+                _stream?.EndWrite(result);
+            }
+            catch (ObjectDisposedException) { Interlocked.Exchange(ref _isSending, 0); return; }
+            catch (Exception ex) {
+                Debug.LogException(ex);
+                Interlocked.Exchange(ref _isSending, 0);
+                TriggerDisconnect();
+                return;
+            }
+
+            Interlocked.Exchange(ref _isSending, 0);
+            TryFlushSendQueue();
+        }
+
         private void ReceiveCallback(IAsyncResult result) {
+            if (_disconnected) return;
+
             try {
                 int byteLength = _stream.EndRead(result);
                 if (byteLength <= 0) {
-                    Disconnect();
+                    TriggerDisconnect();
                     return;
                 }
 
                 byte[] data = new byte[byteLength];
-                Array.Copy(_receiveBuffer, data, byteLength);
+                Buffer.BlockCopy(_receiveBuffer, 0, data, 0, byteLength);
 
                 _receivedData.Reset(HandleData(data));
                 _stream.BeginRead(_receiveBuffer, 0, dataBufferSize, ReceiveCallback, null);
             }
-            catch (ObjectDisposedException) {
-            }
-            catch (Exception ex) {
-                Disconnect();
-
-                Debug.LogException(ex);
-            }
-        }
-
-        public void SendData(Packet packet) {
-            try {
-                if (socket != null) {
-                    _stream.BeginWrite(packet.ToArray(), 0, packet.Length(), null, null);
-                }
-            }
+            catch (ObjectDisposedException) { TriggerDisconnect(); }
             catch (Exception ex) {
                 Debug.LogException(ex);
+                TriggerDisconnect();
             }
         }
 
         private bool HandleData(byte[] data) {
-            int packetLength = 0;
-
             _receivedData.SetBytes(data);
 
-            if (_receivedData.UnreadLength() >= 4) {
-                packetLength = _receivedData.ReadInt();
-                if (packetLength <= 0) {
-                    return true;
-                }
-            }
+            if (_receivedData.UnreadLength() < 4) return true;
+
+            int packetLength = _receivedData.ReadInt();
+            if (packetLength <= 0) return true;
 
             while (packetLength > 0 && packetLength <= _receivedData.UnreadLength()) {
                 byte[] packetBytes = _receivedData.ReadBytes(packetLength);
-
-                byte[] capturedBytes = packetBytes;
-
-                using (Packet packet = new Packet(capturedBytes)) {
-                    int packetId = packet.ReadInt();
-
-                    if (packetId == 100) {
-                        packetHandlers[packetId](packet);
-
-                        ClientHandle.packetsReceived++;
-                        ClientHandle.bytesReceived += packet.Length();
-                    }
-                    else {
-                        ThreadManager.ExecuteOnMainThread(() => {
-                            using (Packet mainThreadPacket = new Packet(capturedBytes)) {
-                                int mainPacketId = mainThreadPacket.ReadInt();
-                                if (packetHandlers.TryGetValue(mainPacketId, out PacketHandler handler)) {
-                                    handler(mainThreadPacket);
-                                    ClientHandle.packetsReceived++;
-                                    ClientHandle.bytesReceived += mainThreadPacket.Length();
-                                }
-                            }
-                        });
-                    }
-                }
+                DispatchPacket(packetBytes);
 
                 packetLength = 0;
                 if (_receivedData.UnreadLength() >= 4) {
                     packetLength = _receivedData.ReadInt();
-                    if (packetLength <= 0) {
-                        return true;
-                    }
+                    if (packetLength <= 0) return true;
                 }
             }
 
-            if (packetLength <= 1) {
-                return true;
-            }
-
-            return false;
+            return packetLength <= 1;
         }
 
-        private void Disconnect() {
-            Instance.Disconnect();
+        private void DispatchPacket(byte[] packetBytes) {
+            int packetId;
+            using (Packet peek = new Packet(packetBytes)) {
+                packetId = peek.ReadInt();
+            }
+
+            if (_offMainThreadPackets.Contains(packetId)) {
+                using Packet packet = new Packet(packetBytes);
+                packet.ReadInt();
+                if (packetHandlers.TryGetValue(packetId, out var handler)) {
+                    handler(packet);
+                    ClientHandle.packetsReceived++;
+                    ClientHandle.bytesReceived += packet.Length();
+                }
+                else {
+                    Debug.LogWarning($"No handler for packet id {packetId}");
+                }
+            }
+            else {
+                byte[] captured = packetBytes;
+                ThreadManager.ExecuteOnMainThread(() => {
+                    using Packet packet = new Packet(captured);
+                    int id = packet.ReadInt();
+                    if (packetHandlers.TryGetValue(id, out var handler)) {
+                        handler(packet);
+                        ClientHandle.packetsReceived++;
+                        ClientHandle.bytesReceived += packet.Length();
+                    }
+                    else {
+                        Debug.LogWarning($"No handler for packet id {id}");
+                    }
+                });
+            }
+        }
+
+        private void TriggerDisconnect() {
+            if (_disconnected) return;
+            _disconnected = true;
+            ThreadManager.ExecuteOnMainThread(() => Instance.Disconnect());
+        }
+
+        public void Disconnect() {
+            _disconnected = true;
+
+            try { socket?.Close(); }
+            catch (ObjectDisposedException) { }
+            catch (Exception ex) { Debug.LogException(ex); }
 
             _stream = null;
             _receiveBuffer = null;
@@ -176,9 +247,15 @@ public class Client : MonoBehaviour {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // UDP
+    // -------------------------------------------------------------------------
+
     public class UDP {
         public UdpClient socket;
         public IPEndPoint endPoint;
+
+        private volatile bool _disconnected;
 
         public UDP() {
             endPoint = new IPEndPoint(IPAddress.Parse(Instance.ip), Instance.port);
@@ -186,90 +263,131 @@ public class Client : MonoBehaviour {
 
         public void Connect(int localPort) {
             socket = new UdpClient(localPort);
-
             socket.Connect(endPoint);
+            _disconnected = false;
+
             socket.BeginReceive(ReceiveCallback, null);
 
-            using (Packet packet = new Packet()) {
-                SendData(packet);
-            }
+            using Packet packet = new Packet();
+            SendData(packet);
         }
 
         public void SendData(Packet packet) {
+            if (_disconnected || socket == null) return;
+
             try {
-                packet.InsertInt(Instance.myId);
-                if (socket != null) {
-                    socket.BeginSend(packet.ToArray(), packet.Length(), null, null);
-                }
+                byte[] payload = packet.ToArray();
+                byte[] withId = new byte[payload.Length + 4];
+                Buffer.BlockCopy(BitConverter.GetBytes(Instance.myId), 0, withId, 0, 4);
+                Buffer.BlockCopy(payload, 0, withId, 4, payload.Length);
+
+                socket.BeginSend(withId, withId.Length, SendCallback, null);
             }
+            catch (ObjectDisposedException) { }
             catch (Exception ex) {
-                Debug.Log(ex);
-                Disconnect();
+                Debug.LogException(ex);
+                TriggerDisconnect();
             }
+        }
+
+        private void SendCallback(IAsyncResult result) {
+            try { socket?.EndSend(result); }
+            catch (ObjectDisposedException) { }
+            catch (Exception ex) { Debug.LogException(ex); }
         }
 
         private void ReceiveCallback(IAsyncResult result) {
+            if (_disconnected) return;
+
+            byte[] data;
             try {
-                byte[] data = socket.EndReceive(result, ref endPoint);
-                socket.BeginReceive(ReceiveCallback, null);
-
-                if (data.Length < 4) {
-                    Instance.Disconnect();
-                    return;
-                }
-
-                HandleData(data);
+                data = socket.EndReceive(result, ref endPoint);
             }
-            catch (ObjectDisposedException) {
-            }
+            catch (ObjectDisposedException) { return; }
             catch (Exception ex) {
                 Debug.LogException(ex);
-
-                // Disconnect();
+                if (!_disconnected)
+                    socket?.BeginReceive(ReceiveCallback, null);
+                return;
             }
+
+            socket.BeginReceive(ReceiveCallback, null);
+
+            if (data.Length < 4) return;
+
+            HandleData(data);
         }
 
-        private static void HandleData(byte[] data) {
-            using (Packet packet = new Packet(data)) {
-                int packetLength = packet.ReadInt();
-                data = packet.ReadBytes(packetLength);
+        private void HandleData(byte[] data) {
+            byte[] packetBytes;
+            using (Packet wrapper = new Packet(data)) {
+                int packetLength = wrapper.ReadInt();
+                if (packetLength <= 0 || packetLength > wrapper.UnreadLength()) return;
+                packetBytes = wrapper.ReadBytes(packetLength);
             }
 
-            using (Packet packet = new Packet(data)) {
-                int packetId = packet.ReadInt();
+            int packetId;
+            using (Packet peek = new Packet(packetBytes)) {
+                packetId = peek.ReadInt();
+            }
 
-                if (packetId == (int)ServerPackets.gameUpdate) {
-                    packetHandlers[packetId](packet);
+            if (_offMainThreadPackets.Contains(packetId)) {
+                using Packet packet = new Packet(packetBytes);
+                packet.ReadInt();
+                if (packetHandlers.TryGetValue(packetId, out var handler)) {
+                    handler(packet);
                     ClientHandle.packetsReceived++;
                     ClientHandle.bytesReceived += packet.Length();
-                    return;
                 }
+                else {
+                    Debug.LogWarning($"No handler for packet id {packetId}");
+                }
+                return;
             }
 
+            byte[] captured = packetBytes;
             ThreadManager.ExecuteOnMainThread(() => {
-                using Packet packet = new Packet(data);
-
-                int packetId = packet.ReadInt();
-                packetHandlers[packetId](packet);
-                ClientHandle.packetsReceived++;
-                ClientHandle.bytesReceived += packet.Length();
+                using Packet packet = new Packet(captured);
+                int id = packet.ReadInt();
+                if (packetHandlers.TryGetValue(id, out var handler)) {
+                    handler(packet);
+                    ClientHandle.packetsReceived++;
+                    ClientHandle.bytesReceived += packet.Length();
+                }
+                else {
+                    Debug.LogWarning($"No handler for packet id {id}");
+                }
             });
         }
 
-        private void Disconnect() {
-            Instance.Disconnect();
+        private void TriggerDisconnect() {
+            if (_disconnected) return;
+            _disconnected = true;
+            ThreadManager.ExecuteOnMainThread(() => Instance.Disconnect());
+        }
+
+        public void Disconnect() {
+            _disconnected = true;
+
+            try { socket?.Close(); }
+            catch (ObjectDisposedException) { }
+            catch (Exception ex) { Debug.LogException(ex); }
 
             endPoint = null;
             socket = null;
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Lifecycle
+    // -------------------------------------------------------------------------
+
     private void InitializeClientData() {
-        packetHandlers = new Dictionary<int, PacketHandler>() {
-            { (int)ServerPackets.welcome, ClientHandle.Welcome },
-            { (int)ServerPackets.syncTick, ClientHandle.SyncTick },
-            { (int)ServerPackets.spawnPlayer, ClientHandle.SpawnPlayer },
-            { (int)ServerPackets.gameUpdate, ClientHandle.GameUpdate },
+        packetHandlers = new Dictionary<int, PacketHandler> {
+            { (int)ServerPackets.welcome,       ClientHandle.Welcome },
+            { (int)ServerPackets.syncTick,      ClientHandle.SyncTick },
+            { (int)ServerPackets.spawnPlayer,   ClientHandle.SpawnPlayer },
+            { (int)ServerPackets.gameUpdate,    ClientHandle.GameUpdate },
             { (int)ServerPackets.lagCompVisual, ClientHandle.LagCompVisual },
         };
     }
@@ -278,10 +396,9 @@ public class Client : MonoBehaviour {
         if (!IsConnected) return;
         IsConnected = false;
 
-        tcp?.socket?.Close();
-        udp?.socket?.Close();
+        tcp?.Disconnect();
+        udp?.Disconnect();
 
-        // disconnect on main thread
-        ThreadManager.ExecuteOnMainThread(() => { ConnectionManager.OnDisconnect(); });
+        ThreadManager.ExecuteOnMainThread(() => ConnectionManager.OnDisconnect());
     }
 }

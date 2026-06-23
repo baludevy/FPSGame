@@ -41,7 +41,7 @@ public class PlayerMovement : MonoBehaviour {
 
     [Header("Crouching")] public Vector3 crouchScale = new Vector3(1.25f, 1f, 1.25f);
     public float maxCrouchSpeed = 5f;
-    public float crouchTransitionSpeed = 10f; // crouchAmount (0-1) per second
+    public float crouchTransitionSpeed = 10f;
 
     private bool sliding;
     private bool airSlide;

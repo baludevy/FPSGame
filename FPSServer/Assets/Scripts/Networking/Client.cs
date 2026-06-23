@@ -1,8 +1,12 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using UnityEngine;
 
+// server side - client
 public class Client {
     private static int dataBufferSize = NetworkSettings.dataBufferSize;
 
@@ -11,11 +15,19 @@ public class Client {
     public TCP tcp;
     public UDP udp;
 
+    private static readonly HashSet<int> _offMainThreadPackets = new() {
+        (int)ClientPackets.playerInput
+    };
+
     public Client(int clientId) {
         id = clientId;
         tcp = new TCP(id);
         udp = new UDP(id);
     }
+
+    // -------------------------------------------------------------------------
+    // TCP
+    // -------------------------------------------------------------------------
 
     public class TCP {
         public TcpClient Socket;
@@ -24,6 +36,10 @@ public class Client {
         private NetworkStream _stream;
         private Packet _receivedData;
         private byte[] _receiveBuffer;
+
+        private readonly ConcurrentQueue<byte[]> _sendQueue = new();
+        private int _isSending;
+        private volatile bool _disconnected;
 
         public TCP(int id) {
             _id = id;
@@ -35,114 +51,151 @@ public class Client {
             Socket.SendBufferSize = dataBufferSize;
 
             _stream = Socket.GetStream();
-
             _receivedData = new Packet();
             _receiveBuffer = new byte[dataBufferSize];
+            _disconnected = false;
 
             _stream.BeginRead(_receiveBuffer, 0, dataBufferSize, ReceiveCallback, null);
             ServerSend.Welcome(_id);
         }
 
         public void SendData(Packet packet) {
+            if (_disconnected || Socket == null) return;
+
+            byte[] data = packet.ToArray();
+            byte[] copy = new byte[data.Length];
+            Buffer.BlockCopy(data, 0, copy, 0, data.Length);
+
+            _sendQueue.Enqueue(copy);
+            TryFlushSendQueue();
+        }
+
+        private void TryFlushSendQueue() {
+            if (Interlocked.CompareExchange(ref _isSending, 1, 0) != 0) return;
+
+            if (!_sendQueue.TryDequeue(out byte[] next)) {
+                Interlocked.Exchange(ref _isSending, 0);
+                if (!_sendQueue.IsEmpty) TryFlushSendQueue();
+                return;
+            }
+
+            NetworkStream stream = _stream;
+            if (stream == null) {
+                Interlocked.Exchange(ref _isSending, 0);
+                return;
+            }
+
             try {
-                if (Socket != null && _stream != null) {
-                    _stream.BeginWrite(packet.ToArray(), 0, packet.Length(), null, null);
-                }
+                stream.BeginWrite(next, 0, next.Length, SendCallback, null);
             }
-            catch (ObjectDisposedException) {
-            }
+            catch (ObjectDisposedException) { Interlocked.Exchange(ref _isSending, 0); }
             catch (Exception ex) {
                 Debug.LogException(ex);
+                Interlocked.Exchange(ref _isSending, 0);
+                TriggerDisconnect();
             }
         }
 
+        private void SendCallback(IAsyncResult result) {
+            try {
+                _stream?.EndWrite(result);
+            }
+            catch (ObjectDisposedException) { Interlocked.Exchange(ref _isSending, 0); return; }
+            catch (Exception ex) {
+                Debug.LogException(ex);
+                Interlocked.Exchange(ref _isSending, 0);
+                TriggerDisconnect();
+                return;
+            }
+
+            Interlocked.Exchange(ref _isSending, 0);
+            TryFlushSendQueue();
+        }
+
         private void ReceiveCallback(IAsyncResult result) {
+            if (_disconnected) return;
+
             try {
                 int byteLength = _stream.EndRead(result);
                 if (byteLength <= 0) {
-                    Server.clients[_id].Disconnect();
+                    TriggerDisconnect();
                     return;
                 }
 
                 byte[] data = new byte[byteLength];
-                Array.Copy(_receiveBuffer, data, byteLength);
+                Buffer.BlockCopy(_receiveBuffer, 0, data, 0, byteLength);
 
                 _receivedData.Reset(HandleData(data));
                 _stream.BeginRead(_receiveBuffer, 0, dataBufferSize, ReceiveCallback, null);
             }
-            catch (ObjectDisposedException) {
-                try {
-                    Server.clients[_id]?.Disconnect();
-                }
-                catch {
-                }
-            }
+            catch (ObjectDisposedException) { TriggerDisconnect(); }
             catch (Exception ex) {
                 Debug.LogException(ex);
-                try {
-                    Server.clients[_id]?.Disconnect();
-                }
-                catch {
-                }
+                TriggerDisconnect();
             }
         }
 
         private bool HandleData(byte[] data) {
-            int packetLength = 0;
-
             _receivedData.SetBytes(data);
 
-            if (_receivedData.UnreadLength() >= 4) {
-                packetLength = _receivedData.ReadInt();
-                if (packetLength <= 0) {
-                    return true;
-                }
-            }
+            if (_receivedData.UnreadLength() < 4) return true;
+
+            int packetLength = _receivedData.ReadInt();
+            if (packetLength <= 0) return true;
 
             while (packetLength > 0 && packetLength <= _receivedData.UnreadLength()) {
                 byte[] packetBytes = _receivedData.ReadBytes(packetLength);
-                byte[] capturedBytes = packetBytes;
-
-                using (Packet packet = new Packet(capturedBytes)) {
-                    int packetId = packet.ReadInt();
-
-                    if (packetId == 100) {
-                        Server.packetHandlers[packetId](_id, packet);
-                    }
-                    else {
-                        ThreadManager.ExecuteOnMainThread(() => {
-                            using Packet p = new Packet(capturedBytes);
-
-                            int id = p.ReadInt();
-                            Server.packetHandlers[id](_id, p);
-                        });
-                    }
-                }
+                DispatchPacket(packetBytes);
 
                 packetLength = 0;
-
                 if (_receivedData.UnreadLength() >= 4) {
                     packetLength = _receivedData.ReadInt();
-                    if (packetLength <= 0) {
-                        return true;
-                    }
+                    if (packetLength <= 0) return true;
                 }
             }
 
             return packetLength <= 1;
         }
 
+        private void DispatchPacket(byte[] packetBytes) {
+            int packetId;
+            using (Packet peek = new Packet(packetBytes)) {
+                packetId = peek.ReadInt();
+            }
+
+            if (_offMainThreadPackets.Contains(packetId)) {
+                using Packet packet = new Packet(packetBytes);
+                packet.ReadInt();
+                if (Server.packetHandlers.TryGetValue(packetId, out var handler))
+                    handler(_id, packet);
+                else
+                    Debug.LogWarning($"[Server TCP] No handler for packet id {packetId}");
+            }
+            else {
+                byte[] captured = packetBytes;
+                ThreadManager.ExecuteOnMainThread(() => {
+                    using Packet packet = new Packet(captured);
+                    int id = packet.ReadInt();
+                    if (Server.packetHandlers.TryGetValue(id, out var handler))
+                        handler(_id, packet);
+                    else
+                        Debug.LogWarning($"[Server TCP] No handler for packet id {id}");
+                });
+            }
+        }
+
+        private void TriggerDisconnect() {
+            if (_disconnected) return;
+            _disconnected = true;
+            ThreadManager.ExecuteOnMainThread(() => Server.clients[_id]?.Disconnect());
+        }
+
         public void Disconnect() {
-            try {
-                Socket?.Close();
-            }
-            catch (ObjectDisposedException) {
-            }
-            catch (SocketException) {
-            }
-            catch (Exception ex) {
-                Debug.LogException(ex);
-            }
+            _disconnected = true;
+
+            try { Socket?.Close(); }
+            catch (ObjectDisposedException) { }
+            catch (Exception ex) { Debug.LogException(ex); }
 
             _stream = null;
             _receivedData = null;
@@ -151,10 +204,14 @@ public class Client {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // UDP
+    // -------------------------------------------------------------------------
+
     public class UDP {
         public IPEndPoint EndPoint;
 
-        private int _id;
+        private readonly int _id;
 
         public UDP(int id) {
             _id = id;
@@ -170,23 +227,33 @@ public class Client {
 
         public void HandleData(Packet packetData) {
             int packetLength = packetData.ReadInt();
+            if (packetLength <= 0 || packetLength > packetData.UnreadLength()) return;
+
             byte[] packetBytes = packetData.ReadBytes(packetLength);
-            byte[] capturedBytes = packetBytes;
 
-            using (Packet packet = new Packet(capturedBytes)) {
-                int packetId = packet.ReadInt();
-
-                if (packetId == (int)ClientPackets.playerInput) {
-                    Server.packetHandlers[packetId](_id, packet);
-                    return;
-                }
+            int packetId;
+            using (Packet peek = new Packet(packetBytes)) {
+                packetId = peek.ReadInt();
             }
 
+            if (_offMainThreadPackets.Contains(packetId)) {
+                using Packet packet = new Packet(packetBytes);
+                packet.ReadInt();
+                if (Server.packetHandlers.TryGetValue(packetId, out var handler))
+                    handler(_id, packet);
+                else
+                    Debug.LogWarning($"[Server UDP] No handler for packet id {packetId}");
+                return;
+            }
+
+            byte[] captured = packetBytes;
             ThreadManager.ExecuteOnMainThread(() => {
-                using (Packet packet = new Packet(capturedBytes)) {
-                    int packetId = packet.ReadInt();
-                    Server.packetHandlers[packetId](_id, packet);
-                }
+                using Packet packet = new Packet(captured);
+                int id = packet.ReadInt();
+                if (Server.packetHandlers.TryGetValue(id, out var handler))
+                    handler(_id, packet);
+                else
+                    Debug.LogWarning($"[Server UDP] No handler for packet id {id}");
             });
         }
 
@@ -195,30 +262,29 @@ public class Client {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Game
+    // -------------------------------------------------------------------------
+
     public void SendIntoGame(string playerName) {
         player = GameManager.Instance.InstantiatePlayer();
-
         player.Initialize(id, playerName);
 
         Debug.Log($"Spawned player {player.id}.");
 
         foreach (Client client in Server.clients.Values) {
-            if (client.player != null) {
-                if (client.id != id) {
-                    ServerSend.SpawnPlayer(id, client.player);
-                }
-            }
+            if (client.player == null) continue;
+            if (client.id != id) ServerSend.SpawnPlayer(id, client.player);
         }
 
         foreach (Client client in Server.clients.Values) {
-            if (client.player != null) {
-                ServerSend.SpawnPlayer(client.id, player);
-            }
+            if (client.player != null) ServerSend.SpawnPlayer(client.id, player);
         }
     }
 
     public void Disconnect() {
-        Debug.Log($"{player.username} ({player.id}) left.");
+        string label = player != null ? $"{player.username} ({player.id})" : $"Client {id}";
+        Debug.Log($"{label} disconnected.");
 
         ThreadManager.ExecuteOnMainThread(() => {
             if (player != null) {

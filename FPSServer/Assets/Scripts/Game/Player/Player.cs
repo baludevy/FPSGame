@@ -20,8 +20,8 @@ public class Player : MonoBehaviour {
     }
 
     public void HandleInput(InputData inputData) {
-        movement.SetInput(inputData);
         invoker.Step();
+        movement.SetInput(inputData);
         playerCam.rotation = Quaternion.Euler(inputData.pitch, inputData.yaw, 0);
 
         if (inputData.shoot) {

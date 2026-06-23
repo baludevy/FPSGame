@@ -23,6 +23,7 @@ public class FixedClock : MonoBehaviour {
         behaviours.Remove(behaviour);
     }
 
+
     private void Update() {
         float newTime = GetTime();
         float frameTime = (newTime - currentTime) * timeScale;
@@ -33,8 +34,8 @@ public class FixedClock : MonoBehaviour {
 
         while (accumulator >= tickInterval) {
             accumulator -= tickInterval;
-
             Advance();
+
             tick++;
         }
     }
