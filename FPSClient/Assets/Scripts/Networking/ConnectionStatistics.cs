@@ -1,20 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using UnityEngine;
 
 public static class ConnectionStatistics {
     public static float ping;
     public static float packetLoss;
     public static float jitter;
-
     public static float totalRtt;
 
-    //smoothing
     private static float pingSmooth = 0.1f;
     private static float packetLossSmooth = 0.1f;
 
-    //jitter p95
     private static float lastTransitTime = -1f;
     private static bool hasLastTransit;
     private const int jitterWindow = 128;
@@ -23,14 +18,13 @@ public static class ConnectionStatistics {
     private static int jitterCount;
     private static float[] jitterSorted = new float[jitterWindow];
 
-    //packet loss
     private const int lossWindow = 128;
     private static bool[] received = new bool[lossWindow];
     private static int receivedCount;
     private static uint latestTick;
     private static bool hasTick;
 
-    public static void CalculateStatistics(uint serverTick, float clientReceive, float clientSend, float serverReceive,
+    public static void AddSample(uint serverTick, float clientReceive, float clientSend, float serverReceive,
         float serverSend) {
         float serverProcessTime = serverSend - serverReceive;
 
@@ -71,14 +65,33 @@ public static class ConnectionStatistics {
         float delta = Math.Abs(currentTransitTime - lastTransitTime);
         lastTransitTime = currentTransitTime;
 
+        float oldSample = jitterSamples[jitterIndex];
         jitterSamples[jitterIndex] = delta;
         jitterIndex = (jitterIndex + 1) % jitterWindow;
-        if (jitterCount < jitterWindow) jitterCount++;
 
-        Array.Copy(jitterSamples, jitterSorted, jitterCount);
-        Array.Sort(jitterSorted, 0, jitterCount);
+        if (jitterCount < jitterWindow) {
+            jitterCount++;
+            int insertIndex = Array.BinarySearch(jitterSorted, 0, jitterCount - 1, delta);
+            if (insertIndex < 0) insertIndex = ~insertIndex;
+
+            Array.Copy(jitterSorted, insertIndex, jitterSorted, insertIndex + 1, (jitterCount - 1) - insertIndex);
+            jitterSorted[insertIndex] = delta;
+        }
+        else {
+            int removeIndex = Array.BinarySearch(jitterSorted, 0, jitterWindow, oldSample);
+            if (removeIndex >= 0) {
+                Array.Copy(jitterSorted, removeIndex + 1, jitterSorted, removeIndex, jitterWindow - removeIndex - 1);
+            }
+
+            int insertIndex = Array.BinarySearch(jitterSorted, 0, jitterWindow - 1, delta);
+            if (insertIndex < 0) insertIndex = ~insertIndex;
+
+            Array.Copy(jitterSorted, insertIndex, jitterSorted, insertIndex + 1, (jitterWindow - 1) - insertIndex);
+            jitterSorted[insertIndex] = delta;
+        }
 
         int p95Index = Mathf.CeilToInt(jitterCount * 0.95f) - 1;
+        p95Index = Mathf.Clamp(p95Index, 0, jitterCount - 1);
         jitter = jitterSorted[p95Index];
     }
 
@@ -88,19 +101,29 @@ public static class ConnectionStatistics {
             latestTick = serverTick;
         }
 
-        if (serverTick <= latestTick && hasTick) {
-            // out of order
+        if (serverTick <= latestTick) {
             return;
         }
 
-        for (uint t = latestTick + 1; t < serverTick; t++) {
-            int slot = (int)(t % lossWindow);
-            if (received[slot]) receivedCount--;
-            received[slot] = false;
+        uint missedTicks = serverTick - latestTick - 1;
+        if (missedTicks > lossWindow) missedTicks = (uint)lossWindow;
+
+        for (uint i = 1; i <= missedTicks; i++) {
+            int slot = (int)((latestTick + i) % lossWindow);
+            if (received[slot]) {
+                received[slot] = false;
+                receivedCount--;
+            }
         }
 
         int arrivedSlot = (int)(serverTick % lossWindow);
-        if (!received[arrivedSlot]) receivedCount++;
+        if (!received[arrivedSlot]) {
+            receivedCount++;
+        }
+        else {
+            
+        }
+
         received[arrivedSlot] = true;
 
         latestTick = serverTick;
@@ -111,14 +134,11 @@ public static class ConnectionStatistics {
 
     public static void ApplyAdjustments() {
         float jitterInTicks = jitter / NetworkSettings.tickTime;
-
         int calculatedBuffer = Mathf.CeilToInt(jitterInTicks);
-
         float lossPercentage = packetLoss * 100f;
 
         NetworkSettings.targetInpBufferSize = calculatedBuffer;
-
-        NetworkSettings.interpTime = Math.Max(1, calculatedBuffer) * NetworkSettings.tickTime;
+        NetworkSettings.interpTime = Math.Max(2, calculatedBuffer) * NetworkSettings.tickTime;
 
         int inputRedundancy = Mathf.Clamp(Mathf.RoundToInt(lossPercentage / 3f), 1, 5);
         NetworkSettings.inputRedundancy = inputRedundancy;

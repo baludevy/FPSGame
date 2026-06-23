@@ -6,7 +6,6 @@ using System.Net.Sockets;
 using System.Threading;
 using UnityEngine;
 
-// client side - client
 public class Client : MonoBehaviour {
     public static Client Instance;
 
@@ -22,14 +21,25 @@ public class Client : MonoBehaviour {
     public static bool IsConnected;
 
     private delegate void PacketHandler(Packet packet);
-    private static Dictionary<int, PacketHandler> packetHandlers;
+
+    private static readonly Dictionary<int, PacketHandler> packetHandlers = new() {
+        { (int)ServerPackets.welcome, ClientHandle.Welcome },
+        { (int)ServerPackets.syncTick, ClientHandle.SyncTick },
+        { (int)ServerPackets.spawnPlayer, ClientHandle.SpawnPlayer },
+        { (int)ServerPackets.gameUpdate, ClientHandle.GameUpdate },
+        { (int)ServerPackets.lagCompVisual, ClientHandle.LagCompVisual },
+    };
 
     private static readonly HashSet<int> _offMainThreadPackets = new() {
         (int)ServerPackets.gameUpdate
     };
 
     private void Awake() {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (Instance != null && Instance != this) {
+            Destroy(gameObject);
+            return;
+        }
+
         Instance = this;
     }
 
@@ -39,15 +49,10 @@ public class Client : MonoBehaviour {
 
     public void ConnectToServer(string targetIp) {
         ip = targetIp;
-        InitializeClientData();
         tcp = new TCP();
         udp = new UDP();
         tcp.Connect();
     }
-
-    // -------------------------------------------------------------------------
-    // TCP
-    // -------------------------------------------------------------------------
 
     public class TCP {
         public TcpClient socket;
@@ -98,10 +103,8 @@ public class Client : MonoBehaviour {
             if (_disconnected || socket == null) return;
 
             byte[] data = packet.ToArray();
-            byte[] copy = new byte[data.Length];
-            Buffer.BlockCopy(data, 0, copy, 0, data.Length);
 
-            _sendQueue.Enqueue(copy);
+            _sendQueue.Enqueue(data);
             TryFlushSendQueue();
         }
 
@@ -123,7 +126,9 @@ public class Client : MonoBehaviour {
             try {
                 stream.BeginWrite(next, 0, next.Length, SendCallback, null);
             }
-            catch (ObjectDisposedException) { Interlocked.Exchange(ref _isSending, 0); }
+            catch (ObjectDisposedException) {
+                Interlocked.Exchange(ref _isSending, 0);
+            }
             catch (Exception ex) {
                 Debug.LogException(ex);
                 Interlocked.Exchange(ref _isSending, 0);
@@ -135,7 +140,10 @@ public class Client : MonoBehaviour {
             try {
                 _stream?.EndWrite(result);
             }
-            catch (ObjectDisposedException) { Interlocked.Exchange(ref _isSending, 0); return; }
+            catch (ObjectDisposedException) {
+                Interlocked.Exchange(ref _isSending, 0);
+                return;
+            }
             catch (Exception ex) {
                 Debug.LogException(ex);
                 Interlocked.Exchange(ref _isSending, 0);
@@ -163,7 +171,9 @@ public class Client : MonoBehaviour {
                 _receivedData.Reset(HandleData(data));
                 _stream.BeginRead(_receiveBuffer, 0, dataBufferSize, ReceiveCallback, null);
             }
-            catch (ObjectDisposedException) { TriggerDisconnect(); }
+            catch (ObjectDisposedException) {
+                TriggerDisconnect();
+            }
             catch (Exception ex) {
                 Debug.LogException(ex);
                 TriggerDisconnect();
@@ -236,9 +246,14 @@ public class Client : MonoBehaviour {
         public void Disconnect() {
             _disconnected = true;
 
-            try { socket?.Close(); }
-            catch (ObjectDisposedException) { }
-            catch (Exception ex) { Debug.LogException(ex); }
+            try {
+                socket?.Close();
+            }
+            catch (ObjectDisposedException) {
+            }
+            catch (Exception ex) {
+                Debug.LogException(ex);
+            }
 
             _stream = null;
             _receiveBuffer = null;
@@ -246,10 +261,6 @@ public class Client : MonoBehaviour {
             socket = null;
         }
     }
-
-    // -------------------------------------------------------------------------
-    // UDP
-    // -------------------------------------------------------------------------
 
     public class UDP {
         public UdpClient socket;
@@ -283,7 +294,8 @@ public class Client : MonoBehaviour {
 
                 socket.BeginSend(withId, withId.Length, SendCallback, null);
             }
-            catch (ObjectDisposedException) { }
+            catch (ObjectDisposedException) {
+            }
             catch (Exception ex) {
                 Debug.LogException(ex);
                 TriggerDisconnect();
@@ -291,9 +303,14 @@ public class Client : MonoBehaviour {
         }
 
         private void SendCallback(IAsyncResult result) {
-            try { socket?.EndSend(result); }
-            catch (ObjectDisposedException) { }
-            catch (Exception ex) { Debug.LogException(ex); }
+            try {
+                socket?.EndSend(result);
+            }
+            catch (ObjectDisposedException) {
+            }
+            catch (Exception ex) {
+                Debug.LogException(ex);
+            }
         }
 
         private void ReceiveCallback(IAsyncResult result) {
@@ -303,7 +320,9 @@ public class Client : MonoBehaviour {
             try {
                 data = socket.EndReceive(result, ref endPoint);
             }
-            catch (ObjectDisposedException) { return; }
+            catch (ObjectDisposedException) {
+                return;
+            }
             catch (Exception ex) {
                 Debug.LogException(ex);
                 if (!_disconnected)
@@ -342,6 +361,7 @@ public class Client : MonoBehaviour {
                 else {
                     Debug.LogWarning($"No handler for packet id {packetId}");
                 }
+
                 return;
             }
 
@@ -369,35 +389,32 @@ public class Client : MonoBehaviour {
         public void Disconnect() {
             _disconnected = true;
 
-            try { socket?.Close(); }
-            catch (ObjectDisposedException) { }
-            catch (Exception ex) { Debug.LogException(ex); }
+            try {
+                socket?.Close();
+            }
+            catch (ObjectDisposedException) {
+            }
+            catch (Exception ex) {
+                Debug.LogException(ex);
+            }
 
             endPoint = null;
             socket = null;
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Lifecycle
-    // -------------------------------------------------------------------------
-
-    private void InitializeClientData() {
-        packetHandlers = new Dictionary<int, PacketHandler> {
-            { (int)ServerPackets.welcome,       ClientHandle.Welcome },
-            { (int)ServerPackets.syncTick,      ClientHandle.SyncTick },
-            { (int)ServerPackets.spawnPlayer,   ClientHandle.SpawnPlayer },
-            { (int)ServerPackets.gameUpdate,    ClientHandle.GameUpdate },
-            { (int)ServerPackets.lagCompVisual, ClientHandle.LagCompVisual },
-        };
-    }
-
     public void Disconnect() {
-        if (!IsConnected) return;
         IsConnected = false;
 
-        tcp?.Disconnect();
-        udp?.Disconnect();
+        if (tcp != null) {
+            tcp.Disconnect();
+            tcp = null;
+        }
+    
+        if (udp != null) {
+            udp.Disconnect();
+            udp = null;
+        }
 
         ThreadManager.ExecuteOnMainThread(() => ConnectionManager.OnDisconnect());
     }

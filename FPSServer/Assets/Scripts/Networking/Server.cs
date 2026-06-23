@@ -6,7 +6,6 @@ using System.Net.Sockets;
 using System.Threading;
 using UnityEngine;
 
-// server
 public class Server {
     public static int MaxPlayers { get; private set; }
     public static int Port { get; private set; }
@@ -14,7 +13,11 @@ public class Server {
     public static Dictionary<int, Client> clients = new();
 
     public delegate void PacketHandler(int fromClient, Packet packet);
-    public static Dictionary<int, PacketHandler> packetHandlers;
+    public static readonly Dictionary<int, PacketHandler> packetHandlers = new() {
+        { (int)ClientPackets.welcomeReceived, ServerHandle.WelcomeReceived },
+        { (int)ClientPackets.syncTick,        ServerHandle.SyncTick },
+        { (int)ClientPackets.playerInput,     ServerHandle.PlayerInput },
+    };
 
     private static TcpListener _tcpListener;
     private static UdpClient _udpListener;
@@ -41,10 +44,6 @@ public class Server {
         Debug.Log($"Server started on port {Port}.");
     }
 
-    // -------------------------------------------------------------------------
-    // TCP
-    // -------------------------------------------------------------------------
-
     private static void TcpConnectCallback(IAsyncResult result) {
         TcpClient client = null;
 
@@ -54,7 +53,6 @@ public class Server {
         catch (ObjectDisposedException) { return; }
         catch (Exception ex) { Debug.LogException(ex); }
 
-        // Always re-arm regardless of whether this accept succeeded
         if (_running) {
             try {
                 _tcpListener.BeginAcceptTcpClient(TcpConnectCallback, null);
@@ -72,13 +70,9 @@ public class Server {
             }
         }
 
-        Debug.Log($"Connection from {client.Client.RemoteEndPoint} rejected — server full.");
+        Debug.Log($"Connection from {client.Client.RemoteEndPoint} rejected - server full.");
         try { client.Close(); } catch { }
     }
-
-    // -------------------------------------------------------------------------
-    // UDP
-    // -------------------------------------------------------------------------
 
     private static void UdpReceiveCallback(IAsyncResult result) {
         IPEndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
@@ -107,17 +101,14 @@ public class Server {
             using Packet packet = new Packet(data);
             int clientId = packet.ReadInt();
 
-            if (clientId < 1 || clientId > MaxPlayers || !clients.ContainsKey(clientId)) return;
-
-            Client c = clients[clientId];
+            if (clientId < 1 || clientId > MaxPlayers || !clients.TryGetValue(clientId, out Client c)) return;
 
             if (c.udp.EndPoint == null) {
                 c.udp.Connect(remoteEP);
                 return;
             }
 
-            // Validate endpoint to prevent spoofing
-            if (c.udp.EndPoint.ToString() == remoteEP.ToString()) {
+            if (c.udp.EndPoint.Equals(remoteEP)) {
                 c.udp.HandleData(packet);
             }
         }
@@ -128,10 +119,8 @@ public class Server {
         if (clientEndPoint == null) return;
 
         byte[] data = packet.ToArray();
-        byte[] copy = new byte[data.Length];
-        Buffer.BlockCopy(data, 0, copy, 0, data.Length);
 
-        _udpSendQueue.Enqueue((clientEndPoint, copy));
+        _udpSendQueue.Enqueue((clientEndPoint, data));
         TryFlushUdpSendQueue();
     }
 
@@ -163,19 +152,12 @@ public class Server {
         TryFlushUdpSendQueue();
     }
 
-    // -------------------------------------------------------------------------
-    // Lifecycle
-    // -------------------------------------------------------------------------
-
     private static void InitializeServerData() {
-        for (int i = 1; i <= MaxPlayers; i++)
-            clients.Add(i, new Client(i));
-
-        packetHandlers = new Dictionary<int, PacketHandler> {
-            { (int)ClientPackets.welcomeReceived, ServerHandle.WelcomeReceived },
-            { (int)ClientPackets.syncTick,        ServerHandle.SyncTick },
-            { (int)ClientPackets.playerInput,     ServerHandle.PlayerInput },
-        };
+        for (int i = 1; i <= MaxPlayers; i++) {
+            if (!clients.ContainsKey(i)) {
+                clients.Add(i, new Client(i));
+            }
+        }
     }
 
     public static void Stop() {

@@ -38,11 +38,13 @@ public class FixedClock : MonoBehaviour {
             tick++;
         }
 
-        if (LocalPlayer.Instance != null && tick - 1 > PlayerInput.lastSentTick)
-            PlayerInput.SendPlayerInputs();
+        if (LocalPlayer.Instance != null && tick - 1 > LocalPlayer.Instance.playerInput.lastSentTick)
+            LocalPlayer.Instance.playerInput.SendPlayerInputs();
     }
 
     private static void Advance() {
+        Debug.Log("tick");
+
         TickSync.Update();
         TickInvoker.Step();
 

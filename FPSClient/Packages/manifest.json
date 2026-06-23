@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "com.hestia.hackatime": "file:C:/Users/balu/Downloads/com.hestia.hackatime@dbf2978b89",
     "com.unity.animation.rigging": "1.2.1",
     "com.unity.feature.development": "1.0.2",
     "com.unity.postprocessing": "3.3.0",

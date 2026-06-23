@@ -477,9 +477,8 @@ public class PlayerMovement : MonoBehaviour {
 
             wallNormalVector = hit.normal;
             Vector3 flatVel = Vector3.ProjectOnPlane(rb.velocity, normalVector);
-            float approachSpeed = Vector3.Dot(rb.velocity, -hit.normal);
 
-            if (flatVel.magnitude > 1f && approachSpeed > 0.5f) {
+            if (flatVel.magnitude > 1f) {
                 if (hit.distance > bounds.extents.x + 0.1f && !startingWallRun && !wallRunning) {
                     preWallRunning = true;
                 }

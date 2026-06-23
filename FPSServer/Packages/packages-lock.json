@@ -1,11 +1,5 @@
 {
   "dependencies": {
-    "com.hestia.hackatime": {
-      "version": "file:C:/Users/balu/Downloads/com.hestia.hackatime@dbf2978b89",
-      "depth": 0,
-      "source": "local",
-      "dependencies": {}
-    },
     "com.unity.editorcoroutines": {
       "version": "1.0.0",
       "depth": 1,

@@ -13,12 +13,14 @@ public class SnapshotManager : MonoBehaviour {
     private static SnapshotInterpolator interpolator = new();
     private static object bufferLock = new();
 
+    private uint lastProcessedTick;
     private uint lastReconciledTick;
 
     private void Awake() => Instance = this;
 
     public void Reset() {
         serverTick = 0;
+        lastProcessedTick = 0;
         lastReconciledTick = 0;
         snapshotBufferOffset = 0;
 
@@ -30,13 +32,18 @@ public class SnapshotManager : MonoBehaviour {
 
     public void OnUpdateReceived(GameUpdate update) {
         if (LocalPlayer.Instance == null) return;
+        
+        lock (bufferLock) {
+            if (update.serverTick <= lastProcessedTick) return;
+            lastProcessedTick = update.serverTick;
+        }
 
         if (update.serverTick > serverTick) {
             serverTick = update.serverTick;
             snapshotBufferOffset = Math.Max(0, (int)serverTick - Mathf.RoundToInt(clientRenderTick) - 1);
 
             float now = FixedClock.GetTime();
-            ConnectionStatistics.CalculateStatistics(
+            ConnectionStatistics.AddSample(
                 update.serverTick, now,
                 update.clientSendTime, update.serverReceiveTime, update.serverSendTime);
 

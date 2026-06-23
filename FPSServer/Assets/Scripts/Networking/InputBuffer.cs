@@ -23,9 +23,17 @@ public class InputBuffer {
         }
 
         InputData fallbackInputData = new InputData {
-            tick = tick
+            tick = tick,
+            renderTick = lastValidInputData.renderTick,
+            x = lastValidInputData.x,
+            y = lastValidInputData.y,
+            crouching = lastValidInputData.crouching,
+            pitch = lastValidInputData.pitch,
+            yaw = lastValidInputData.yaw,
         };
 
+        Debug.Log($"returning fallback input: {tick}");
+        
         return fallbackInputData;
     }
 

@@ -6,7 +6,6 @@ using System.Net.Sockets;
 using System.Threading;
 using UnityEngine;
 
-// server side - client
 public class Client {
     private static int dataBufferSize = NetworkSettings.dataBufferSize;
 
@@ -24,10 +23,6 @@ public class Client {
         tcp = new TCP(id);
         udp = new UDP(id);
     }
-
-    // -------------------------------------------------------------------------
-    // TCP
-    // -------------------------------------------------------------------------
 
     public class TCP {
         public TcpClient Socket;
@@ -63,10 +58,8 @@ public class Client {
             if (_disconnected || Socket == null) return;
 
             byte[] data = packet.ToArray();
-            byte[] copy = new byte[data.Length];
-            Buffer.BlockCopy(data, 0, copy, 0, data.Length);
 
-            _sendQueue.Enqueue(copy);
+            _sendQueue.Enqueue(data);
             TryFlushSendQueue();
         }
 
@@ -204,10 +197,6 @@ public class Client {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // UDP
-    // -------------------------------------------------------------------------
-
     public class UDP {
         public IPEndPoint EndPoint;
 
@@ -261,10 +250,6 @@ public class Client {
             EndPoint = null;
         }
     }
-
-    // -------------------------------------------------------------------------
-    // Game
-    // -------------------------------------------------------------------------
 
     public void SendIntoGame(string playerName) {
         player = GameManager.Instance.InstantiatePlayer();

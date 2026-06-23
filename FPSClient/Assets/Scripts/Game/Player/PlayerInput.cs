@@ -4,15 +4,15 @@ using UnityEngine;
 public class PlayerInput : MonoBehaviour {
     public static InputData[] inputHistory = new InputData[NetworkSettings.inputHistorySize];
 
-    public static uint lastSentTick;
+    public uint lastSentTick;
 
     private static List<InputData> playerInputs = new();
 
-    private static float x;
-    private static float y;
-    private static bool jumping;
-    private static bool crouching;
-    private static bool shoot;
+    private float x;
+    private float y;
+    private bool jumping;
+    private bool crouching;
+    private bool shoot;
 
     public void SampleInput() {
         x = Input.GetAxisRaw("Horizontal");
@@ -41,7 +41,7 @@ public class PlayerInput : MonoBehaviour {
         return inputData;
     }
 
-    public static void SendPlayerInputs() {
+    public void SendPlayerInputs() {
         if (LocalPlayer.Instance == null || !Client.IsConnected) return;
 
         int bufferSize = NetworkSettings.inputHistorySize;
