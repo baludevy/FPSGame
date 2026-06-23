@@ -5,7 +5,7 @@
     public const int inputHistorySize = 1024;
 
     public static int inputRedundancy = 1;
-    public static float targetReceiveMargin = 0.01f;
+    public static float targetServerMargin = 0.01f;
 
     public static float interpTime = 0.015625f;
 }

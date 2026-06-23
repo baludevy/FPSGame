@@ -10,19 +10,21 @@ public class InputBuffer {
     public uint latestTick;
     public float latestTimestamp;
     public float latestReceived;
-    
+
     public float serverReceiveMargin;
     private float marginSmoothing = 0.1f;
     private bool hasMargin;
-    
+
     public float serverInputJitter;
-    private const int jitterWindow = 128;
+    private static int jitterWindow = 128;
     private float[] jitterSamples = new float[jitterWindow];
     private float[] jitterSorted = new float[jitterWindow];
     private int jitterIndex;
     private int jitterCount;
-    private float lastRawMargin;
-    private bool hasLastRawMargin;
+    private float intervalSmoothing = 0.05f;
+
+    private float smoothedLatency;
+    private bool hasLastLatency;
 
     public void Initialize() {
         inputQueue = new InputData[NetworkSettings.inputBufferSize];
@@ -31,7 +33,7 @@ public class InputBuffer {
     }
 
     public InputData GetInputFromQueue(uint tick) {
-        uint i = tick % (uint)NetworkSettings.inputBufferSize;
+        uint i = tick % NetworkSettings.inputBufferSize;
         InputData inputData = inputQueue[i];
 
         if (inputData != null && inputData.tick == tick) {
@@ -39,8 +41,12 @@ public class InputBuffer {
             lastValidInputData = inputData;
             return inputData;
         }
-        
-        SampleMargin(-NetworkSettings.tickTime);
+
+        int missingTicks = (int)tick - (int)latestTick;
+        float estimatedPacketDueTime = latestReceived + (missingTicks * NetworkSettings.tickTime);
+        float realTimeDeficit = FixedClock.GetTime() - estimatedPacketDueTime;
+
+        SampleMargin(realTimeDeficit);
 
         InputData fallbackInputData = new InputData {
             tick = tick,
@@ -51,14 +57,14 @@ public class InputBuffer {
             pitch = lastValidInputData.pitch,
             yaw = lastValidInputData.yaw,
         };
-        
+
         Debug.Log($"{tick}: returning fallback input");
 
         return fallbackInputData;
     }
 
-    public void AddInputsToQueue(List<InputData> inputs, float timestamp) {
-        latestTimestamp = timestamp;
+    public void AddInputsToQueue(List<InputData> inputs, float clientSendTime) {
+        latestTimestamp = clientSendTime;
         latestReceived = FixedClock.GetTime();
 
         uint previousLatest = latestTick;
@@ -72,16 +78,18 @@ public class InputBuffer {
             if (inputQueue[i] != null && inputQueue[i].tick == input.tick) continue;
 
             inputQueue[i] = input;
-            
+
             float scheduledTickTime = input.tick * NetworkSettings.tickTime;
             calculatedMargins[i] = scheduledTickTime - latestReceived;
         }
-        
+
         if (newestInBatch > previousLatest) {
             latestTick = newestInBatch;
         }
-        
-        SampleJitter(latestReceived);
+
+        float currentLatency = latestReceived - clientSendTime;
+
+        SampleJitter(currentLatency);
     }
 
     private void SampleMargin(float rawMargin) {
@@ -93,18 +101,17 @@ public class InputBuffer {
 
         serverReceiveMargin = (rawMargin * marginSmoothing) + (serverReceiveMargin * (1f - marginSmoothing));
     }
-    
-    private void SampleJitter(float arrivalTime) {
-        if (!hasLastRawMargin) {
-            hasLastRawMargin = true;
-            lastRawMargin = arrivalTime;
+
+    private void SampleJitter(float currentLatency) {
+        if (!hasLastLatency) {
+            hasLastLatency = true;
+            smoothedLatency = currentLatency;
             return;
         }
 
-        float actualInterval = arrivalTime - lastRawMargin;
-        lastRawMargin = arrivalTime;
+        smoothedLatency = (currentLatency * intervalSmoothing) + (smoothedLatency * (1f - intervalSmoothing));
 
-        float delta = Mathf.Abs(actualInterval - NetworkSettings.tickTime);
+        float delta = Mathf.Abs(currentLatency - smoothedLatency);
 
         float oldSample = jitterSamples[jitterIndex];
         jitterSamples[jitterIndex] = delta;

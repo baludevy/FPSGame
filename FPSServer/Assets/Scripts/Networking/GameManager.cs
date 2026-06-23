@@ -47,7 +47,7 @@ public class GameManager : FixedBehaviour {
         update.serverSendTime = FixedClock.GetTime();
 
         update.serverReceiveMargin = toPlayer.inputBuffer.serverReceiveMargin;
-        update.serverInputJitter = Mathf.Max(0f, toPlayer.inputBuffer.serverInputJitter - 0.005f);
+        update.serverInputJitter = Mathf.Max(0f, toPlayer.inputBuffer.serverInputJitter);
 
         update.clientSendTime = toPlayer.inputBuffer.latestTimestamp;
         update.serverReceiveTime = toPlayer.inputBuffer.latestReceived;

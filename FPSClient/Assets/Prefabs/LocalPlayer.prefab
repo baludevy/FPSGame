@@ -4899,7 +4899,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &7189889755478249093
 Transform:
   m_ObjectHideFlags: 0
@@ -5396,6 +5396,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4694a40895384dabba160d12b73afad2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  lastSentTick: 0
 --- !u!114 &1834420175924387594
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5978,6 +5979,10 @@ PrefabInstance:
       propertyPath: audioSource
       value: 
       objectReference: {fileID: 7471538892832772932}
+    - target: {fileID: 6056288598556343962, guid: b9cab7d595cdf2445b86aadae6cd7dd6, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7427107775523845879, guid: b9cab7d595cdf2445b86aadae6cd7dd6, type: 3}
       propertyPath: m_Name
       value: Phantom

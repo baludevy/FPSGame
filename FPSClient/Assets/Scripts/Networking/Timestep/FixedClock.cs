@@ -25,7 +25,7 @@ public class FixedClock : MonoBehaviour {
 
     private void Update() {
         float newTime = GetTime();
-        float frameTime = (newTime - currentTime) * timeScale;
+        float frameTime = Mathf.Max(0f, (newTime - currentTime) * timeScale);
         currentTime = newTime;
 
         float tickInterval = NetworkSettings.tickTime;
@@ -62,5 +62,6 @@ public class FixedClock : MonoBehaviour {
         accumulator = 0f;
         tick = 0;
         timeScale = 1f;
+        currentTime = GetTime();
     }
 }

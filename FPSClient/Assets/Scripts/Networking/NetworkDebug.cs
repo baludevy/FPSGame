@@ -87,16 +87,16 @@ public class NetworkDebug : MonoBehaviour {
         inputJitter.text = $"server jitter: {ConnectionStatistics.inputJitter * 1000:F0}ms";
 
         inputBufferOffset.text = $"srv receive: {TimeScaler.GetCurrentMargin() * 1000:F0} ms";
-        inputBufferTarget.text = $"target: {NetworkSettings.targetReceiveMargin * 1000:F0} ms";
+        inputBufferTarget.text = $"target: {NetworkSettings.targetServerMargin * 1000:F0} ms";
 
-        snapshotBufferOffset.text = $"cl receive: {SnapshotManager.snapshotBufferOffset}";
+        // snapshotBufferOffset.text = $"cl receive: {SnapshotManager.snapshotBufferOffset}";
         snapshotBufferTarget.text = $"target: {NetworkSettings.interpTime / NetworkSettings.tickTime}";
 
         clientTick.text = $"cl tick: {FixedClock.tick}";
         clientTimescale.text = $"rate: {NetworkSettings.tickRate * FixedClock.timeScale:F2}";
 
         serverTick.text = $"srv tick: {SnapshotManager.serverTick}";
-        renderTick.text = $"rnd tick: {Mathf.RoundToInt(SnapshotManager.clientRenderTick)}";
+        // renderTick.text = $"rnd tick: {Mathf.RoundToInt(SnapshotManager.clientRenderTick)}";
     }
 
     #endregion

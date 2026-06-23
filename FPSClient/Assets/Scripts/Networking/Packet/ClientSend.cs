@@ -43,9 +43,9 @@ public class ClientSend {
 
     public static void PlayerInput(List<InputData> inputs) {
         using (Packet packet = new Packet((int)ClientPackets.playerInput)) {
-            packet.Write((byte)inputs.Count);
-
             packet.Write(FixedClock.GetTime());
+
+            packet.Write((byte)inputs.Count);
 
             foreach (InputData input in inputs) {
                 packet.Write(input.tick);

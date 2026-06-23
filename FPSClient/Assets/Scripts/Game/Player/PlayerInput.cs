@@ -25,7 +25,7 @@ public class PlayerInput : MonoBehaviour {
     public InputData GatherInput(uint tick) {
         InputData inputData = new InputData {
             tick = tick,
-            renderTick = SnapshotManager.clientRenderTick,
+            renderTick = 0,
             x = x,
             y = y,
             pitch = LocalPlayer.Instance.playerCamera.GetCameraRot().x,
