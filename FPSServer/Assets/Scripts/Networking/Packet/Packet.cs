@@ -36,7 +36,7 @@ public class Packet : IDisposable
     }
 
     /// <summary>Creates a new packet with a given ID. Used for sending.</summary>
-    public Packet(int id) : this()
+    public Packet(byte id) : this()
     {
         Write(id);
     }

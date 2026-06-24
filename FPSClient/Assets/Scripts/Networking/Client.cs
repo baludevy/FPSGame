@@ -22,16 +22,16 @@ public class Client : MonoBehaviour {
 
     private delegate void PacketHandler(Packet packet);
 
-    private static readonly Dictionary<int, PacketHandler> packetHandlers = new() {
-        { (int)ServerPackets.welcome, ClientHandle.Welcome },
-        { (int)ServerPackets.syncTick, ClientHandle.SyncTick },
-        { (int)ServerPackets.spawnPlayer, ClientHandle.SpawnPlayer },
-        { (int)ServerPackets.gameUpdate, ClientHandle.GameUpdate },
-        { (int)ServerPackets.lagCompVisual, ClientHandle.LagCompVisual },
+    private static readonly Dictionary<byte, PacketHandler> packetHandlers = new() {
+        { (byte)ServerPackets.welcome, ClientHandle.Welcome },
+        { (byte)ServerPackets.syncTick, ClientHandle.SyncTick },
+        { (byte)ServerPackets.spawnPlayer, ClientHandle.SpawnPlayer },
+        { (byte)ServerPackets.gameUpdate, ClientHandle.GameUpdate },
+        { (byte)ServerPackets.lagCompVisual, ClientHandle.LagCompVisual },
     };
 
-    private static readonly HashSet<int> _offMainThreadPackets = new() {
-        (int)ServerPackets.gameUpdate
+    private static readonly HashSet<byte> _offMainThreadPackets = new() {
+        (byte)ServerPackets.gameUpdate
     };
 
     private void Awake() {
@@ -203,14 +203,14 @@ public class Client : MonoBehaviour {
         }
 
         private void DispatchPacket(byte[] packetBytes) {
-            int packetId;
+            byte packetId;
             using (Packet peek = new Packet(packetBytes)) {
-                packetId = peek.ReadInt();
+                packetId = peek.ReadByte();
             }
 
             if (_offMainThreadPackets.Contains(packetId)) {
                 using Packet packet = new Packet(packetBytes);
-                packet.ReadInt();
+                packet.ReadByte();
                 if (packetHandlers.TryGetValue(packetId, out var handler)) {
                     handler(packet);
                     NetStatistics.packetsReceived++;
@@ -224,7 +224,7 @@ public class Client : MonoBehaviour {
                 byte[] captured = packetBytes;
                 ThreadManager.ExecuteOnMainThread(() => {
                     using Packet packet = new Packet(captured);
-                    int id = packet.ReadInt();
+                    byte id = packet.ReadByte();
                     if (packetHandlers.TryGetValue(id, out var handler)) {
                         handler(packet);
                         NetStatistics.packetsReceived++;
@@ -345,14 +345,14 @@ public class Client : MonoBehaviour {
                 packetBytes = wrapper.ReadBytes(packetLength);
             }
 
-            int packetId;
+            byte packetId;
             using (Packet peek = new Packet(packetBytes)) {
-                packetId = peek.ReadInt();
+                packetId = peek.ReadByte();
             }
 
             if (_offMainThreadPackets.Contains(packetId)) {
                 using Packet packet = new Packet(packetBytes);
-                packet.ReadInt();
+                packet.ReadByte();
                 if (packetHandlers.TryGetValue(packetId, out var handler)) {
                     handler(packet);
                     NetStatistics.packetsReceived++;
@@ -368,7 +368,7 @@ public class Client : MonoBehaviour {
             byte[] captured = packetBytes;
             ThreadManager.ExecuteOnMainThread(() => {
                 using Packet packet = new Packet(captured);
-                int id = packet.ReadInt();
+                byte id = packet.ReadByte();
                 if (packetHandlers.TryGetValue(id, out var handler)) {
                     handler(packet);
                     NetStatistics.packetsReceived++;

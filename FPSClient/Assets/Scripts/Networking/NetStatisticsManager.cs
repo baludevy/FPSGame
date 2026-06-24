@@ -127,11 +127,22 @@ public static class NetStatisticsManager {
         float jitterPad = NetStatistics.upstreamJitter * 0.95f;
         float packetLossPad = Mathf.Clamp((NetStatistics.upstreamPacketLoss / 10f), 0f, 0.04f);
 
-        Debug.Log(packetLossPad);
-
         float targetNow =
             Mathf.Clamp(baseBuffer + jitterPad + packetLossPad, baseBuffer, NetworkSettings.tickTime * 4f);
-        NetworkSettings.targetInputMargin = Mathf.Lerp(NetworkSettings.targetInputMargin, targetNow, 0.1f);
+        NetworkSettings.targetInputMargin = Mathf.Lerp(NetworkSettings.targetInputMargin, targetNow, 0.05f);
+
+        if (NetStatistics.upstreamPacketLoss > 10) {
+            NetworkSettings.inputRedundancy = 4;
+        }
+        else if (NetStatistics.upstreamPacketLoss > 5) {
+            NetworkSettings.inputRedundancy = 3;
+        }
+        else if (NetStatistics.upstreamPacketLoss > 0) {
+            NetworkSettings.inputRedundancy = 2;
+        }
+        else {
+            NetworkSettings.inputRedundancy = 0;
+        }
     }
 
     public static void Reset() {

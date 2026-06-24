@@ -77,24 +77,22 @@ public class ServerSend {
         using (Packet packet = new Packet((int)ServerPackets.gameUpdate)) {
             packet.Write(update.serverTick);
             
-            packet.Write(update.timingInfo.inputReceiveMargin);
+            packet.Write(FloatCompressor.FloatToShort(update.timingInfo.inputReceiveMargin));
             packet.Write(update.timingInfo.clientSendTimeAck);
             packet.Write(update.timingInfo.serverSendTime);
             packet.Write(update.timingInfo.serverReceiveTime);
 
-            packet.Write(update.upstreamStatistics.jitter);
-            packet.Write(update.upstreamStatistics.packetLoss);
-
-            packet.Write(update.movementState.id);
+            packet.Write(FloatCompressor.FloatToShort(update.upstreamStatistics.jitter));
+            packet.Write((byte)Mathf.RoundToInt(update.upstreamStatistics.packetLoss * 100));
+            
             packet.Write(update.movementState.position);
-            packet.Write(update.movementState.orientation);
             packet.Write(update.movementState.velocity);
-
+            packet.Write(update.movementState.orientation);
+            
             packet.Write((byte)update.worldSnapshot.playerStates.Count);
             foreach (PlayerState state in update.worldSnapshot.playerStates) {
-                packet.Write(state.id);
+                packet.Write((byte)state.id);
                 packet.Write(state.position);
-                packet.Write(state.crouching);
             }
 
             SendUDPData(toClient, packet);

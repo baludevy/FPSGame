@@ -35,22 +35,21 @@ public class ClientHandle {
         uint serverTick = packet.ReadUInt();
 
         TimingInfo timingInfo = new TimingInfo {
-            inputReceiveMargin = packet.ReadFloat(),
+            inputReceiveMargin = FloatCompressor.ShortToFloat(packet.ReadShort()),
             clientSendTimeAck = packet.ReadFloat(),
             serverSendTime = packet.ReadFloat(),
             serverReceiveTime = packet.ReadFloat(),
         };
 
         UpstreamStatistics upstreamStatistics = new UpstreamStatistics {
-            jitter = packet.ReadFloat(),
-            packetLoss = packet.ReadFloat(),
+            jitter = FloatCompressor.ShortToFloat(packet.ReadShort()),
+            packetLoss = packet.ReadByte() / 100f,
         };
 
         MovementState movementState = new MovementState() {
-            id = packet.ReadInt(),
             position = packet.ReadVector3(),
+            velocity = packet.ReadVector3(), 
             orientation = packet.ReadFloat(),
-            velocity = packet.ReadVector3(),
         };
 
         byte playerStateCount = packet.ReadByte();
@@ -58,9 +57,8 @@ public class ClientHandle {
 
         for (int i = 0; i < playerStateCount; i++) {
             PlayerState state = new PlayerState {
-                id = packet.ReadInt(),
+                id = packet.ReadByte(),
                 position = packet.ReadVector3(),
-                crouching = packet.ReadBool(),
             };
 
             playerStates.Add(state);

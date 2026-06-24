@@ -50,10 +50,9 @@ public class GameManager : FixedBehaviour {
         update.upstreamStatistics = toPlayer.inputBuffer.GetUpstreamStatistics();
 
         update.movementState = new MovementState() {
-            id = toPlayer.id,
             position = toPlayer.GetState().position,
+            velocity = toPlayer.movement.GetRb().velocity,
             orientation = toPlayer.movement.orientation.eulerAngles.y,
-            velocity = toPlayer.movement.GetRb().velocity
         };
 
         update.worldSnapshot = sharedSnapshot;

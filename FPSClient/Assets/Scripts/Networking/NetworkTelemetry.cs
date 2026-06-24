@@ -45,11 +45,11 @@ public class NetworkTelemetry : MonoBehaviour {
     private void UpdateTelemetry() {
         telemetryText.text =
             $"ping: {NetStatistics.ping * 1000f:F0} ms\n" +
-            $"jitter: {Mathf.FloorToInt(NetStatistics.upstreamJitter * 1000f)} / {Mathf.FloorToInt(NetStatistics.downstreamJitter * 1000f)} ms loss: {NetStatistics.upstreamPacketLoss * 100:F0} / {NetStatistics.downstreamPacketLoss * 100:F0}\n" +
-            $"up: {FormatBytes(bytesSentPerSecond)}/s down: {FormatBytes(bytesReceivedPerSecond)}/s\n" +
-            $"up: {packetsSentPerSecond}/s down: {packetsReceivedPerSecond}/s\n" +
-            $"input margin: {TimeScaler.GetCurrentMargin() * 1000F:F1} ms target: {NetworkSettings.targetInputMargin * 1000:F1} ms\n" +
-            $"tick: {FixedClock.tick} speed: {NetworkSettings.tickRate * FixedClock.timeScale:F2}";
+            $"jitter: {Mathf.FloorToInt(NetStatistics.upstreamJitter * 1000f)} / {Mathf.FloorToInt(NetStatistics.downstreamJitter * 1000f)} ms  loss: {NetStatistics.upstreamPacketLoss * 100:F0} / {NetStatistics.downstreamPacketLoss * 100:F0}\n" +
+            $"up: {FormatBytes(bytesSentPerSecond)}/s  down: {FormatBytes(bytesReceivedPerSecond)}/s\n" +
+            $"up: {packetsSentPerSecond}/s  down: {packetsReceivedPerSecond}/s\n" +
+            $"margin: {TimeScaler.GetCurrentMargin() * 1000F:F1} ms  target: {NetworkSettings.targetInputMargin * 1000:F1} ms\n" +
+            $"tick: {FixedClock.tick}  speed: {NetworkSettings.tickRate * FixedClock.timeScale:F2}";
     }
 
     private string FormatBytes(float bytes) {

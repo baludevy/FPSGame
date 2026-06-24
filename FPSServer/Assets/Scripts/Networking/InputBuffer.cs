@@ -174,4 +174,8 @@ public class InputBuffer {
             packetLoss = clientUpstreamPacketLoss
         };
     }
+
+    public uint GetLatestSequence() {
+        return latestInputSequence;
+    }
 }

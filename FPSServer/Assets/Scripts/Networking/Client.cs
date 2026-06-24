@@ -14,8 +14,8 @@ public class Client {
     public TCP tcp;
     public UDP udp;
 
-    private static readonly HashSet<int> _offMainThreadPackets = new() {
-        (int)ClientPackets.playerInput
+    private static readonly HashSet<byte> _offMainThreadPackets = new() {
+        (byte)ClientPackets.playerInput
     };
 
     public Client(int clientId) {
@@ -151,14 +151,14 @@ public class Client {
         }
 
         private void DispatchPacket(byte[] packetBytes) {
-            int packetId;
+            byte packetId;
             using (Packet peek = new Packet(packetBytes)) {
-                packetId = peek.ReadInt();
+                packetId = peek.ReadByte();
             }
 
             if (_offMainThreadPackets.Contains(packetId)) {
                 using Packet packet = new Packet(packetBytes);
-                packet.ReadInt();
+                packet.ReadByte();
                 if (Server.packetHandlers.TryGetValue(packetId, out var handler))
                     handler(_id, packet);
                 else
@@ -168,7 +168,7 @@ public class Client {
                 byte[] captured = packetBytes;
                 ThreadManager.ExecuteOnMainThread(() => {
                     using Packet packet = new Packet(captured);
-                    int id = packet.ReadInt();
+                    byte id = packet.ReadByte();
                     if (Server.packetHandlers.TryGetValue(id, out var handler))
                         handler(_id, packet);
                     else
@@ -220,14 +220,14 @@ public class Client {
 
             byte[] packetBytes = packetData.ReadBytes(packetLength);
 
-            int packetId;
+            byte packetId;
             using (Packet peek = new Packet(packetBytes)) {
-                packetId = peek.ReadInt();
+                packetId = peek.ReadByte();
             }
 
             if (_offMainThreadPackets.Contains(packetId)) {
                 using Packet packet = new Packet(packetBytes);
-                packet.ReadInt();
+                packet.ReadByte();
                 if (Server.packetHandlers.TryGetValue(packetId, out var handler))
                     handler(_id, packet);
                 else
@@ -238,7 +238,7 @@ public class Client {
             byte[] captured = packetBytes;
             ThreadManager.ExecuteOnMainThread(() => {
                 using Packet packet = new Packet(captured);
-                int id = packet.ReadInt();
+                byte id = packet.ReadByte();
                 if (Server.packetHandlers.TryGetValue(id, out var handler))
                     handler(_id, packet);
                 else

@@ -13,10 +13,10 @@ public class Server {
     public static Dictionary<int, Client> clients = new();
 
     public delegate void PacketHandler(int fromClient, Packet packet);
-    public static readonly Dictionary<int, PacketHandler> packetHandlers = new() {
-        { (int)ClientPackets.welcomeReceived, ServerHandle.WelcomeReceived },
-        { (int)ClientPackets.syncTick,        ServerHandle.SyncTick },
-        { (int)ClientPackets.playerInput,     ServerHandle.PlayerInput },
+    public static readonly Dictionary<byte, PacketHandler> packetHandlers = new() {
+        { (byte)ClientPackets.welcomeReceived, ServerHandle.WelcomeReceived },
+        { (byte)ClientPackets.syncTick,        ServerHandle.SyncTick },
+        { (byte)ClientPackets.playerInput,     ServerHandle.PlayerInput },
     };
 
     private static TcpListener _tcpListener;
