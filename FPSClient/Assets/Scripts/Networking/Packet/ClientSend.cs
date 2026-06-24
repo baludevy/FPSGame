@@ -1,14 +1,11 @@
 ﻿using System.Collections.Generic;
 
 public class ClientSend {
-    public static int packetsSent;
-    public static int bytesSent;
-
     private static void SendTCPData(Packet packet) {
         packet.WriteLength();
 
-        packetsSent++;
-        bytesSent += packet.Length();
+        NetStatistics.packetsSent++;
+        NetStatistics.bytesSent += packet.Length();
 
         Client.Instance.tcp.SendData(packet);
     }
@@ -16,8 +13,8 @@ public class ClientSend {
     private static void SendUDPData(Packet packet) {
         packet.WriteLength();
 
-        packetsSent++;
-        bytesSent += packet.Length();
+        NetStatistics.packetsSent++;
+        NetStatistics.bytesSent += packet.Length();
 
         Client.Instance.udp.SendData(packet);
     }

@@ -31,13 +31,11 @@ public class SnapshotManager : MonoBehaviour {
             serverTick = update.serverTick;
 
             float now = FixedClock.GetTime();
-            ConnectionStatistics.UpdateStatistics(
-                update.serverTick, now,
-                update.clientSendTime, update.serverReceiveTime, update.serverSendTime, update.serverInputJitter);
+            NetStatisticsManager.UpdateStatistics(update.serverTick, now, update.timingInfo, update.upstreamStatistics);
 
-            ConnectionStatistics.ApplyAdjustments();
+            NetStatisticsManager.ApplyAdjustments();
 
-            TimeScaler.AdjustInputClock(update.serverReceiveMargin);
+            TimeScaler.AdjustInputClock(update.timingInfo.inputReceiveMargin);
         }
 
         if (update.serverTick > lastReconciledTick) {

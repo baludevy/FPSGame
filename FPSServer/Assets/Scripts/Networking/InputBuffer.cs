@@ -7,21 +7,26 @@ public class InputBuffer {
     private float[] calculatedMargins;
     private InputData lastValidInputData;
 
-    public uint latestTick;
-    public float latestTimestamp;
-    public float latestReceived;
+    private uint latestClientTick;
+    private float latestClientTimestamp;
+    private float latestReceiveTimestamp;
 
-    public float serverReceiveMargin;
-    private float marginSmoothing = 0.1f;
-    private bool hasMargin;
+    private float inputReceiveMargin;
 
-    public float serverInputJitter;
+    private float clientUpstreamJitter;
+    private float clientUpstreamPacketLoss;
+
     private static int jitterWindow = 128;
     private float[] jitterSamples = new float[jitterWindow];
     private float[] jitterSorted = new float[jitterWindow];
     private int jitterIndex;
     private int jitterCount;
-    private float intervalSmoothing = 0.05f;
+    private float intervalSmoothing = 0.1f;
+
+    private static int lossWindow = 128;
+    private static readonly bool[] received = new bool[lossWindow];
+    private static int receivedCount;
+    private static bool hasTick;
 
     private float smoothedLatency;
     private bool hasLastLatency;
@@ -37,16 +42,15 @@ public class InputBuffer {
         InputData inputData = inputQueue[i];
 
         if (inputData != null && inputData.tick == tick) {
-            SampleMargin(calculatedMargins[i]);
+            inputReceiveMargin = calculatedMargins[i];
             lastValidInputData = inputData;
             return inputData;
         }
 
-        int missingTicks = (int)tick - (int)latestTick;
-        float estimatedPacketDueTime = latestReceived + (missingTicks * NetworkSettings.tickTime);
-        float realTimeDeficit = FixedClock.GetTime() - estimatedPacketDueTime;
+        int missingTicks = (int)tick - (int)latestClientTick;
+        float estimatedPacketDueTime = latestReceiveTimestamp + (missingTicks * NetworkSettings.tickTime);
 
-        SampleMargin(realTimeDeficit);
+        inputReceiveMargin = FixedClock.GetTime() - estimatedPacketDueTime;
 
         InputData fallbackInputData = new InputData {
             tick = tick,
@@ -64,42 +68,32 @@ public class InputBuffer {
     }
 
     public void AddInputsToQueue(List<InputData> inputs, float clientSendTime) {
-        latestTimestamp = clientSendTime;
-        latestReceived = FixedClock.GetTime();
+        latestClientTimestamp = clientSendTime;
+        latestReceiveTimestamp = FixedClock.GetTime();
 
-        uint previousLatest = latestTick;
+        uint previousLatest = latestClientTick;
         uint newestInBatch = previousLatest;
 
         foreach (InputData input in inputs) {
             if (input.tick > newestInBatch) newestInBatch = input.tick;
 
-            uint i = input.tick % (uint)NetworkSettings.inputBufferSize;
+            uint i = input.tick % NetworkSettings.inputBufferSize;
 
             if (inputQueue[i] != null && inputQueue[i].tick == input.tick) continue;
 
             inputQueue[i] = input;
 
             float scheduledTickTime = input.tick * NetworkSettings.tickTime;
-            calculatedMargins[i] = scheduledTickTime - latestReceived;
+            calculatedMargins[i] = scheduledTickTime - latestReceiveTimestamp;
         }
 
         if (newestInBatch > previousLatest) {
-            latestTick = newestInBatch;
+            latestClientTick = newestInBatch;
         }
 
-        float currentLatency = latestReceived - clientSendTime;
+        float currentLatency = latestReceiveTimestamp - clientSendTime;
 
         SampleJitter(currentLatency);
-    }
-
-    private void SampleMargin(float rawMargin) {
-        if (!hasMargin) {
-            hasMargin = true;
-            serverReceiveMargin = rawMargin;
-            return;
-        }
-
-        serverReceiveMargin = (rawMargin * marginSmoothing) + (serverReceiveMargin * (1f - marginSmoothing));
     }
 
     private void SampleJitter(float currentLatency) {
@@ -113,33 +107,65 @@ public class InputBuffer {
 
         float delta = Mathf.Abs(currentLatency - smoothedLatency);
 
-        float oldSample = jitterSamples[jitterIndex];
         jitterSamples[jitterIndex] = delta;
         jitterIndex = (jitterIndex + 1) % jitterWindow;
 
         if (jitterCount < jitterWindow) {
             jitterCount++;
-            int insertIndex = Array.BinarySearch(jitterSorted, 0, jitterCount - 1, delta);
-            if (insertIndex < 0) insertIndex = ~insertIndex;
-
-            Array.Copy(jitterSorted, insertIndex, jitterSorted, insertIndex + 1, (jitterCount - 1) - insertIndex);
-            jitterSorted[insertIndex] = delta;
         }
-        else {
-            int removeIndex = Array.BinarySearch(jitterSorted, 0, jitterWindow, oldSample);
-            if (removeIndex >= 0) {
-                Array.Copy(jitterSorted, removeIndex + 1, jitterSorted, removeIndex, jitterWindow - removeIndex - 1);
-            }
 
-            int insertIndex = Array.BinarySearch(jitterSorted, 0, jitterWindow - 1, delta);
-            if (insertIndex < 0) insertIndex = ~insertIndex;
+        Array.Copy(jitterSamples, jitterSorted, jitterCount);
 
-            Array.Copy(jitterSorted, insertIndex, jitterSorted, insertIndex + 1, (jitterWindow - 1) - insertIndex);
-            jitterSorted[insertIndex] = delta;
-        }
+        Array.Sort(jitterSorted, 0, jitterCount);
 
         int p95Index = Mathf.CeilToInt(jitterCount * 0.95f) - 1;
         p95Index = Mathf.Clamp(p95Index, 0, jitterCount - 1);
-        serverInputJitter = jitterSorted[p95Index];
+
+        clientUpstreamJitter = jitterSorted[p95Index];
+    }
+
+    private void UpdatePacketLoss(uint tick) {
+        if (!hasTick) {
+            hasTick = true;
+            latestClientTick = tick;
+        }
+
+        if (tick <= latestClientTick) return;
+
+        uint missedTicks = (uint)Mathf.Min(tick - latestClientTick - 1, lossWindow);
+        for (uint i = 1; i <= missedTicks; i++) {
+            int slot = (int)((latestClientTick + i) % lossWindow);
+            if (received[slot]) {
+                received[slot] = false;
+                receivedCount--;
+            }
+        }
+
+        int arrivedSlot = (int)(tick % lossWindow);
+        if (!received[arrivedSlot]) {
+            receivedCount++;
+            received[arrivedSlot] = true;
+        }
+
+        latestClientTick = tick;
+
+        float sampleLoss = 1f - (receivedCount / (float)lossWindow);
+        clientUpstreamPacketLoss = sampleLoss;
+    }
+
+    public TimingInfo GetTimingInfo() {
+        return new TimingInfo {
+            inputReceiveMargin = inputReceiveMargin,
+            clientSendTimeAck = latestClientTimestamp,
+            serverSendTime = FixedClock.GetTime(),
+            serverReceiveTime = latestReceiveTimestamp,
+        };
+    }
+
+    public UpstreamStatistics GetUpstreamStatistics() {
+        return new UpstreamStatistics {
+            jitter = clientUpstreamJitter,
+            packetLoss = clientUpstreamPacketLoss
+        };
     }
 }

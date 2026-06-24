@@ -57,6 +57,7 @@ public class FixedClock : MonoBehaviour {
     public static float GetAccumulatedTime() {
         return accumulator;
     }
+    
 
     public static void Reset() {
         accumulator = 0f;

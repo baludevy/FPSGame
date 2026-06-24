@@ -213,8 +213,8 @@ public class Client : MonoBehaviour {
                 packet.ReadInt();
                 if (packetHandlers.TryGetValue(packetId, out var handler)) {
                     handler(packet);
-                    ClientHandle.packetsReceived++;
-                    ClientHandle.bytesReceived += packet.Length();
+                    NetStatistics.packetsReceived++;
+                    NetStatistics.bytesReceived += packet.Length();
                 }
                 else {
                     Debug.LogWarning($"No handler for packet id {packetId}");
@@ -227,8 +227,8 @@ public class Client : MonoBehaviour {
                     int id = packet.ReadInt();
                     if (packetHandlers.TryGetValue(id, out var handler)) {
                         handler(packet);
-                        ClientHandle.packetsReceived++;
-                        ClientHandle.bytesReceived += packet.Length();
+                        NetStatistics.packetsReceived++;
+                        NetStatistics.bytesReceived += packet.Length();
                     }
                     else {
                         Debug.LogWarning($"No handler for packet id {id}");
@@ -355,8 +355,8 @@ public class Client : MonoBehaviour {
                 packet.ReadInt();
                 if (packetHandlers.TryGetValue(packetId, out var handler)) {
                     handler(packet);
-                    ClientHandle.packetsReceived++;
-                    ClientHandle.bytesReceived += packet.Length();
+                    NetStatistics.packetsReceived++;
+                    NetStatistics.bytesReceived += packet.Length();
                 }
                 else {
                     Debug.LogWarning($"No handler for packet id {packetId}");
@@ -371,8 +371,8 @@ public class Client : MonoBehaviour {
                 int id = packet.ReadInt();
                 if (packetHandlers.TryGetValue(id, out var handler)) {
                     handler(packet);
-                    ClientHandle.packetsReceived++;
-                    ClientHandle.bytesReceived += packet.Length();
+                    NetStatistics.packetsReceived++;
+                    NetStatistics.bytesReceived += packet.Length();
                 }
                 else {
                     Debug.LogWarning($"No handler for packet id {id}");
@@ -410,7 +410,7 @@ public class Client : MonoBehaviour {
             tcp.Disconnect();
             tcp = null;
         }
-    
+
         if (udp != null) {
             udp.Disconnect();
             udp = null;

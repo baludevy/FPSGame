@@ -76,12 +76,14 @@ public class ServerSend {
     public static void GameUpdate(int toClient, GameUpdate update) {
         using (Packet packet = new Packet((int)ServerPackets.gameUpdate)) {
             packet.Write(update.serverTick);
-            packet.Write(update.serverReceiveMargin);
-            packet.Write(update.serverInputJitter);
+            
+            packet.Write(update.timingInfo.inputReceiveMargin);
+            packet.Write(update.timingInfo.clientSendTimeAck);
+            packet.Write(update.timingInfo.serverSendTime);
+            packet.Write(update.timingInfo.serverReceiveTime);
 
-            packet.Write(update.clientSendTime);
-            packet.Write(update.serverSendTime);
-            packet.Write(update.serverReceiveTime);
+            packet.Write(update.upstreamStatistics.jitter);
+            packet.Write(update.upstreamStatistics.packetLoss);
 
             packet.Write(update.movementState.id);
             packet.Write(update.movementState.position);

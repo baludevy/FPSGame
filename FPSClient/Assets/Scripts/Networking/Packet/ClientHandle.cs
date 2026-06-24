@@ -3,8 +3,6 @@ using System.Net;
 using UnityEngine;
 
 public class ClientHandle {
-    public static int packetsReceived;
-    public static int bytesReceived;
 
     public static void Welcome(Packet packet) {
         int myId = packet.ReadInt();
@@ -35,12 +33,18 @@ public class ClientHandle {
 
     public static void GameUpdate(Packet packet) {
         uint serverTick = packet.ReadUInt();
-        float serverReceiveMargin = packet.ReadFloat();
-        float serverInputJitter = packet.ReadFloat();
 
-        float clientSendTime = packet.ReadFloat();
-        float serverSendTime = packet.ReadFloat();
-        float serverReceiveTime = packet.ReadFloat();
+        TimingInfo timingInfo = new TimingInfo {
+            inputReceiveMargin = packet.ReadFloat(),
+            clientSendTimeAck = packet.ReadFloat(),
+            serverSendTime = packet.ReadFloat(),
+            serverReceiveTime = packet.ReadFloat(),
+        };
+
+        UpstreamStatistics upstreamStatistics = new UpstreamStatistics {
+            jitter = packet.ReadFloat(),
+            packetLoss = packet.ReadFloat(),
+        };
 
         MovementState movementState = new MovementState() {
             id = packet.ReadInt(),
@@ -70,11 +74,8 @@ public class ClientHandle {
 
         GameUpdate update = new GameUpdate {
             serverTick = serverTick,
-            serverReceiveMargin = serverReceiveMargin,
-            serverInputJitter =  serverInputJitter,
-            clientSendTime = clientSendTime,
-            serverSendTime = serverSendTime,
-            serverReceiveTime = serverReceiveTime,
+            timingInfo = timingInfo,
+            upstreamStatistics = upstreamStatistics,
             movementState = movementState,
             worldSnapshot = snapshot,
         };

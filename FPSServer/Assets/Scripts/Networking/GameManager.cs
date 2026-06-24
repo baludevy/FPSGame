@@ -44,14 +44,10 @@ public class GameManager : FixedBehaviour {
         Player toPlayer = Server.clients[toClient].player;
 
         update.serverTick = FixedClock.tick;
-        update.serverSendTime = FixedClock.GetTime();
 
-        update.serverReceiveMargin = toPlayer.inputBuffer.serverReceiveMargin;
-        update.serverInputJitter = Mathf.Max(0f, toPlayer.inputBuffer.serverInputJitter);
+        update.timingInfo = toPlayer.inputBuffer.GetTimingInfo();
 
-        update.clientSendTime = toPlayer.inputBuffer.latestTimestamp;
-        update.serverReceiveTime = toPlayer.inputBuffer.latestReceived;
-
+        update.upstreamStatistics = toPlayer.inputBuffer.GetUpstreamStatistics();
 
         update.movementState = new MovementState() {
             id = toPlayer.id,

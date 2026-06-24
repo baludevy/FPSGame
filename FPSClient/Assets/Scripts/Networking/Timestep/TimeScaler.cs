@@ -1,57 +1,46 @@
 ﻿using UnityEngine;
 
 public static class TimeScaler {
-    private static float normalTimescale = 1f;
-    private static float minTimescale = 0.98f;
-    private static float maxTimescale = 1.02f;
-
     private static float sensitivity = 0.02f;
-    private static float smoothing = 0.25f;
+    private static float smoothing = 0.4f;
+    private static float jitterDeadbandMult = 0.5f;
+    private static float maxOffset = 0.05f;
 
     private static float currentMargin;
     private static float targetTimescale = 1f;
-    private static float currentThreshold;
-
+    private static float currentDeadband;
     private static float stableDuration;
     private static float lastSampleTime;
-    private static bool hasSample;
 
     public static void AdjustInputClock(float marginSeconds) {
-        float tickTime = NetworkSettings.tickTime;
-        float targetSeconds = NetworkSettings.targetServerMargin;
-
         currentMargin = marginSeconds;
 
         float now = FixedClock.GetTime();
-        float deltaTime = hasSample ? Mathf.Max(now - lastSampleTime, 0.0001f) : 0f;
-
+        float deltaTime = now - lastSampleTime;
         lastSampleTime = now;
-        hasSample = true;
 
-        currentThreshold = Mathf.Min(targetSeconds * 0.25f, tickTime * 0.5f);
+        float deviation = marginSeconds - NetworkSettings.targetInputMargin;
+        
+        currentDeadband = Mathf.Clamp(NetStatistics.upstreamJitter * jitterDeadbandMult, 0.002f, 0.05f);
 
-        float deviation = marginSeconds - targetSeconds;
-        bool withinThreshold = Mathf.Abs(deviation) <= currentThreshold;
-
-        if (withinThreshold) {
+        if (Mathf.Abs(deviation) <= currentDeadband) {
             stableDuration += deltaTime;
-            targetTimescale = normalTimescale;
-        }
-        else {
+            targetTimescale = 1f;
+        } else {
             stableDuration = 0f;
-
-            float adjustment = -(deviation / tickTime) * sensitivity;
-
-            targetTimescale = Mathf.Clamp(
-                normalTimescale + adjustment,
-                minTimescale,
-                maxTimescale);
+            float pTerm = -(deviation / NetworkSettings.tickTime) * sensitivity;
+            targetTimescale = Mathf.Clamp(1f + pTerm, 1f - maxOffset, 1f + maxOffset);
         }
 
-        FixedClock.timeScale = Mathf.Lerp(
-            FixedClock.timeScale,
-            targetTimescale,
-            smoothing);
+        FixedClock.timeScale = Mathf.Lerp(FixedClock.timeScale, targetTimescale, smoothing);
+    }
+
+    public static float GetCurrentDeadband() {
+        return currentDeadband;
+    }
+
+    public static float GetStableDuration() {
+        return stableDuration;
     }
 
     public static float GetCurrentMargin() {
@@ -61,12 +50,9 @@ public static class TimeScaler {
     public static void Reset() {
         currentMargin = 0f;
         targetTimescale = 1f;
-        currentThreshold = 0f;
-
+        currentDeadband = 0f;
         stableDuration = 0f;
         lastSampleTime = 0f;
-        hasSample = false;
-
         FixedClock.timeScale = 1f;
     }
 }
