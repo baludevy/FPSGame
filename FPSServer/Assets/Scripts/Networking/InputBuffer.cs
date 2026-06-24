@@ -8,6 +8,7 @@ public class InputBuffer {
     private InputData lastValidInputData;
 
     private uint latestClientTick;
+    private uint latestInputSequence;
     private float latestClientTimestamp;
     private float latestReceiveTimestamp;
 
@@ -67,7 +68,7 @@ public class InputBuffer {
         return fallbackInputData;
     }
 
-    public void AddInputsToQueue(List<InputData> inputs, float clientSendTime) {
+    public void AddInputsToQueue(List<InputData> inputs, uint sequence, float clientSendTime) {
         latestClientTimestamp = clientSendTime;
         latestReceiveTimestamp = FixedClock.GetTime();
 
@@ -85,15 +86,20 @@ public class InputBuffer {
 
             float scheduledTickTime = input.tick * NetworkSettings.tickTime;
             calculatedMargins[i] = scheduledTickTime - latestReceiveTimestamp;
+            
+            
         }
+
+        float currentLatency = latestReceiveTimestamp - clientSendTime;
+        
+        UpdatePacketLoss(sequence);
+        SampleJitter(currentLatency);
+
+        latestInputSequence = sequence;
 
         if (newestInBatch > previousLatest) {
             latestClientTick = newestInBatch;
         }
-
-        float currentLatency = latestReceiveTimestamp - clientSendTime;
-
-        SampleJitter(currentLatency);
     }
 
     private void SampleJitter(float currentLatency) {
@@ -124,30 +130,30 @@ public class InputBuffer {
         clientUpstreamJitter = jitterSorted[p95Index];
     }
 
-    private void UpdatePacketLoss(uint tick) {
+    private void UpdatePacketLoss(uint sequence) {
         if (!hasTick) {
             hasTick = true;
-            latestClientTick = tick;
+            latestInputSequence = sequence;
         }
 
-        if (tick <= latestClientTick) return;
+        if (sequence <= latestInputSequence) return;
 
-        uint missedTicks = (uint)Mathf.Min(tick - latestClientTick - 1, lossWindow);
+        uint missedTicks = (uint)Mathf.Min(sequence - latestInputSequence - 1, lossWindow);
         for (uint i = 1; i <= missedTicks; i++) {
-            int slot = (int)((latestClientTick + i) % lossWindow);
+            int slot = (int)((latestInputSequence + i) % lossWindow);
             if (received[slot]) {
                 received[slot] = false;
                 receivedCount--;
             }
         }
 
-        int arrivedSlot = (int)(tick % lossWindow);
+        int arrivedSlot = (int)(sequence % lossWindow);
         if (!received[arrivedSlot]) {
             receivedCount++;
             received[arrivedSlot] = true;
         }
 
-        latestClientTick = tick;
+        latestInputSequence = sequence;
 
         float sampleLoss = 1f - (receivedCount / (float)lossWindow);
         clientUpstreamPacketLoss = sampleLoss;

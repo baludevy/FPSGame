@@ -22,6 +22,7 @@ public class ServerHandle {
     }
 
     public static void PlayerInput(int fromClient, Packet packet) {
+        uint playerInputSequence = packet.ReadUInt();
         float clientSendTime = packet.ReadFloat();
         
         int inputCount = packet.ReadByte();
@@ -46,6 +47,6 @@ public class ServerHandle {
 
         Player player = Server.clients[fromClient].player;
 
-        player.inputBuffer.AddInputsToQueue(inputs, clientSendTime);
+        player.inputBuffer.AddInputsToQueue(inputs, playerInputSequence, clientSendTime);
     }
 }

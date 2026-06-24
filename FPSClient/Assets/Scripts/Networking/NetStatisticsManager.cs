@@ -6,7 +6,9 @@ public static class NetStatisticsManager {
     private static float packetLossSmooth = 0.1f;
 
     private static float lastClientReceive = -1f;
+    private static float lastClientSend = -1f;
     private static float lastServerSend = -1f;
+    private static float lastServerReceive = -1f;
 
     private static int jitterWindow = 128;
     private static readonly float[] jitterSamples = new float[jitterWindow];
@@ -21,17 +23,24 @@ public static class NetStatisticsManager {
     private static uint latestTick;
     private static bool hasTick;
 
-    public static void UpdateStatistics(uint serverTick, float clientReceive, TimingInfo timing, UpstreamStatistics upstream) {
+    private static float lastInputMargin;
+
+    public static void UpdateStatistics(uint serverTick, float clientReceive, TimingInfo timing,
+        UpstreamStatistics upstream) {
         float serverProcessTime = timing.serverSendTime - timing.serverReceiveTime;
         float pingSample = clientReceive - timing.clientSendTimeAck - serverProcessTime;
 
         NetStatistics.ping = Mathf.Max(0f, Mathf.Lerp(NetStatistics.ping, pingSample, pingSmooth));
+
+        NetStatistics.inputMargin = (0.1f * timing.inputReceiveMargin) + ((1f - 0.1f) * lastInputMargin);
 
         UpdateJitter(timing.serverSendTime, clientReceive);
         UpdatePacketLoss(serverTick);
 
         NetStatistics.upstreamJitter = upstream.jitter;
         NetStatistics.upstreamPacketLoss = upstream.packetLoss;
+
+        lastInputMargin = NetStatistics.inputMargin;
     }
 
     private static void UpdateJitter(float serverSend, float clientReceive) {
@@ -65,7 +74,7 @@ public static class NetStatisticsManager {
         if (!hasTick) {
             hasTick = true;
             latestTick = serverTick;
-            
+
             int slot = (int)(serverTick % lossWindow);
             receivedMask[slot] = true;
             receivedTicks[slot] = serverTick;
@@ -80,7 +89,7 @@ public static class NetStatisticsManager {
             for (int i = 1; i < ticksToClear; i++) {
                 uint clearTick = latestTick + (uint)i;
                 int clearSlot = (int)(clearTick % lossWindow);
-                
+
                 if (receivedMask[clearSlot] && receivedTicks[clearSlot] == clearTick - (uint)lossWindow) {
                     receivedMask[clearSlot] = false;
                     receivedCount--;
@@ -91,13 +100,13 @@ public static class NetStatisticsManager {
         }
 
         int arrivedSlot = (int)(serverTick % lossWindow);
-        
+
         if (tickDelta >= -lossWindow) {
             if (!receivedMask[arrivedSlot] || receivedTicks[arrivedSlot] != serverTick) {
                 if (receivedMask[arrivedSlot]) {
                     receivedCount--;
                 }
-                
+
                 receivedMask[arrivedSlot] = true;
                 receivedTicks[arrivedSlot] = serverTick;
                 receivedCount++;
@@ -105,7 +114,8 @@ public static class NetStatisticsManager {
         }
 
         float sampleLoss = 1f - (Mathf.Clamp(receivedCount, 0, lossWindow) / (float)lossWindow);
-        NetStatistics.downstreamPacketLoss = Mathf.Lerp(NetStatistics.downstreamPacketLoss, sampleLoss, packetLossSmooth);
+        NetStatistics.downstreamPacketLoss =
+            Mathf.Lerp(NetStatistics.downstreamPacketLoss, sampleLoss, packetLossSmooth);
     }
 
     public static void ApplyAdjustments() {
@@ -115,11 +125,13 @@ public static class NetStatisticsManager {
 
         float baseBuffer = 0.005f;
         float jitterPad = NetStatistics.upstreamJitter * 0.95f;
-        float targetNow = Mathf.Clamp(baseBuffer + jitterPad, baseBuffer, NetworkSettings.tickTime * 4f);
-        NetworkSettings.targetInputMargin = Mathf.Lerp(NetworkSettings.targetInputMargin, targetNow, 0.1f);
+        float packetLossPad = Mathf.Clamp((NetStatistics.upstreamPacketLoss / 10f), 0f, 0.04f);
 
-        float lossToUse = NetStatistics.upstreamPacketLoss > 0f ? NetStatistics.upstreamPacketLoss : NetStatistics.downstreamPacketLoss;
-        NetworkSettings.inputRedundancy = Mathf.Clamp(Mathf.RoundToInt((lossToUse * 100f) / 4f), 1, 3);
+        Debug.Log(packetLossPad);
+
+        float targetNow =
+            Mathf.Clamp(baseBuffer + jitterPad + packetLossPad, baseBuffer, NetworkSettings.tickTime * 4f);
+        NetworkSettings.targetInputMargin = Mathf.Lerp(NetworkSettings.targetInputMargin, targetNow, 0.1f);
     }
 
     public static void Reset() {
@@ -145,6 +157,7 @@ public static class NetStatistics {
     public static float downstreamPacketLoss;
     public static float bytesSent;
     public static float bytesReceived;
-    public static float packetsSent;
-    public static float packetsReceived;
+    public static int packetsSent;
+    public static int packetsReceived;
+    public static float inputMargin;
 }

@@ -35,7 +35,7 @@ public class SnapshotManager : MonoBehaviour {
 
             NetStatisticsManager.ApplyAdjustments();
 
-            TimeScaler.AdjustInputClock(update.timingInfo.inputReceiveMargin);
+            TimeScaler.AdjustInputClock(NetStatistics.inputMargin);
         }
 
         if (update.serverTick > lastReconciledTick) {
