@@ -70,19 +70,25 @@ public class PlayerMovement : MonoBehaviour {
         baseScale = transform.localScale;
     }
 
-    public void SetInput(InputData inp) {
-        if (inp.crouching && !crouching) {
+    public void SetInput(InputData input) {
+        bool inputCrouching =
+            (input.buttons & Buttons.Crouch) != 0;
+
+        bool inputJumping =
+            (input.buttons & Buttons.Jump) != 0;
+
+        if (inputCrouching && !crouching) {
             StartCrouch();
         }
-        else if (!inp.crouching && crouching) {
+        else if (!inputCrouching && crouching) {
             StopCrouch();
         }
 
-        x = inp.x;
-        y = inp.y;
-        orientation.localRotation = Quaternion.Euler(0f, inp.yaw, 0f);
-        jumping = inp.jumping;
-        crouching = inp.crouching;
+        x = input.x;
+        y = input.y;
+        orientation.localRotation = Quaternion.Euler(0f, input.yaw, 0f);
+        jumping = inputJumping;
+        crouching = inputCrouching;
     }
 
     public void AdvanceLogic() {

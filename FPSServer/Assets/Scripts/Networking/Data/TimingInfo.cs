@@ -1,4 +1,4 @@
-﻿public class TimingInfo {
+﻿public struct TimingInfo {
     public float inputReceiveMargin; // time until latest input will get executed
     public float clientSendTimeAck; // the latest timestamp we received from the client
     public float serverReceiveTime; // when did the server receive the latest input packet

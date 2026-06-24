@@ -10,8 +10,13 @@ public class InputData {
     public float pitch;
     public float yaw;
 
-    public bool jumping;
-    public bool crouching;
+    public Buttons buttons;
+}
 
-    public bool shoot;
+[System.Flags]
+public enum Buttons : byte {
+    None = 0,
+    Jump = 1 << 0,
+    Crouch = 1 << 1,
+    Shoot = 1 << 2,
 }

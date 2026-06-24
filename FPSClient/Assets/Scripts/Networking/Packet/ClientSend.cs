@@ -50,13 +50,11 @@ public class ClientSend {
             foreach (InputData input in inputs) {
                 packet.Write(input.tick);
                 packet.Write(input.renderTick);
-                packet.Write(input.x);
-                packet.Write(input.y);
+                packet.Write(FloatCompressor.FloatToShort(input.x));
+                packet.Write(FloatCompressor.FloatToShort(input.y));
                 packet.Write(input.pitch);
                 packet.Write(input.yaw);
-                packet.Write(input.jumping);
-                packet.Write(input.crouching);
-                packet.Write(input.shoot);
+                packet.Write((byte)input.buttons);
             }
 
             SendUDPData(packet);

@@ -1,4 +1,4 @@
-﻿public class GameUpdate {
+﻿public struct GameUpdate {
     public uint serverTick;
     
     public TimingInfo timingInfo;

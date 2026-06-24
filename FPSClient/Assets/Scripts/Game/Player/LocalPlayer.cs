@@ -30,9 +30,9 @@ public class LocalPlayer : FixedBehaviour {
 
         prediction.PredictState(currentInputData);
 
-        if (currentInputData.shoot) {
+        if ((currentInputData.buttons & Buttons.Shoot) != 0) {
             weapon.Shoot();
-        }
+        } 
         
         Physics.SyncTransforms();
         Physics.Simulate(NetworkSettings.tickTime);

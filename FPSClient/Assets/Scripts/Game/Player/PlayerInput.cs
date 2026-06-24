@@ -23,6 +23,17 @@ public class PlayerInput : MonoBehaviour {
     }
 
     public InputData GatherInput(uint tick) {
+        Buttons buttons = Buttons.None;
+
+        if (jumping)
+            buttons |= Buttons.Jump;
+
+        if (crouching)
+            buttons |= Buttons.Crouch;
+
+        if (shoot)
+            buttons |= Buttons.Shoot;
+
         InputData inputData = new InputData {
             tick = tick,
             renderTick = 0,
@@ -30,9 +41,7 @@ public class PlayerInput : MonoBehaviour {
             y = y,
             pitch = LocalPlayer.Instance.playerCamera.GetCameraRot().x,
             yaw = LocalPlayer.Instance.playerCamera.GetCameraRot().y,
-            jumping = jumping,
-            crouching = crouching,
-            shoot = shoot,
+            buttons = buttons,
         };
 
         uint i = inputData.tick % NetworkSettings.inputHistorySize;

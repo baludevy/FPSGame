@@ -24,7 +24,7 @@ public class ServerHandle {
     public static void PlayerInput(int fromClient, Packet packet) {
         uint playerInputSequence = packet.ReadUInt();
         float clientSendTime = packet.ReadFloat();
-        
+
         int inputCount = packet.ReadByte();
 
         List<InputData> inputs = new List<InputData>();
@@ -33,13 +33,11 @@ public class ServerHandle {
             InputData inputData = new InputData {
                 tick = packet.ReadUInt(),
                 renderTick = packet.ReadFloat(),
-                x = packet.ReadFloat(),
-                y = packet.ReadFloat(),
+                x = FloatCompressor.ShortToFloat(packet.ReadShort()),
+                y = FloatCompressor.ShortToFloat(packet.ReadShort()),
                 pitch = packet.ReadFloat(),
                 yaw = packet.ReadFloat(),
-                jumping = packet.ReadBool(),
-                crouching = packet.ReadBool(),
-                shoot = packet.ReadBool(),
+                buttons = (Buttons)packet.ReadByte(),
             };
 
             inputs.Add(inputData);

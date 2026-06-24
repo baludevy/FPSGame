@@ -76,19 +76,25 @@ public class PlayerMovement : MonoBehaviour {
         CursorManager.DisableCursor();
     }
 
-    public void SetInput(InputData inp) {
-        if (inp.crouching && !crouching) {
+    public void SetInput(InputData input) {
+        bool inputCrouching =
+            (input.buttons & Buttons.Crouch) != 0;
+
+        bool inputJumping =
+            (input.buttons & Buttons.Jump) != 0;
+
+        if (inputCrouching && !crouching) {
             StartCrouch();
         }
-        else if (!inp.crouching && crouching) {
+        else if (!inputCrouching && crouching) {
             StopCrouch();
         }
 
-        x = inp.x;
-        y = inp.y;
-        orientation.localRotation = Quaternion.Euler(0f, inp.yaw, 0f);
-        jumping = inp.jumping;
-        crouching = inp.crouching;
+        x = input.x;
+        y = input.y;
+        orientation.localRotation = Quaternion.Euler(0f, input.yaw, 0f);
+        jumping = inputJumping;
+        crouching = inputCrouching;
     }
 
     public void AdvanceLogic() {
@@ -365,21 +371,21 @@ public class PlayerMovement : MonoBehaviour {
     private void WallRunning() {
         Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
         float currentSpeed = flatVel.magnitude;
-        
+
         Vector3 rawForwardFlat = Vector3.ProjectOnPlane(orientation.forward, Vector3.up);
         if (rawForwardFlat.sqrMagnitude > 0.001f) {
             rawForwardFlat = rawForwardFlat.normalized;
         }
-        
+
         Vector3 camWallDir = Vector3.ProjectOnPlane(orientation.forward, wallNormalVector);
         camWallDir = Vector3.ProjectOnPlane(camWallDir, Vector3.up);
 
         Vector3 tangentDir = camWallDir.sqrMagnitude > 0.001f
             ? camWallDir.normalized
             : (flatVel.sqrMagnitude > 0.001f ? flatVel.normalized : rawForwardFlat);
-        
+
         float awayAngle = Vector3.Angle(orientation.forward, wallNormalVector);
-        
+
         float stickAmount = Mathf.Clamp01(Mathf.InverseLerp(20, 50, awayAngle));
 
         Vector3 flatDir = Vector3.Lerp(rawForwardFlat, tangentDir, stickAmount);
@@ -398,6 +404,7 @@ public class PlayerMovement : MonoBehaviour {
             if (IsPressingTowardWall(wallNormalVector)) {
                 targetFall = wallRunMaxFallSpeed;
             }
+
             if (rb.velocity.y < targetFall) {
                 rb.velocity = new Vector3(rb.velocity.x, targetFall, rb.velocity.z);
             }
@@ -471,7 +478,7 @@ public class PlayerMovement : MonoBehaviour {
             transform.forward,
             -transform.forward
         };
-        
+
         if (TryFindWall(origin, dirs, wallRunDistance, out RaycastHit hit)) {
             Bounds bounds = playerCollider.bounds;
 

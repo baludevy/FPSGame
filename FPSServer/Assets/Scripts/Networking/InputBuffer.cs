@@ -58,7 +58,6 @@ public class InputBuffer {
             renderTick = lastValidInputData.renderTick,
             x = lastValidInputData.x,
             y = lastValidInputData.y,
-            crouching = lastValidInputData.crouching,
             pitch = lastValidInputData.pitch,
             yaw = lastValidInputData.yaw,
         };
