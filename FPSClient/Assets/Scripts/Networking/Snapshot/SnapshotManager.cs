@@ -32,8 +32,7 @@ public class SnapshotManager : MonoBehaviour {
 
             float now = FixedClock.GetTime();
             NetStatisticsManager.UpdateStatistics(update.serverTick, now, update.timingInfo, update.upstreamStatistics);
-
-            NetStatisticsManager.ApplyAdjustments();
+            NetworkTuner.Apply();
 
             TimeScaler.AdjustInputClock(NetStatistics.inputMargin);
         }

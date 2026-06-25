@@ -4,7 +4,7 @@ public static class TickSync {
     private const int targetSamples = 4;
     private const float pingInterval = 0.01f;
 
-    private static bool syncing;
+    public static bool syncing;
     private static float lastPingTime;
 
     private static int samples;
@@ -58,7 +58,7 @@ public static class TickSync {
 
         syncing = false;
 
-        FixedClock.tick = bestTick + 2;
+        FixedClock.tick = bestTick;
     }
 
     private static void SendPing(float clientSendTime) {

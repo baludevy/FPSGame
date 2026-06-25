@@ -50,6 +50,11 @@ public class FixedClock : MonoBehaviour {
             behaviours[i].UpdateFixed();
     }
 
+    public static void Nudge(float seconds) {
+        if (seconds <= 0f) return;
+        accumulator += seconds;
+    }
+
     public static float GetTime() {
         return (float)stopwatch.Elapsed.TotalSeconds;
     }
@@ -57,7 +62,7 @@ public class FixedClock : MonoBehaviour {
     public static float GetAccumulatedTime() {
         return accumulator;
     }
-    
+
 
     public static void Reset() {
         accumulator = 0f;

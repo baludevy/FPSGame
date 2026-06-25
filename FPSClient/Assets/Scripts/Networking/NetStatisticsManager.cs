@@ -6,9 +6,7 @@ public static class NetStatisticsManager {
     private static float packetLossSmooth = 0.1f;
 
     private static float lastClientReceive = -1f;
-    private static float lastClientSend = -1f;
     private static float lastServerSend = -1f;
-    private static float lastServerReceive = -1f;
 
     private static int jitterWindow = 128;
     private static readonly float[] jitterSamples = new float[jitterWindow];
@@ -32,7 +30,7 @@ public static class NetStatisticsManager {
 
         NetStatistics.ping = Mathf.Max(0f, Mathf.Lerp(NetStatistics.ping, pingSample, pingSmooth));
 
-        NetStatistics.inputMargin = (0.1f * timing.inputReceiveMargin) + ((1f - 0.1f) * lastInputMargin);
+        NetStatistics.inputMargin = (0.0625f * timing.inputReceiveMargin) + ((1f - 0.0625f) * lastInputMargin);
 
         UpdateJitter(timing.serverSendTime, clientReceive);
         UpdatePacketLoss(serverTick);
@@ -116,33 +114,6 @@ public static class NetStatisticsManager {
         float sampleLoss = 1f - (Mathf.Clamp(receivedCount, 0, lossWindow) / (float)lossWindow);
         NetStatistics.downstreamPacketLoss =
             Mathf.Lerp(NetStatistics.downstreamPacketLoss, sampleLoss, packetLossSmooth);
-    }
-
-    public static void ApplyAdjustments() {
-        float jitterInTicks = NetStatistics.downstreamJitter / NetworkSettings.tickTime;
-        int calculatedBuffer = Mathf.CeilToInt(jitterInTicks) + 1;
-        NetworkSettings.interpTime = Mathf.Max(2, calculatedBuffer) * NetworkSettings.tickTime;
-
-        float baseBuffer = 0.005f;
-        float jitterPad = NetStatistics.upstreamJitter * 0.95f;
-        float packetLossPad = Mathf.Clamp((NetStatistics.upstreamPacketLoss / 10f), 0f, 0.04f);
-
-        float targetNow =
-            Mathf.Clamp(baseBuffer + jitterPad + packetLossPad, baseBuffer, NetworkSettings.tickTime * 4f);
-        NetworkSettings.targetInputMargin = Mathf.Lerp(NetworkSettings.targetInputMargin, targetNow, 0.05f);
-
-        if (NetStatistics.upstreamPacketLoss > 10) {
-            NetworkSettings.inputRedundancy = 4;
-        }
-        else if (NetStatistics.upstreamPacketLoss > 5) {
-            NetworkSettings.inputRedundancy = 3;
-        }
-        else if (NetStatistics.upstreamPacketLoss > 0) {
-            NetworkSettings.inputRedundancy = 2;
-        }
-        else {
-            NetworkSettings.inputRedundancy = 0;
-        }
     }
 
     public static void Reset() {
