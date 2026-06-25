@@ -85,8 +85,6 @@ public class InputBuffer {
 
             float scheduledTickTime = input.tick * NetworkSettings.tickTime;
             calculatedMargins[i] = scheduledTickTime - latestReceiveTimestamp;
-            
-            
         }
 
         float currentLatency = latestReceiveTimestamp - clientSendTime;

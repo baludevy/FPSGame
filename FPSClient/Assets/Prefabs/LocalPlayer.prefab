@@ -5334,8 +5334,8 @@ MonoBehaviour:
   threshold: 0.01
   maxSlopeAngle: 35
   jumpForce: 13
-  airAcceleration: 25
-  maxAirSpeed: 11
+  airAcceleration: 50
+  maxAirSpeed: 7
   slideBoost: 10
   maxSlideSpeed: 20
   slideSlopeAccel: 1.3

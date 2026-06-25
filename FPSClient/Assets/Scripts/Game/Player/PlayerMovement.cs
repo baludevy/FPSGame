@@ -77,11 +77,8 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     public void SetInput(InputData input) {
-        bool inputCrouching =
-            (input.buttons & Buttons.Crouch) != 0;
-
-        bool inputJumping =
-            (input.buttons & Buttons.Jump) != 0;
+        bool inputCrouching = (input.buttons & Buttons.Crouch) != 0;
+        bool inputJumping = (input.buttons & Buttons.Jump) != 0;
 
         if (inputCrouching && !crouching) {
             StartCrouch();
@@ -179,20 +176,20 @@ public class PlayerMovement : MonoBehaviour {
         Vector3 moveRight = Vector3.ProjectOnPlane(orientation.right, normalVector);
         Vector3 moveForward = Vector3.ProjectOnPlane(orientation.forward, normalVector);
 
-        if (moveRight.sqrMagnitude > 0.0001f) {
-            moveRight = moveRight.normalized;
-        }
-
-        if (moveForward.sqrMagnitude > 0.0001f) {
-            moveForward = moveForward.normalized;
-        }
+        if (moveRight.sqrMagnitude > 0.0001f) moveRight = moveRight.normalized;
+        if (moveForward.sqrMagnitude > 0.0001f) moveForward = moveForward.normalized;
 
         CounterMovement(mag, moveRight, moveForward);
 
         rb.AddForce(moveRight * x * acceleration * NetworkSettings.tickTime * mult);
         rb.AddForce(moveForward * y * acceleration * NetworkSettings.tickTime * mult);
 
-        rb.velocity = Vector3.ProjectOnPlane(rb.velocity, normalVector);
+        // cancel any velocity component along the normal to keep movement on the slope plane
+        float normalVel = Vector3.Dot(rb.velocity, normalVector);
+        if (normalVel > 0f) {
+            rb.AddForce(-normalVector * normalVel, ForceMode.VelocityChange);
+        }
+
         rb.AddForce(-normalVector, ForceMode.Acceleration);
 
         if (Mathf.Abs(x) < threshold && Mathf.Abs(y) < threshold) {
@@ -208,21 +205,20 @@ public class PlayerMovement : MonoBehaviour {
 
         if (wishDir.sqrMagnitude > 0.001f) {
             wishDir = wishDir.normalized;
-        }
-        else {
+        } else {
             return;
         }
-
+        
+        float wishSpeed = Mathf.Min(maxAirSpeed, airAcceleration); 
+        
         float currentSpeed = Vector3.Dot(vel, wishDir);
-        float addSpeed = maxAirSpeed - currentSpeed;
+        float addSpeed = wishSpeed - currentSpeed;
 
         if (addSpeed <= 0f) {
             return;
         }
 
-        float accelSpeed = airAcceleration * NetworkSettings.tickTime;
-        accelSpeed = Mathf.Min(accelSpeed, addSpeed);
-
+        float accelSpeed = Mathf.Min(airAcceleration * NetworkSettings.tickTime, addSpeed);
         rb.AddForce(wishDir * accelSpeed, ForceMode.VelocityChange);
     }
 
@@ -254,7 +250,7 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void Jump() {
-        if (wallRunning) {
+        if (wallRunning || startingWallRun) {
             WallKick();
             return;
         }
@@ -264,11 +260,13 @@ public class PlayerMovement : MonoBehaviour {
         }
 
         jumpedThisFrame = true;
-        Vector3 flatVel = Vector3.ProjectOnPlane(rb.velocity, normalVector);
-        rb.velocity = flatVel;
+
+        float normalVel = Vector3.Dot(rb.velocity, normalVector);
+        if (normalVel != 0f) {
+            rb.AddForce(-normalVector * normalVel, ForceMode.VelocityChange);
+        }
 
         LocalPlayer.Instance.playerCamera.BobRotOnce(Vector3.right * 3f);
-
         MoveWeapon.Instance.BobPos(Vector3.down * 0.1f);
         MoveWeapon.Instance.BobRot(Vector3.left * 8f);
 
@@ -339,9 +337,8 @@ public class PlayerMovement : MonoBehaviour {
         Vector3 gravityAlongSlope = Vector3.ProjectOnPlane(Physics.gravity, normalVector);
         rb.AddForce(gravityAlongSlope * slideSlopeAccel, ForceMode.Acceleration);
 
-        Vector3 vel = rb.velocity;
-        Vector3 slopeDir = Vector3.ProjectOnPlane(vel, normalVector);
-        float speed = slopeDir.magnitude;
+        Vector3 slopeVel = Vector3.ProjectOnPlane(rb.velocity, normalVector);
+        float speed = slopeVel.magnitude;
 
         if (speed < 0.01f) {
             return;
@@ -351,14 +348,13 @@ public class PlayerMovement : MonoBehaviour {
         float drop = control * slideFriction * NetworkSettings.tickTime;
         float newSpeed = Mathf.Max(speed - drop, 0f);
 
-        Vector3 newVel = slopeDir.normalized * newSpeed;
-        newVel.y = vel.y;
-        rb.velocity = newVel;
+        float speedDelta = speed - newSpeed;
+        rb.AddForce(-slopeVel.normalized * speedDelta, ForceMode.VelocityChange);
     }
 
     private void StartWallRun() {
         startingWallRun = true;
-        // cancelWallRunAction = TickInvoker.Invoke(ForceExitWallRun, TickUtil.SecondsToTick(wallRunMaxTime));
+        // cancelWallRunAction = player.invoker.Invoke(ForceExitWallRun, TickUtil.SecondsToTick(wallRunMaxTime));
 
         Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
         rb.velocity = flatVel;
@@ -385,9 +381,7 @@ public class PlayerMovement : MonoBehaviour {
             : (flatVel.sqrMagnitude > 0.001f ? flatVel.normalized : rawForwardFlat);
 
         float awayAngle = Vector3.Angle(orientation.forward, wallNormalVector);
-
         float stickAmount = Mathf.Clamp01(Mathf.InverseLerp(20, 50, awayAngle));
-
         Vector3 flatDir = Vector3.Lerp(rawForwardFlat, tangentDir, stickAmount);
 
         if (currentSpeed < wallRunSpeed && y > threshold) {
@@ -396,17 +390,17 @@ public class PlayerMovement : MonoBehaviour {
             rb.AddForce(flatDir * accel);
         }
         else if (currentSpeed > wallRunSpeed) {
-            rb.velocity -= flatVel * 0.1f * NetworkSettings.tickTime;
+            // Brake excess horizontal speed
+            float overspeed = currentSpeed - wallRunSpeed;
+            rb.AddForce(-flatVel.normalized * overspeed * 0.1f * NetworkSettings.tickTime, ForceMode.VelocityChange);
         }
 
         if (!jumping) {
-            float targetFall = wallRunIdleMaxFallSpeed;
-            if (IsPressingTowardWall(wallNormalVector)) {
-                targetFall = wallRunMaxFallSpeed;
-            }
+            float targetFall = IsPressingTowardWall(wallNormalVector) ? wallRunMaxFallSpeed : wallRunIdleMaxFallSpeed;
 
-            if (rb.velocity.y < targetFall) {
-                rb.velocity = new Vector3(rb.velocity.x, targetFall, rb.velocity.z);
+            float currentFall = rb.velocity.y;
+            if (currentFall < targetFall) {
+                rb.AddForce(Vector3.up * (targetFall - currentFall), ForceMode.VelocityChange);
             }
         }
     }
@@ -420,12 +414,15 @@ public class PlayerMovement : MonoBehaviour {
         ResetWallRun();
     }
 
+
     private void ForceExitWallRun() {
-        Vector3 impulse = wallNormalVector * wallKickImpulse * 2f;
+        // Cancel downward velocity before forcing exit
+        float downVel = Mathf.Min(rb.velocity.y, 0f);
+        if (downVel < 0f) {
+            rb.AddForce(Vector3.up * -downVel, ForceMode.VelocityChange);
+        }
 
-        rb.velocity = new Vector3(rb.velocity.x, Mathf.Min(rb.velocity.y, 0f), rb.velocity.z);
-        rb.AddForce(impulse, ForceMode.Impulse);
-
+        rb.AddForce(wallNormalVector * wallKickImpulse * 2f, ForceMode.Impulse);
         ResetWallRun();
     }
 
@@ -525,20 +522,15 @@ public class PlayerMovement : MonoBehaviour {
 
         Vector3 counterForce = Vector3.zero;
 
-        if (ShouldCounter(mag.x, x)) {
-            counterForce += -slopeRight * mag.x;
-        }
-
-        if (ShouldCounter(mag.y, y)) {
-            counterForce += -slopeForward * mag.y;
-        }
+        if (ShouldCounter(mag.x, x)) counterForce += -slopeRight * mag.x;
+        if (ShouldCounter(mag.y, y)) counterForce += -slopeForward * mag.y;
 
         rb.AddForce(counterForce * acceleration * counterMovement * NetworkSettings.tickTime);
 
         if (!sliding) {
             Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-            if (flatVel.magnitude < 0.05f) {
-                rb.velocity = new Vector3(0f, rb.velocity.y, 0f);
+            if (flatVel.sqrMagnitude < 0.05f * 0.05f) {
+                rb.AddForce(new Vector3(-rb.velocity.x, 0f, -rb.velocity.z), ForceMode.VelocityChange);
             }
         }
 
@@ -560,8 +552,9 @@ public class PlayerMovement : MonoBehaviour {
         Vector3 flatVel = new Vector3(vel.x, 0f, vel.z);
 
         if (flatVel.sqrMagnitude > maxSpeed * maxSpeed) {
+            // Correct excess speed via VelocityChange impulse
             Vector3 limited = flatVel.normalized * maxSpeed;
-            rb.velocity = limited + Vector3.Project(vel, normalVector);
+            rb.AddForce(limited - flatVel, ForceMode.VelocityChange);
         }
     }
 
@@ -571,13 +564,9 @@ public class PlayerMovement : MonoBehaviour {
 
     private bool IsTouchingWall(Vector3 direction, out RaycastHit hit) {
         Bounds b = playerCollider.bounds;
-        if (Physics.Raycast(b.center, direction.normalized, out hit, b.extents.x + 0.1f, whatIsGround,
-                QueryTriggerInteraction.Ignore)
-            && IsWall(hit.normal)) {
-            return true;
-        }
-
-        return false;
+        return Physics.Raycast(b.center, direction.normalized, out hit, b.extents.x + 0.1f, whatIsGround,
+                   QueryTriggerInteraction.Ignore)
+               && IsWall(hit.normal);
     }
 
     private bool IsPressingTowardWall(Vector3 wallNormal) {
