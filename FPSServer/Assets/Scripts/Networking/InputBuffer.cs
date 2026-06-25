@@ -25,9 +25,9 @@ public class InputBuffer {
     private float intervalSmoothing = 0.1f;
 
     private static int lossWindow = 128;
-    private static readonly bool[] received = new bool[lossWindow];
-    private static int receivedCount;
-    private static bool hasTick;
+    private readonly bool[] received = new bool[lossWindow];
+    private int receivedCount;
+    private bool hasTick;
 
     private float smoothedLatency;
     private bool hasLastLatency;
@@ -106,9 +106,8 @@ public class InputBuffer {
             return;
         }
 
-        smoothedLatency = (currentLatency * intervalSmoothing) + (smoothedLatency * (1f - intervalSmoothing));
-
         float delta = Mathf.Abs(currentLatency - smoothedLatency);
+        smoothedLatency = currentLatency;
 
         jitterSamples[jitterIndex] = delta;
         jitterIndex = (jitterIndex + 1) % jitterWindow;

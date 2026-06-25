@@ -205,12 +205,13 @@ public class PlayerMovement : MonoBehaviour {
 
         if (wishDir.sqrMagnitude > 0.001f) {
             wishDir = wishDir.normalized;
-        } else {
+        }
+        else {
             return;
         }
-        
-        float wishSpeed = Mathf.Min(maxAirSpeed, airAcceleration); 
-        
+
+        float wishSpeed = Mathf.Min(maxAirSpeed, airAcceleration);
+
         float currentSpeed = Vector3.Dot(vel, wishDir);
         float addSpeed = wishSpeed - currentSpeed;
 

@@ -1,12 +1,13 @@
 ﻿using System;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PlayerCamera : MonoBehaviour {
     [SerializeField] private PlayerMovement playerMovement;
     [SerializeField] private Camera cam;
     [SerializeField] private Transform player;
 
-    [Header("Look")] [SerializeField] private float sensitivity = 50f;
+    [Header("Look")] [SerializeField] private float sensitivity = 0.05f;
     private float maxLookAngle = 90f;
 
     private float xRotation;
@@ -33,6 +34,8 @@ public class PlayerCamera : MonoBehaviour {
     [Header("Fov")] [SerializeField] private float fovSmoothTime = 0.12f;
     [SerializeField] private float maxFovOffset = 15f;
     private float fovVelocity;
+    
+    [SerializeField] private InputActionReference lookAction; 
 
     private float baseFov;
     private float targetFov;
@@ -58,8 +61,10 @@ public class PlayerCamera : MonoBehaviour {
     }
 
     public void Look() {
-        float mouseX = Input.GetAxis("Mouse X") * sensitivity;
-        float mouseY = Input.GetAxis("Mouse Y") * sensitivity;
+        Vector2 look = lookAction.action.ReadValue<Vector2>() * sensitivity;
+        
+        float mouseX = look.x;
+        float mouseY = look.y;
 
         desiredX += mouseX;
         xRotation = Mathf.Clamp(xRotation - mouseY, -maxLookAngle, maxLookAngle);
@@ -129,5 +134,13 @@ public class PlayerCamera : MonoBehaviour {
 
     private Vector3 ClampVector(Vector3 vec, float min, float max) {
         return new Vector3(Mathf.Clamp(vec.x, min, max), Mathf.Clamp(vec.y, min, max), Mathf.Clamp(vec.z, min, max));
+    }
+    
+    private void OnEnable() {
+        lookAction.action.Enable();
+    }
+
+    private void OnDisable() {
+        lookAction.action.Disable();
     }
 }

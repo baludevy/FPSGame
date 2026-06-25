@@ -81,8 +81,8 @@ public class MoveWeapon : MonoBehaviour {
     private void LateUpdate() {
         float dt = Time.deltaTime;
 
-        float mouseX = Input.GetAxis("Mouse X");
-        float mouseY = Input.GetAxis("Mouse Y");
+        float mouseX = 0;
+        float mouseY = 0;
 
         Rigidbody rb = LocalPlayer.Instance.movement.GetRb();
         bool isGrounded = LocalPlayer.Instance.movement.IsGrounded();

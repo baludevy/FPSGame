@@ -3266,7 +3266,7 @@ MonoBehaviour:
   playerMovement: {fileID: 6894953828135802274}
   cam: {fileID: 7765145262286749140}
   player: {fileID: 1335595927676222055}
-  sensitivity: 1
+  sensitivity: 0.05
   offset: {x: 0, y: 1.5, z: 0}
   wallRotation: 0
   bobSpeed: 15
@@ -3275,6 +3275,7 @@ MonoBehaviour:
   bobRotMultiplier: 1
   fovSmoothTime: 0.12
   maxFovOffset: 10
+  lookAction: {fileID: -8866333574119694238, guid: c2a317b1fe05b884693b0d9321c6ac72, type: 3}
 --- !u!1 &1485059727020006009
 GameObject:
   m_ObjectHideFlags: 0
@@ -5397,6 +5398,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   lastSentTick: 0
+  moveAction: {fileID: 7404649161687870836, guid: c2a317b1fe05b884693b0d9321c6ac72, type: 3}
+  jumpAction: {fileID: 8928926157042149545, guid: c2a317b1fe05b884693b0d9321c6ac72, type: 3}
+  crouchAction: {fileID: 6050842139966402762, guid: c2a317b1fe05b884693b0d9321c6ac72, type: 3}
+  shootAction: {fileID: 3027604030813134749, guid: c2a317b1fe05b884693b0d9321c6ac72, type: 3}
 --- !u!114 &1834420175924387594
 MonoBehaviour:
   m_ObjectHideFlags: 0
