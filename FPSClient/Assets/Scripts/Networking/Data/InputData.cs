@@ -3,6 +3,7 @@
 public class InputData {
     public uint tick;
     public float renderTick;
+    public float localInterpFactor;
 
     public float x;
     public float y;

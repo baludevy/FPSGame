@@ -5,15 +5,10 @@ public class PlayerPrediction : MonoBehaviour {
 
     private static Vector3[] positionHistory = new Vector3[NetworkSettings.inputHistorySize];
     private static Vector3[] velocityHistory = new Vector3[NetworkSettings.inputHistorySize];
-    public Transform visualPlayer;
     private Vector3 lastPredictedPos;
+    [SerializeField] private Transform visualPlayer;
 
-
-    private void Update() {
-        Interpolate();
-    }
-
-    private void Interpolate() {
+    public void Interpolate() {
         if (visualPlayer == null)
             return;
 

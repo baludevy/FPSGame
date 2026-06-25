@@ -24,6 +24,9 @@ public class FixedClock : MonoBehaviour {
     }
 
     private void Update() {
+        for (int i = 0; i < behaviours.Count; i++)
+            behaviours[i].UpdateBeforeTick();
+        
         float newTime = GetTime();
         float frameTime = Mathf.Max(0f, (newTime - currentTime) * timeScale);
         currentTime = newTime;
@@ -37,9 +40,9 @@ public class FixedClock : MonoBehaviour {
             Advance();
             tick++;
         }
-
-        if (LocalPlayer.Instance != null && tick - 1 > LocalPlayer.Instance.playerInput.lastSentTick)
-            LocalPlayer.Instance.playerInput.SendPlayerInputs();
+        
+        for (int i = 0; i < behaviours.Count; i++)
+            behaviours[i].UpdateAfterTick();
     }
 
     private static void Advance() {

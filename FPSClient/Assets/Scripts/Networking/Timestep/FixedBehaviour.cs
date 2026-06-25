@@ -12,5 +12,9 @@ public abstract class FixedBehaviour : MonoBehaviour
         FixedClock.Unregister(this);
     }
 
+    public abstract void UpdateBeforeTick();
+    
     public abstract void UpdateFixed();
+
+    public abstract void UpdateAfterTick();
 }

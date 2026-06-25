@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class SnapshotManager : MonoBehaviour {
@@ -25,7 +24,7 @@ public class SnapshotManager : MonoBehaviour {
 
     private List<WorldSnapshot> snapshotQueue = new List<WorldSnapshot>();
 
-    private float renderTick;
+    public float renderTick;
     private float playbackTime;
     private float playbackTimeScale = 1.0f;
     private bool isPlaybackInitialized;
@@ -35,7 +34,6 @@ public class SnapshotManager : MonoBehaviour {
     private float currentDeadband;
     private float targetTimescale = 1f;
     private int framesInsideDeadband;
-    
 
     private void Awake() {
         Instance = this;
@@ -103,7 +101,7 @@ public class SnapshotManager : MonoBehaviour {
         if (!isPlaybackInitialized && snapshotQueue.Count >= 2) {
             uint newestTick = snapshotQueue[snapshotQueue.Count - 1].serverTick;
             float safeTargetMargin = Mathf.Max(targetMargin, NetworkSettings.tickTime);
-            
+
             renderTick = newestTick - (safeTargetMargin / NetworkSettings.tickTime);
             float latestServerTime = snapshotQueue[snapshotQueue.Count - 1].serverSendTime;
             playbackTime = latestServerTime - safeTargetMargin;
@@ -185,8 +183,14 @@ public class SnapshotManager : MonoBehaviour {
         }
 
         if (left == null || right == null) {
-            left = snapshotQueue[snapshotQueue.Count - 2];
-            right = snapshotQueue[snapshotQueue.Count - 1];
+            if (sampleTime <= oldestTime) {
+                left = snapshotQueue[0];
+                right = snapshotQueue[1];
+            }
+            else {
+                left = snapshotQueue[snapshotQueue.Count - 2];
+                right = snapshotQueue[snapshotQueue.Count - 1];
+            }
         }
 
         float span = right.serverSendTime - left.serverSendTime;
@@ -194,8 +198,8 @@ public class SnapshotManager : MonoBehaviour {
         alpha = Mathf.Clamp(alpha, 0f, 1f);
 
         serverTick = left.serverTick;
-        
-        float calculatedTickDelta = (float)(right.serverTick - left.serverTick);
+
+        float calculatedTickDelta = (right.serverTick - left.serverTick);
         renderTick = left.serverTick + (alpha * calculatedTickDelta);
 
         ApplyInterpolatedState(left, right, alpha);
@@ -230,6 +234,7 @@ public class SnapshotManager : MonoBehaviour {
                         staticPlayer.transform.position = startState.position;
                     }
                 }
+
                 continue;
             }
 
