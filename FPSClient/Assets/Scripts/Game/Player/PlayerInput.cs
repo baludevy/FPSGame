@@ -44,9 +44,9 @@ public class PlayerInput : MonoBehaviour {
     }
 
     public void ConsumeInput() {
-        jumping = false;
-        crouching = false;
-        shoot = false;
+        jumping = jumpAction.action.IsPressed();
+        crouching = crouchAction.action.IsPressed();
+        shoot = shootAction.action.IsPressed();
     }
 
     public InputData GatherInput(uint tick) {

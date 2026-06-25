@@ -67,6 +67,8 @@ public class ClientHandle {
 
         WorldSnapshot snapshot = new WorldSnapshot {
             serverTick = serverTick,
+            serverSendTime = timingInfo.serverSendTime,
+            clientReceiveTime = FixedClock.GetTime(),
             playerStates = playerStates,
         };
 

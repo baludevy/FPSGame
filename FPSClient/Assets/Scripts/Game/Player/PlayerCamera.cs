@@ -81,7 +81,7 @@ public class PlayerCamera : MonoBehaviour {
         float fovOffset = 0;
 
         if (playerMovement.IsSliding()) {
-            float speedT = Mathf.InverseLerp(0f, playerMovement.maxSlideSpeed, playerMovement.GetSpeed());
+            float speedT = Mathf.InverseLerp(0f, playerMovement.maxSlideSpeed, playerMovement.GetRb().velocity.magnitude);
             fovOffset = Mathf.Lerp(0f, maxFovOffset, speedT);
         }
 

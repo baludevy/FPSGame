@@ -51,6 +51,7 @@ public class TelemetryUI : MonoBehaviour {
                      $"up: {FormatBytes(bytesSentPerSecond)}/s  down: {FormatBytes(bytesReceivedPerSecond)}/s\n" +
                      $"up: {packetsSentPerSecond}/s  down: {packetsReceivedPerSecond}/s\n" +
                      $"tick: {FixedClock.tick}  rate: {NetworkSettings.tickRate * FixedClock.timeScale:F2}\n" +
+                     $"cl margin: {SnapshotManager.Instance.currentMargin * 1000f:F1} ms  target: {SnapshotManager.Instance.targetMargin * 1000:F1} ms\n" +
                      $"srv margin: {TimeScaler.GetCurrentMargin() * 1000F:F1} ms  target: {NetworkSettings.targetInputMargin * 1000:F1} ms";
 
         if (LocalPlayer.Instance != null)

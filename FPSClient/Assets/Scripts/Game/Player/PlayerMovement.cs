@@ -338,8 +338,9 @@ public class PlayerMovement : MonoBehaviour {
         Vector3 gravityAlongSlope = Vector3.ProjectOnPlane(Physics.gravity, normalVector);
         rb.AddForce(gravityAlongSlope * slideSlopeAccel, ForceMode.Acceleration);
 
-        Vector3 slopeVel = Vector3.ProjectOnPlane(rb.velocity, normalVector);
-        float speed = slopeVel.magnitude;
+        Vector3 vel = rb.velocity;
+        Vector3 slopeDir = Vector3.ProjectOnPlane(vel, normalVector);
+        float speed = slopeDir.magnitude;
 
         if (speed < 0.01f) {
             return;
@@ -349,8 +350,9 @@ public class PlayerMovement : MonoBehaviour {
         float drop = control * slideFriction * NetworkSettings.tickTime;
         float newSpeed = Mathf.Max(speed - drop, 0f);
 
-        float speedDelta = speed - newSpeed;
-        rb.AddForce(-slopeVel.normalized * speedDelta, ForceMode.VelocityChange);
+        Vector3 newVel = slopeDir.normalized * newSpeed;
+        newVel.y = vel.y;
+        rb.velocity = newVel;
     }
 
     private void StartWallRun() {
@@ -391,7 +393,6 @@ public class PlayerMovement : MonoBehaviour {
             rb.AddForce(flatDir * accel);
         }
         else if (currentSpeed > wallRunSpeed) {
-            // Brake excess horizontal speed
             float overspeed = currentSpeed - wallRunSpeed;
             rb.AddForce(-flatVel.normalized * overspeed * 0.1f * NetworkSettings.tickTime, ForceMode.VelocityChange);
         }
@@ -417,7 +418,6 @@ public class PlayerMovement : MonoBehaviour {
 
 
     private void ForceExitWallRun() {
-        // Cancel downward velocity before forcing exit
         float downVel = Mathf.Min(rb.velocity.y, 0f);
         if (downVel < 0f) {
             rb.AddForce(Vector3.up * -downVel, ForceMode.VelocityChange);
@@ -553,7 +553,6 @@ public class PlayerMovement : MonoBehaviour {
         Vector3 flatVel = new Vector3(vel.x, 0f, vel.z);
 
         if (flatVel.sqrMagnitude > maxSpeed * maxSpeed) {
-            // Correct excess speed via VelocityChange impulse
             Vector3 limited = flatVel.normalized * maxSpeed;
             rb.AddForce(limited - flatVel, ForceMode.VelocityChange);
         }

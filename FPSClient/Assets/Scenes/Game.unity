@@ -1772,6 +1772,73 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2502302887886297465}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &137765780
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 137765781}
+  - component: {fileID: 137765782}
+  m_Layer: 5
+  m_Name: Frametime
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &137765781
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 137765780}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 182763654}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 828, y: 0}
+  m_SizeDelta: {x: 200, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &137765782
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 137765780}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4f1bbf8aec7496ea319306989dc38be, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  graphWidth: 200
+  graphHeight: 100
+  maxSamples: 128
+  maxDisplayValue: 50
+  colorLine: {r: 0, g: 1, b: 1, a: 1}
+  colorOutline: {r: 1, g: 1, b: 1, a: 1}
+  outlineThickness: 1
+  lineWidth: 2
+  lineMaterial: {fileID: 2100000, guid: 0ccd09c03df18eb45b061047caaa0377, type: 2}
+  labelTitle: {fileID: 0}
+  labelCurrentValue: {fileID: 0}
+  labelAvgValue: {fileID: 0}
+  labelMinValue: {fileID: 0}
+  labelMaxValue: {fileID: 0}
+  titleText: Frametime (ms)
+  autoScale: 1
+  autoScaleHeadroom: 1.25
+  autoScaleMin: 2
+  autoScaleSpeed: 6
 --- !u!1 &182763649
 GameObject:
   m_ObjectHideFlags: 0
@@ -1868,6 +1935,7 @@ RectTransform:
   m_Children:
   - {fileID: 1776668156}
   - {fileID: 1451622853}
+  - {fileID: 137765781}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -8929,6 +8997,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a74c3e4d551450c94f47576e06032b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  targetMargin: 0.005
+  marginFilterSmoothing: 0.0625
+  enableBufferLogging: 1
+  currentMargin: 0
 --- !u!114 &1509272766
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8942,7 +9014,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   baseFrametimeMs: 3
-  maxSpikeMs: 50
+  maxSpikeMs: 20
   spikeInterval: 3
   spikeDuration: 0.3
   noiseAmplitudeMs: 3
@@ -8960,6 +9032,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6433d33aeec14477b69fe56e51827b48, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  graph: {fileID: 137765782}
 --- !u!1 &1543794704
 GameObject:
   m_ObjectHideFlags: 0
