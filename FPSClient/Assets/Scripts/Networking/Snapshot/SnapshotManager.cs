@@ -121,7 +121,6 @@ public class SnapshotManager : MonoBehaviour {
             return;
         }
 
-        renderTick += (Time.deltaTime / NetworkSettings.tickTime) * playbackTimeScale;
         playbackTime += Time.deltaTime * playbackTimeScale;
 
         AdjustPlaybackTimeScale();
@@ -164,8 +163,6 @@ public class SnapshotManager : MonoBehaviour {
         playbackTimeScale = Mathf.Lerp(playbackTimeScale, targetTimescale, timescaleSmoothing);
     }
 
-    private float maxExtrapolationTime = 0.1f;
-
     private void InterpolateWorldState() {
         if (snapshotQueue.Count < 2) {
             return;
@@ -173,15 +170,6 @@ public class SnapshotManager : MonoBehaviour {
 
         float newestTime = snapshotQueue[snapshotQueue.Count - 1].serverSendTime;
         float oldestTime = snapshotQueue[0].serverSendTime;
-
-        if (playbackTime > newestTime) {
-            WorldSnapshot prev = snapshotQueue[snapshotQueue.Count - 2];
-            WorldSnapshot last = snapshotQueue[snapshotQueue.Count - 1];
-            float extraTime = Mathf.Min(playbackTime - newestTime, maxExtrapolationTime);
-            serverTick = last.serverTick;
-            ApplyExtrapolatedState(prev, last, extraTime);
-            return;
-        }
 
         float sampleTime = Mathf.Clamp(playbackTime, oldestTime, newestTime);
 
@@ -206,6 +194,10 @@ public class SnapshotManager : MonoBehaviour {
         alpha = Mathf.Clamp(alpha, 0f, 1f);
 
         serverTick = left.serverTick;
+        
+        float calculatedTickDelta = (float)(right.serverTick - left.serverTick);
+        renderTick = left.serverTick + (alpha * calculatedTickDelta);
+
         ApplyInterpolatedState(left, right, alpha);
     }
 
@@ -247,38 +239,6 @@ public class SnapshotManager : MonoBehaviour {
                 if (player != null && player.transform != null) {
                     Vector3 target = Vector3.Lerp(startState.position, endState.position, alpha);
                     player.transform.position = target;
-                }
-            }
-        }
-    }
-    
-    private void ApplyExtrapolatedState(WorldSnapshot prev, WorldSnapshot last, float extraTime) {
-        float dt = last.serverSendTime - prev.serverSendTime;
-        if (dt <= 0f) {
-            ApplyInterpolatedState(prev, last, 1f);
-            return;
-        }
-
-        foreach (PlayerState lastState in last.playerStates) {
-            if (lastState.id == Client.Instance.myId) {
-                continue;
-            }
-
-            int prevIndex = prev.playerStates.FindIndex(p => p.id == lastState.id);
-            if (prevIndex == -1) {
-                if (GameManager.players.TryGetValue(lastState.id, out PlayerManager held)) {
-                    if (held != null && held.transform != null) {
-                        held.transform.position = lastState.position;
-                    }
-                }
-                continue;
-            }
-
-            Vector3 velocity = (lastState.position - prev.playerStates[prevIndex].position) / dt;
-
-            if (GameManager.players.TryGetValue(lastState.id, out PlayerManager player)) {
-                if (player != null && player.transform != null) {
-                    player.transform.position = lastState.position + velocity * extraTime;
                 }
             }
         }
