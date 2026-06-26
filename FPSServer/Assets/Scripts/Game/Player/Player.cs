@@ -25,8 +25,9 @@ public class Player : MonoBehaviour {
         playerCam.rotation = Quaternion.Euler(inputData.pitch, inputData.yaw, 0);
 
         if ((inputData.buttons & Buttons.Shoot) != 0) {
-            weaponController.Shoot(inputData, GameManager.Instance.lagCompensation);
-        } 
+            Debug.Log($"{movement.transform.position} tick: {inputData.tick}");
+            weaponController.Shoot(inputData);
+        }
 
         movement.AdvanceLogic();
     }

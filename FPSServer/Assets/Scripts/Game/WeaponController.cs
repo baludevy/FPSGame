@@ -6,8 +6,10 @@ public class WeaponController : MonoBehaviour {
     public WeaponData data;
     private bool canFire = true;
     public bool enableLagComp = true;
+    
+    private LagCompensation lagCompensation = GameManager.Instance.lagCompensation;
 
-    public void Shoot(InputData inputData, LagCompensation lagCompensation) {
+    public void Shoot(InputData inputData) {
         if (!canFire) return;
         Vector3 origin = player.playerCam.position;
         Vector3 direction = player.playerCam.forward;
@@ -25,8 +27,7 @@ public class WeaponController : MonoBehaviour {
                 client.player.transform.position = targetState.position;
             }
         }
-
-
+        
         Player hitPlayer = null;
         if (Physics.Raycast(origin, direction, out RaycastHit hit, 1000f)) {
             hitPlayer = hit.transform.GetComponent<Player>();

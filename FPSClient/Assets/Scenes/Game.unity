@@ -1788,7 +1788,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &137765781
 RectTransform:
   m_ObjectHideFlags: 0
@@ -8999,7 +8999,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   targetMargin: 0.005
   marginFilterSmoothing: 0.0625
-  enableBufferLogging: 1
+  renderTick: 0
   currentMargin: 0
 --- !u!114 &1509272766
 MonoBehaviour:

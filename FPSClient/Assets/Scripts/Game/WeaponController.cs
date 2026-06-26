@@ -11,6 +11,8 @@ public class WeaponController : MonoBehaviour {
 
         MoveWeapon.Instance.Recoil();
         PlayShootSound();
+        
+        Debug.Log(LocalPlayer.Instance.movement.transform.position);
 
         canFire = false;
         TickInvoker.Invoke(ResetFire, Mathf.RoundToInt(NetworkSettings.tickRate / data.fireRate));
