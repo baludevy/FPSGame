@@ -176,8 +176,8 @@ public class PlayerMovement : MonoBehaviour {
 
         CounterMovement(mag, moveRight, moveForward);
 
-        rb.AddForce(moveRight * x * acceleration * NetworkSettings.tickTime * mult);
-        rb.AddForce(moveForward * y * acceleration * NetworkSettings.tickTime * mult);
+        rb.AddForce(moveRight * x * acceleration * mult);
+        rb.AddForce(moveForward * y * acceleration * mult);
 
         // cancel any velocity component along the normal to keep movement on the slope plane
         float normalVel = Vector3.Dot(rb.velocity, normalVector);
@@ -200,7 +200,7 @@ public class PlayerMovement : MonoBehaviour {
         if (ShouldCounter(mag.x, x)) counterForce += -slopeRight * mag.x;
         if (ShouldCounter(mag.y, y)) counterForce += -slopeForward * mag.y;
 
-        rb.AddForce(counterForce * acceleration * counterMovement * NetworkSettings.tickTime);
+        rb.AddForce(counterForce * counterMovement, ForceMode.VelocityChange);
         
         if (!sliding) {
             Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);

@@ -268,7 +268,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 8
   player: {fileID: 1280456300248806326}
-  acceleration: 4000
+  acceleration: 60
   maxRunSpeed: 11
   counterMovement: 0.2
   threshold: 0.01

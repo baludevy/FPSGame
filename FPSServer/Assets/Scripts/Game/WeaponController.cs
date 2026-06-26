@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class WeaponController : MonoBehaviour {
@@ -7,7 +8,11 @@ public class WeaponController : MonoBehaviour {
     private bool canFire = true;
     public bool enableLagComp = true;
     
-    private LagCompensation lagCompensation = GameManager.Instance.lagCompensation;
+    private LagCompensation lagCompensation;
+
+    private void Awake() {
+        lagCompensation = GameManager.Instance.lagCompensation;
+    }
 
     public void Shoot(InputData inputData) {
         if (!canFire) return;

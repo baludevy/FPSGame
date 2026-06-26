@@ -21,7 +21,7 @@ public class SnapshotManager : MonoBehaviour
     private bool hasArrival;
 
     public float renderTick;
-    private bool isPlaybackInitialized;
+    private bool isInterpInitialized;
     public float currentMargin;
 
     private float lastFrameTime;
@@ -36,7 +36,7 @@ public class SnapshotManager : MonoBehaviour
         serverTick = 0;
         lastProcessedTick = 0;
         lastReconciledTick = 0;
-        isPlaybackInitialized = false;
+        isInterpInitialized = false;
         renderTick = 0f;
         currentMargin = 0f;
         lastFrameTime = 0;
@@ -114,30 +114,30 @@ public class SnapshotManager : MonoBehaviour
     
     private void Update()
     {
-        WorldSnapshot[] snaps;
+        WorldSnapshot[] snapshots;
         float now = FixedClock.GetTime();
 
         lock (_lock)
         {
-            if (!isPlaybackInitialized && snapshotQueue.Count >= 2 && hasArrival)
+            if (!isInterpInitialized && snapshotQueue.Count >= 2 && hasArrival)
             {
                 float interpTicksInit = Mathf.Max(targetMargin, NetworkSettings.tickTime) / NetworkSettings.tickTime;
-                renderTick = (lastArrivalTick + (float)(now - lastArrivalTime) / NetworkSettings.tickTime) - interpTicksInit;
+                renderTick = (lastArrivalTick + (now - lastArrivalTime) / NetworkSettings.tickTime) - interpTicksInit;
                 lastFrameTime = now;
-                isPlaybackInitialized = true;
+                isInterpInitialized = true;
             }
 
-            if (!isPlaybackInitialized || snapshotQueue.Count < 2)
+            if (!isInterpInitialized || snapshotQueue.Count < 2)
             {
                 lastFrameTime = now;
                 return;
             }
 
-            snaps = snapshotQueue.ToArray();
+            snapshots = snapshotQueue.ToArray();
         }
 
-        AdvanceRenderTick(now, snaps[snaps.Length - 1].serverTick);
-        InterpolateWorldState(snaps);
+        AdvanceRenderTick(now, snapshots[snapshots.Length - 1].serverTick);
+        InterpolateWorldState(snapshots);
         PruneOldSnapshots();
     }
     
@@ -153,35 +153,46 @@ public class SnapshotManager : MonoBehaviour
         renderTick = Mathf.Min(renderTick + deltaTime * tickRate * playbackSpeedMultiplier, newestQueuedTick);
     }
 
-    private void InterpolateWorldState(WorldSnapshot[] snaps)
+    private void InterpolateWorldState(WorldSnapshot[] snapshots)
     {
-        WorldSnapshot left = snaps[snaps.Length - 2];
-        WorldSnapshot right = snaps[snaps.Length - 1];
+        WorldSnapshot left = snapshots[snapshots.Length - 2];
+        WorldSnapshot right = snapshots[snapshots.Length - 1];
 
-        for (int i = 0; i < snaps.Length - 1; i++)
+        for (int i = 0; i < snapshots.Length - 1; i++)
         {
-            if (renderTick >= snaps[i].serverTick && renderTick <= snaps[i + 1].serverTick)
+            if (renderTick >= snapshots[i].serverTick && renderTick <= snapshots[i + 1].serverTick)
             {
-                left = snaps[i];
-                right = snaps[i + 1];
+                left = snapshots[i];
+                right = snapshots[i + 1];
                 break;
             }
         }
-        if (renderTick < snaps[0].serverTick)
+        if (renderTick < snapshots[0].serverTick)
         {
-            left = snaps[0];
-            right = snaps[0];
+            left = snapshots[0];
+            right = snapshots[0];
         }
         
         if (!left.consumed)
         {
             left.consumed = true;
             float consumptionDelta = Mathf.Max(0f, FixedClock.GetTime() - left.clientReceiveTime);
-            currentMargin = currentMargin <= 0f ? consumptionDelta : Mathf.Lerp(currentMargin, consumptionDelta, marginSmoothingFactor);
+            if (currentMargin <= 0f)
+            {
+                currentMargin = consumptionDelta;
+            }
+            else
+            {
+                currentMargin = (0.0625f * consumptionDelta) + ((1f - 0.0625f) * currentMargin);
+            }
         }
 
         float tickSpan = right.serverTick - left.serverTick;
-        float alpha = tickSpan > 0f ? Mathf.Clamp01((renderTick - left.serverTick) / tickSpan) : 0f;
+        float alpha = 0f;
+        if (tickSpan > 0f)
+        {
+            alpha = Mathf.Clamp01((renderTick - left.serverTick) / tickSpan);
+        }
 
         serverTick = left.serverTick;
         ApplyInterpolatedState(left, right, alpha);
@@ -203,12 +214,22 @@ public class SnapshotManager : MonoBehaviour
         for (int i = 0; i < from.playerStates.Count; i++)
         {
             PlayerState startState = from.playerStates[i];
-            if (startState.id == Client.Instance.myId) continue;
+            if (startState.id == Client.Instance.myId)
+            {
+                continue;
+            }
 
             int endIndex = to.playerStates.FindIndex(s => s.id == startState.id);
             if (GameManager.players.TryGetValue(startState.id, out PlayerManager player))
             {
-                player.transform.position = endIndex == -1 ? startState.position : Vector3.Lerp(startState.position, to.playerStates[endIndex].position, alpha);
+                if (endIndex == -1)
+                {
+                    player.transform.position = startState.position;
+                }
+                else
+                {
+                    player.transform.position = Vector3.Lerp(startState.position, to.playerStates[endIndex].position, alpha);
+                }
             }
         }
     }

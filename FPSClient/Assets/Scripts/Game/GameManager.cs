@@ -18,7 +18,7 @@ public class GameManager : MonoBehaviour {
 
     private void Start() {
         QualitySettings.vSyncCount = 1;
-        Application.targetFrameRate = 500;
+        Application.targetFrameRate = 0;
     }
 
     public void SpawnPlayer(int id, string username, Vector3 position, Quaternion rotation) {

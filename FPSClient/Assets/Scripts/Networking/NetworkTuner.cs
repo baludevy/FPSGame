@@ -2,22 +2,23 @@
 using UnityEngine;
 
 public static class NetworkTuner {
-    private static float baseInputMargin = 0.005f;
-    private static float jitterMarginMult = 1f;
-    private static float lossMarginScale = 0.08f;
-    private static float maxLossMargin = 0.04f;
-    private static float marginRiseLerp = 0.2f;
-    private static float marginFallLerp = 0.02f;
+    private static float baseInputMargin => Mathf.Max(NetworkSettings.tickTime * 0.4f, 0.004f);
+    private static float inputMarginRiseLerp = 0.2f;
+    private static float inputMarginFallLerp = 0.02f;
     private static float maxInputMarginTicks = 4f;
-    private static float marginLowerHold = 3f;
-    private static float marginLowerHysteresis = 0.002f;
-    
-    private static float baseReceiveMargin = 0.021f;
-    private static float maxReceiveMargin = 0.060f;
+
+    private static float baseReceiveMargin => Mathf.Max(NetworkSettings.tickTime + 0.002f, 0.010f);
+    private static float maxReceiveMargin => Mathf.Max(NetworkSettings.tickTime * 3f, 0.090f);
     private static float receiveMarginRiseLerp = 0.15f;
     private static float receiveMarginFallLerp = 0.01f;
     private static float committedReceiveMarginTarget;
     private static float receiveMarginLowerTimer;
+
+    private static float jitterMarginMult = 1.2f;
+    private static float lossMarginScale = 0.08f;
+    private static float maxLossMargin = 0.04f;
+    private static float marginLowerHold = 3f;
+    private static float marginLowerHysteresis = 0.002f;
 
     private static float redundancyReleaseHold = 2f;
 
@@ -43,9 +44,12 @@ public static class NetworkTuner {
             if (SnapshotManager.Instance != null) {
                 SnapshotManager.Instance.targetMargin = baseReceiveMargin;
             }
+
             initialized = true;
         }
-        
+
+        if (dt <= 0f) return;
+
         UpdateInputMargin(dt);
         UpdateReceiveMargin(dt);
         UpdateRedundancy(dt);
@@ -54,9 +58,11 @@ public static class NetworkTuner {
     private static void UpdateInputMargin(float dt) {
         float jitterPad = NetStatistics.upstreamJitter * jitterMarginMult;
         float lossPad = Mathf.Clamp(NetStatistics.upstreamPacketLoss * lossMarginScale, 0f, maxLossMargin);
+
+        float localBaseInput = baseInputMargin;
         float rawTarget = Mathf.Clamp(
-            baseInputMargin + jitterPad + lossPad,
-            baseInputMargin, NetworkSettings.tickTime * maxInputMarginTicks);
+            localBaseInput + jitterPad + lossPad,
+            localBaseInput, NetworkSettings.tickTime * maxInputMarginTicks);
 
         if (rawTarget >= committedMarginTarget - marginLowerHysteresis) {
             committedMarginTarget = rawTarget;
@@ -70,8 +76,11 @@ public static class NetworkTuner {
             }
         }
 
-        float lerp = committedMarginTarget > NetworkSettings.targetInputMargin ? marginRiseLerp : marginFallLerp;
-        NetworkSettings.targetInputMargin = Mathf.Lerp(NetworkSettings.targetInputMargin, committedMarginTarget, lerp);
+        float lerpRate = committedMarginTarget > NetworkSettings.targetInputMargin
+            ? inputMarginRiseLerp
+            : inputMarginFallLerp;
+        float blend = 1f - Mathf.Exp(-lerpRate * dt * 64f);
+        NetworkSettings.targetInputMargin = Mathf.Lerp(NetworkSettings.targetInputMargin, committedMarginTarget, blend);
     }
 
     private static void UpdateReceiveMargin(float dt) {
@@ -79,9 +88,11 @@ public static class NetworkTuner {
 
         float jitterPad = NetStatistics.downstreamJitter * jitterMarginMult;
         float lossPad = Mathf.Clamp(NetStatistics.downstreamPacketLoss * lossMarginScale, 0f, maxLossMargin);
+
+        float localBaseReceive = baseReceiveMargin;
         float rawTarget = Mathf.Clamp(
-            baseReceiveMargin + jitterPad + lossPad,
-            baseReceiveMargin, maxReceiveMargin);
+            localBaseReceive + jitterPad + lossPad,
+            localBaseReceive, maxReceiveMargin);
 
         if (rawTarget >= committedReceiveMarginTarget - marginLowerHysteresis) {
             committedReceiveMarginTarget = rawTarget;
@@ -95,8 +106,12 @@ public static class NetworkTuner {
             }
         }
 
-        float lerp = committedReceiveMarginTarget > SnapshotManager.Instance.targetMargin ? receiveMarginRiseLerp : receiveMarginFallLerp;
-        SnapshotManager.Instance.targetMargin = Mathf.Lerp(SnapshotManager.Instance.targetMargin, committedReceiveMarginTarget, lerp);
+        float lerpRate = committedReceiveMarginTarget > SnapshotManager.Instance.targetMargin
+            ? receiveMarginRiseLerp
+            : receiveMarginFallLerp;
+        float blend = 1f - Mathf.Exp(-lerpRate * dt * 64f);
+        SnapshotManager.Instance.targetMargin =
+            Mathf.Lerp(SnapshotManager.Instance.targetMargin, committedReceiveMarginTarget, blend);
     }
 
     private static void UpdateRedundancy(float dt) {
@@ -129,8 +144,6 @@ public static class NetworkTuner {
         redundancyLowerTimer = 0f;
         marginLowerTimer = 0f;
         receiveMarginLowerTimer = 0f;
-        committedMarginTarget = baseInputMargin;
-        committedReceiveMarginTarget = baseReceiveMargin;
         lastTime = -1f;
         initialized = false;
     }
