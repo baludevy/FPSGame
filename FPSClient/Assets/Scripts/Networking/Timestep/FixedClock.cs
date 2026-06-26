@@ -24,8 +24,8 @@ public class FixedClock : MonoBehaviour {
     }
 
     private void Update() {
-        for (int i = 0; i < behaviours.Count; i++)
-            behaviours[i].UpdateBeforeTick();
+        foreach (FixedBehaviour behaviour in behaviours)
+            behaviour.UpdateBeforeTick();
         
         float newTime = GetTime();
         float frameTime = Mathf.Max(0f, (newTime - currentTime) * timeScale);
@@ -41,16 +41,16 @@ public class FixedClock : MonoBehaviour {
             tick++;
         }
         
-        for (int i = 0; i < behaviours.Count; i++)
-            behaviours[i].UpdateAfterTick();
+        foreach (FixedBehaviour behaviour in behaviours)
+            behaviour.UpdateAfterTick();
     }
 
     private static void Advance() {
         TickSync.Update();
         TickInvoker.Step();
 
-        for (int i = 0; i < behaviours.Count; i++)
-            behaviours[i].UpdateFixed();
+        foreach (FixedBehaviour behaviour in behaviours)
+            behaviour.UpdateFixed();
     }
 
     public static void Nudge(float seconds) {

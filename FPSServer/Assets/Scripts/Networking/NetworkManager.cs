@@ -10,7 +10,7 @@ public class NetworkManager : MonoBehaviour {
 
     private void Start() {
         QualitySettings.vSyncCount = 0;
-        Application.targetFrameRate = NetworkSettings.tickRate;
+        Application.targetFrameRate = NetworkSettings.tickRate * 4;
 
         Server.Start(10, 42069);
     }

@@ -1,11 +1,32 @@
 ﻿using UnityEngine;
 
 public sealed class FrametimeMonitor : MonoBehaviour {
-    public FrametimeGraph graph;
-    public static volatile float lastFrametime;
+    public static float lastFrametime;
+    public static float meanFrametime;
+    public static float frametimeStdDev;
+
+    [SerializeField] private float smoothing = 0.05f;
+
+    private float meanSq;
+    private bool initialized;
+
     private void Update() {
-        lastFrametime = Time.unscaledDeltaTime;
-        
-        graph.AddSample(Time.unscaledDeltaTime);
+        float ft = Time.unscaledDeltaTime;
+        lastFrametime = ft;
+
+        if (!initialized) {
+            meanFrametime = ft;
+            meanSq = 0f;
+            initialized = true;
+            return;
+        }
+
+        float delta = ft - meanFrametime;
+        meanFrametime += smoothing * delta;
+
+        float dev = ft - meanFrametime;
+        meanSq = (1f - smoothing) * meanSq + smoothing * (dev * dev);
+
+        frametimeStdDev = Mathf.Sqrt(meanSq);
     }
 }

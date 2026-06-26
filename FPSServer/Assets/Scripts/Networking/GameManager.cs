@@ -6,6 +6,7 @@ public class GameManager : FixedBehaviour {
     public GameObject playerPrefab;
 
     public LagCompensation lagCompensation = new LagCompensation();
+    private WorldSnapshot currentSnapshot;
 
     private void Awake() {
         if (Instance == null) {
@@ -14,6 +15,9 @@ public class GameManager : FixedBehaviour {
         else {
             Destroy(gameObject);
         }
+    }
+
+    public override void UpdateBeforeTick() {
     }
 
     public override void UpdateFixed() {
@@ -27,7 +31,7 @@ public class GameManager : FixedBehaviour {
         Physics.SyncTransforms();
         Physics.Simulate(NetworkSettings.tickTime);
 
-        WorldSnapshot currentSnapshot = GetWorldSnapshot();
+        currentSnapshot = GetWorldSnapshot();
 
         lagCompensation.SaveSnapshot(currentSnapshot);
         lagCompensation.Update();
@@ -37,6 +41,9 @@ public class GameManager : FixedBehaviour {
                 SendPlayerUpdate(client.player.id, currentSnapshot);
             }
         }
+    }
+
+    public override void UpdateAfterTick() {
     }
 
     private void SendPlayerUpdate(int toClient, WorldSnapshot sharedSnapshot) {

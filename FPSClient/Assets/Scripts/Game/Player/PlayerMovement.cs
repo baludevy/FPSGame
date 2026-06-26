@@ -184,12 +184,6 @@ public class PlayerMovement : MonoBehaviour {
         rb.AddForce(moveRight * x * acceleration * mult);
         rb.AddForce(moveForward * y * acceleration * mult);
 
-        // cancel any velocity component along the normal to keep movement on the slope plane
-        float normalVel = Vector3.Dot(rb.velocity, normalVector);
-        if (normalVel > 0f) {
-            rb.AddForce(-normalVector * normalVel, ForceMode.VelocityChange);
-        }
-
         rb.AddForce(-normalVector, ForceMode.Acceleration);
 
         if (Mathf.Abs(x) < threshold && Mathf.Abs(y) < threshold) {
@@ -261,17 +255,13 @@ public class PlayerMovement : MonoBehaviour {
         }
 
         jumpedThisFrame = true;
-
-        float normalVel = Vector3.Dot(rb.velocity, normalVector);
-        if (normalVel != 0f) {
-            rb.AddForce(-normalVector * normalVel, ForceMode.VelocityChange);
-        }
+        
+        Vector3 vel = rb.velocity;
+        rb.AddForce(Vector3.up * (jumpForce - vel.y), ForceMode.VelocityChange);
 
         LocalPlayer.Instance.playerCamera.BobRotOnce(Vector3.right * 3f);
         MoveWeapon.Instance.BobPos(Vector3.down * 0.1f);
         MoveWeapon.Instance.BobRot(Vector3.left * 8f);
-
-        rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
     }
 
     private void StartCrouch() {

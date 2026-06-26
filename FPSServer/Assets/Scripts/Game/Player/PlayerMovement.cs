@@ -179,12 +179,6 @@ public class PlayerMovement : MonoBehaviour {
         rb.AddForce(moveRight * x * acceleration * mult);
         rb.AddForce(moveForward * y * acceleration * mult);
 
-        // cancel any velocity component along the normal to keep movement on the slope plane
-        float normalVel = Vector3.Dot(rb.velocity, normalVector);
-        if (normalVel > 0f) {
-            rb.AddForce(-normalVector * normalVel, ForceMode.VelocityChange);
-        }
-
         rb.AddForce(-normalVector, ForceMode.Acceleration);
 
         if (Mathf.Abs(x) < threshold && Mathf.Abs(y) < threshold) {
@@ -201,7 +195,7 @@ public class PlayerMovement : MonoBehaviour {
         if (ShouldCounter(mag.y, y)) counterForce += -slopeForward * mag.y;
 
         rb.AddForce(counterForce * counterMovement, ForceMode.VelocityChange);
-        
+
         if (!sliding) {
             Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
             if (flatVel.sqrMagnitude < 0.05f * 0.05f) {
@@ -281,13 +275,9 @@ public class PlayerMovement : MonoBehaviour {
         }
 
         jumpedThisFrame = true;
-
-        float normalVel = Vector3.Dot(rb.velocity, normalVector);
-        if (normalVel != 0f) {
-            rb.AddForce(-normalVector * normalVel, ForceMode.VelocityChange);
-        }
-
-        rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+        
+        Vector3 vel = rb.velocity;
+        rb.AddForce(Vector3.up * (jumpForce - vel.y), ForceMode.VelocityChange);
     }
 
     private void StartCrouch() {

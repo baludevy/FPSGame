@@ -4,10 +4,9 @@ public static class TimeScaler {
     private static float sensitivity = 0.02f;
     private static float catchUpGainMult = 3f;
     private static float jitterDeadbandMult = 0.5f;
-    private static float frametimeDeadbandScale = 0.3f;
 
-    private static float maxSpeedUp = 0.1f;
-    private static float maxSlowDown = 0.03f;
+    private static float maxSpeedUp = 0.15f;
+    private static float maxSlowDown = 0.1f;
 
     private static float speedUpSmoothing = 0.6f;
     private static float slowDownSmoothing = 0.15f;
@@ -21,7 +20,6 @@ public static class TimeScaler {
 
     private static float currentMargin;
     private static float targetTimescale = 1f;
-    private static float currentDeadband;
     private static float lastSampleTime;
 
     private static float pendingCorrection;
@@ -44,9 +42,7 @@ public static class TimeScaler {
         float deviation = marginSeconds - NetworkSettings.targetInputMargin;
         float effectiveDeviation = deviation + pendingCorrection;
 
-        float baseDeadband = Mathf.Clamp(NetStatistics.upstreamJitter * jitterDeadbandMult, 0.002f, 0.05f);
-        float frametimeDeadbandOffset = FrametimeMonitor.lastFrametime * frametimeDeadbandScale;
-        currentDeadband = baseDeadband + frametimeDeadbandOffset;
+        float currentDeadband = Mathf.Clamp(NetStatistics.upstreamJitter * jitterDeadbandMult, 0.002f, 0.05f);
 
         float snapThreshold = snapThresholdTicks * NetworkSettings.tickTime;
         bool genuinelyBehind = deviation < -snapThreshold && pendingCorrection < snapThreshold;
@@ -91,7 +87,6 @@ public static class TimeScaler {
     public static void Reset() {
         currentMargin = 0f;
         targetTimescale = 1f;
-        currentDeadband = 0f;
         lastSampleTime = 0f;
         pendingCorrection = 0f;
         bigDeviationStreak = 0;

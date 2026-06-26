@@ -270,7 +270,7 @@ MonoBehaviour:
   player: {fileID: 1280456300248806326}
   acceleration: 60
   maxRunSpeed: 11
-  counterMovement: 0.2
+  counterMovement: 0.15
   threshold: 0.01
   maxSlopeAngle: 35
   jumpForce: 13

@@ -25,19 +25,24 @@ public class FixedClock : MonoBehaviour {
 
 
     private void Update() {
+        foreach (FixedBehaviour behaviour in behaviours)
+            behaviour.UpdateBeforeTick();
+
         float newTime = GetTime();
         float frameTime = (newTime - currentTime) * timeScale;
         currentTime = newTime;
 
-        float tickInterval = NetworkSettings.tickTime;
         accumulator += frameTime;
 
+        float tickInterval = NetworkSettings.tickTime;
         while (accumulator >= tickInterval) {
             accumulator -= tickInterval;
             Advance();
-
             tick++;
         }
+
+        foreach (FixedBehaviour behaviour in behaviours)
+            behaviour.UpdateAfterTick();
     }
 
     private static void Advance() {
@@ -57,5 +62,6 @@ public class FixedClock : MonoBehaviour {
         accumulator = 0f;
         tick = 0;
         timeScale = 1f;
+        currentTime = GetTime();
     }
 }

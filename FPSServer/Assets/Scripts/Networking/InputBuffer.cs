@@ -13,6 +13,7 @@ public class InputBuffer {
     private float latestReceiveTimestamp;
 
     private float inputReceiveMargin;
+    private static float maxInputMarginTime = 0.050f;
 
     private float clientUpstreamJitter;
     private float clientUpstreamPacketLoss;
@@ -22,7 +23,6 @@ public class InputBuffer {
     private float[] jitterSorted = new float[jitterWindow];
     private int jitterIndex;
     private int jitterCount;
-    private float intervalSmoothing = 0.1f;
 
     private static int lossWindow = 128;
     private readonly bool[] received = new bool[lossWindow];
@@ -76,19 +76,22 @@ public class InputBuffer {
 
         foreach (InputData input in inputs) {
             if (input.tick > newestInBatch) newestInBatch = input.tick;
-
+            
             uint i = input.tick % NetworkSettings.inputBufferSize;
 
+            float inputTimeLocation = input.tick * NetworkSettings.tickTime;
+            if (FixedClock.tick < input.tick && (inputTimeLocation - (FixedClock.tick * NetworkSettings.tickTime)) > maxInputMarginTime) {
+                calculatedMargins[i] = inputTimeLocation - latestReceiveTimestamp;
+                continue;
+            }
+
             if (inputQueue[i] != null && inputQueue[i].tick == input.tick) continue;
-
             inputQueue[i] = input;
-
-            float scheduledTickTime = input.tick * NetworkSettings.tickTime;
-            calculatedMargins[i] = scheduledTickTime - latestReceiveTimestamp;
+            calculatedMargins[i] = inputTimeLocation - latestReceiveTimestamp;
         }
 
         float currentLatency = latestReceiveTimestamp - clientSendTime;
-        
+
         UpdatePacketLoss(sequence);
         SampleJitter(currentLatency);
 
@@ -169,9 +172,5 @@ public class InputBuffer {
             jitter = clientUpstreamJitter,
             packetLoss = clientUpstreamPacketLoss
         };
-    }
-
-    public uint GetLatestSequence() {
-        return latestInputSequence;
     }
 }

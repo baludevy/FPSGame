@@ -173,10 +173,10 @@ public class SnapshotManager : MonoBehaviour
             right = snapshots[0];
         }
         
-        if (!left.consumed)
+        if (!right.consumed)
         {
-            left.consumed = true;
-            float consumptionDelta = Mathf.Max(0f, FixedClock.GetTime() - left.clientReceiveTime);
+            right.consumed = true;
+            float consumptionDelta = Mathf.Max(0f, FixedClock.GetTime() - right.clientReceiveTime);
             if (currentMargin <= 0f)
             {
                 currentMargin = consumptionDelta;

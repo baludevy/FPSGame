@@ -8652,10 +8652,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   baseFrametimeMs: 3
-  maxSpikeMs: 20
+  maxSpikeMs: 50
   spikeInterval: 3
   spikeDuration: 0.3
-  noiseAmplitudeMs: 3
+  noiseAmplitudeMs: 10
   noiseSpeed: 1.5
   showDebugLog: 0
 --- !u!114 &1509272767
@@ -8665,12 +8665,12 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1509272759}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6433d33aeec14477b69fe56e51827b48, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  graph: {fileID: 0}
+  smoothing: 0.05
 --- !u!1 &1543794704
 GameObject:
   m_ObjectHideFlags: 0

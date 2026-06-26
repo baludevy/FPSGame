@@ -2,19 +2,20 @@
 using UnityEngine;
 
 public static class NetworkTuner {
-    private static float baseInputMargin => Mathf.Max(NetworkSettings.tickTime * 0.4f, 0.004f);
+    private static float baseInputMargin = 0.003f;
     private static float inputMarginRiseLerp = 0.2f;
     private static float inputMarginFallLerp = 0.02f;
-    private static float maxInputMarginTicks = 4f;
+    private static float maxInputMarginTime = 0.050f;
 
-    private static float baseReceiveMargin => Mathf.Max(NetworkSettings.tickTime + 0.002f, 0.010f);
-    private static float maxReceiveMargin => Mathf.Max(NetworkSettings.tickTime * 3f, 0.090f);
+    private static float baseReceiveMargin = 0.003f;
+    private static float maxReceiveMargin = 0.090f;
     private static float receiveMarginRiseLerp = 0.15f;
     private static float receiveMarginFallLerp = 0.01f;
     private static float committedReceiveMarginTarget;
     private static float receiveMarginLowerTimer;
 
     private static float jitterMarginMult = 1.2f;
+    private static float frametimeMarginMult = 0.3f;
     private static float lossMarginScale = 0.08f;
     private static float maxLossMargin = 0.04f;
     private static float marginLowerHold = 3f;
@@ -57,23 +58,30 @@ public static class NetworkTuner {
 
     private static void UpdateInputMargin(float dt) {
         float jitterPad = NetStatistics.upstreamJitter * jitterMarginMult;
+        float frametimePad = (FrametimeMonitor.meanFrametime + 2f * FrametimeMonitor.frametimeStdDev) *
+                             frametimeMarginMult;
         float lossPad = Mathf.Clamp(NetStatistics.upstreamPacketLoss * lossMarginScale, 0f, maxLossMargin);
 
-        float localBaseInput = baseInputMargin;
-        float rawTarget = Mathf.Clamp(
-            localBaseInput + jitterPad + lossPad,
-            localBaseInput, NetworkSettings.tickTime * maxInputMarginTicks);
+        float totalPads = jitterPad + frametimePad + lossPad;
+        float netAdditionalMargin = Mathf.Max(0f, totalPads - baseInputMargin);
 
-        if (rawTarget >= committedMarginTarget - marginLowerHysteresis) {
+        float rawTarget = Mathf.Clamp(
+            baseInputMargin + netAdditionalMargin,
+            baseInputMargin, maxInputMarginTime);
+
+        if (rawTarget > committedMarginTarget) {
             committedMarginTarget = rawTarget;
             marginLowerTimer = 0f;
         }
-        else {
+        else if (rawTarget < committedMarginTarget - marginLowerHysteresis) {
             marginLowerTimer += dt;
             if (marginLowerTimer >= marginLowerHold) {
                 committedMarginTarget = rawTarget;
                 marginLowerTimer = 0f;
             }
+        }
+        else {
+            marginLowerTimer = 0f;
         }
 
         float lerpRate = committedMarginTarget > NetworkSettings.targetInputMargin
@@ -87,23 +95,30 @@ public static class NetworkTuner {
         if (SnapshotManager.Instance == null) return;
 
         float jitterPad = NetStatistics.downstreamJitter * jitterMarginMult;
+        float frametimePad = (FrametimeMonitor.meanFrametime + 2f * FrametimeMonitor.frametimeStdDev) *
+                             frametimeMarginMult;
         float lossPad = Mathf.Clamp(NetStatistics.downstreamPacketLoss * lossMarginScale, 0f, maxLossMargin);
+        
+        float totalPads = jitterPad + frametimePad + lossPad;
+        float netAdditionalMargin = Mathf.Max(0f, totalPads - baseReceiveMargin);
 
-        float localBaseReceive = baseReceiveMargin;
         float rawTarget = Mathf.Clamp(
-            localBaseReceive + jitterPad + lossPad,
-            localBaseReceive, maxReceiveMargin);
+            baseReceiveMargin + netAdditionalMargin,
+            baseReceiveMargin, maxReceiveMargin);
 
-        if (rawTarget >= committedReceiveMarginTarget - marginLowerHysteresis) {
+        if (rawTarget > committedReceiveMarginTarget) {
             committedReceiveMarginTarget = rawTarget;
             receiveMarginLowerTimer = 0f;
         }
-        else {
+        else if (rawTarget < committedReceiveMarginTarget - marginLowerHysteresis) {
             receiveMarginLowerTimer += dt;
             if (receiveMarginLowerTimer >= marginLowerHold) {
                 committedReceiveMarginTarget = rawTarget;
                 receiveMarginLowerTimer = 0f;
             }
+        }
+        else {
+            receiveMarginLowerTimer = 0f;
         }
 
         float lerpRate = committedReceiveMarginTarget > SnapshotManager.Instance.targetMargin
