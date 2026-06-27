@@ -5,7 +5,6 @@ using UnityEngine;
 
 public class LagCompensation {
     private List<WorldSnapshot> snapshotHistory = new List<WorldSnapshot>();
-    private uint maxLagCompensationTicks => NetworkSettings.maxLagCompensationTicks;
 
     public void SaveSnapshot(WorldSnapshot snapshot) {
         snapshotHistory.Add(snapshot);
@@ -54,7 +53,7 @@ public class LagCompensation {
     }
 
     public void Update() {
-        while (snapshotHistory.Count > maxLagCompensationTicks) {
+        while (snapshotHistory.Count > NetworkSettings.tickRate) {
             uint oldestTick = uint.MaxValue;
 
             foreach (WorldSnapshot snapshot in snapshotHistory) {

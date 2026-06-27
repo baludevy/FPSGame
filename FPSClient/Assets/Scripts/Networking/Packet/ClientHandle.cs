@@ -80,7 +80,7 @@ public class ClientHandle {
             worldSnapshot = snapshot,
         };
         
-        SnapshotManager.Instance.OnUpdateReceived(update);
+        UpdateManager.Instance.OnUpdateReceived(update);
     }
 
 

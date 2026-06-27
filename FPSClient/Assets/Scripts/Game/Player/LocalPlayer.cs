@@ -29,7 +29,7 @@ public class LocalPlayer : FixedBehaviour {
         playerInput.ConsumeInput();
         
         if ((currentInput.buttons & Buttons.Shoot) != 0) {
-            Debug.Log($"{movement.transform.position} tick: {currentInput.tick}");
+            weapon.Shoot();
         }
 
         prediction.PredictState(currentInput);

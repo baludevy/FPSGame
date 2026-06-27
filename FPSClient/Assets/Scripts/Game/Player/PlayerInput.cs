@@ -91,7 +91,7 @@ public class PlayerInput : MonoBehaviour {
                     playerInputs.Add(inputData);
             }
 
-        for (uint i = 0; i < NetworkSettings.inputRedundancy; i++) {
+        for (uint i = 0; i < NetcodeState.inputRedundancy; i++) {
             uint inputTick = lastCompletedTick - i;
 
             if (inputTick >= firstUnsent) continue;

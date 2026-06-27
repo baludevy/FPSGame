@@ -5,8 +5,7 @@ public sealed class FrametimeMonitor : MonoBehaviour {
     public static float meanFrametime;
     public static float frametimeStdDev;
 
-    [SerializeField] private float smoothing = 0.05f;
-
+    private float smoothing = 0.05f;
     private float meanSq;
     private bool initialized;
 

@@ -15,7 +15,7 @@ public class Player : MonoBehaviour {
         this.username = username;
 
         inputBuffer = new InputBuffer();
-        inputBuffer.Initialize();
+        inputBuffer.Initialize(this);
         invoker = new TickInvoker();
     }
 
@@ -25,7 +25,6 @@ public class Player : MonoBehaviour {
         playerCam.rotation = Quaternion.Euler(inputData.pitch, inputData.yaw, 0);
 
         if ((inputData.buttons & Buttons.Shoot) != 0) {
-            Debug.Log($"{movement.transform.position} tick: {inputData.tick}");
             weaponController.Shoot(inputData);
         }
 

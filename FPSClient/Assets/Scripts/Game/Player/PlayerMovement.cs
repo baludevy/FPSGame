@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 
+// client
 public class PlayerMovement : MonoBehaviour {
     public Transform orientation;
     public LayerMask whatIsGround;

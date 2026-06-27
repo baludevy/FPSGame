@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class InputBuffer {
+    private Player player;
+    
     private InputData[] inputQueue;
     private float[] calculatedMargins;
     private InputData lastValidInputData;
@@ -13,26 +15,35 @@ public class InputBuffer {
     private float latestReceiveTimestamp;
 
     private float inputReceiveMargin;
-    private static float maxInputMarginTime = 0.2f;
 
     private float clientUpstreamJitter;
     private float clientUpstreamPacketLoss;
 
-    private static int jitterWindow = 128;
+    private static int jitterWindow => NetworkSettings.tickRate;
     private float[] jitterSamples = new float[jitterWindow];
     private float[] jitterSorted = new float[jitterWindow];
     private int jitterIndex;
     private int jitterCount;
 
-    private static int lossWindow = 128;
+    private static int lossWindow => NetworkSettings.tickRate;
     private readonly bool[] received = new bool[lossWindow];
     private int receivedCount;
     private bool hasTick;
 
-    private float smoothedLatency;
+    private float lastLatency;
     private bool hasLastLatency;
 
-    public void Initialize() {
+    // logs
+    private int fallbackCount;
+    private float fallbackStartTime;
+    private bool isTrackingFallback;
+
+    private int rejectedCount;
+    private float rejectedStartTime;
+    private bool isTrackingRejected;
+
+    public void Initialize(Player player) {
+        this.player = player;
         inputQueue = new InputData[NetworkSettings.inputBufferSize];
         calculatedMargins = new float[NetworkSettings.inputBufferSize];
         lastValidInputData = new InputData();
@@ -45,13 +56,25 @@ public class InputBuffer {
         if (inputData != null && inputData.tick == tick) {
             inputReceiveMargin = calculatedMargins[i];
             lastValidInputData = inputData;
+            
+            CheckAndLogFallback();
+
             return inputData;
         }
 
-        int missingTicks = (int)tick - (int)latestClientTick;
-        float estimatedPacketDueTime = latestReceiveTimestamp + (missingTicks * NetworkSettings.tickTime);
+        float currentTime = FixedClock.GetTime();
+        if (!isTrackingFallback) {
+            isTrackingFallback = true;
+            fallbackStartTime = currentTime;
+            fallbackCount = 0;
+        }
 
-        inputReceiveMargin = FixedClock.GetTime() - estimatedPacketDueTime;
+        fallbackCount++;
+
+        int missingTicks = (int)tick - (int)latestClientTick;
+        float estimatedPacketDueTime = latestReceiveTimestamp + missingTicks * NetworkSettings.tickTime;
+
+        inputReceiveMargin = currentTime - estimatedPacketDueTime;
 
         InputData fallbackInputData = new InputData {
             tick = tick,
@@ -63,8 +86,6 @@ public class InputBuffer {
             buttons = lastValidInputData.buttons
         };
 
-        Debug.Log($"{tick}: returning fallback input");
-
         return fallbackInputData;
     }
 
@@ -75,21 +96,38 @@ public class InputBuffer {
         uint previousLatest = latestClientTick;
         uint newestInBatch = previousLatest;
 
+        bool batchHadValidInput = false;
+
         foreach (InputData input in inputs) {
             if (input.tick > newestInBatch) newestInBatch = input.tick;
-            
+
             uint i = input.tick % NetworkSettings.inputBufferSize;
 
             float inputTimeLocation = input.tick * NetworkSettings.tickTime;
-            if (FixedClock.tick < input.tick && (inputTimeLocation - (FixedClock.tick * NetworkSettings.tickTime)) > maxInputMarginTime) {
+
+            // reject inputs that are too far into the future
+            if (FixedClock.tick < input.tick && inputTimeLocation - FixedClock.tick * NetworkSettings.tickTime >
+                NetworkSettings.maxInputMarginTime) {
+                if (!isTrackingRejected) {
+                    isTrackingRejected = true;
+                    rejectedStartTime = latestReceiveTimestamp;
+                    rejectedCount = 0;
+                }
+
+                rejectedCount++;
+
                 calculatedMargins[i] = inputTimeLocation - latestReceiveTimestamp;
-                Debug.Log("rejecting future input");
                 continue;
             }
 
             if (inputQueue[i] != null && inputQueue[i].tick == input.tick) continue;
             inputQueue[i] = input;
             calculatedMargins[i] = inputTimeLocation - latestReceiveTimestamp;
+            batchHadValidInput = true;
+        }
+        
+        if (batchHadValidInput) {
+            CheckAndLogRejected();
         }
 
         float currentLatency = latestReceiveTimestamp - clientSendTime;
@@ -104,15 +142,39 @@ public class InputBuffer {
         }
     }
 
-    private void SampleJitter(float currentLatency) {
+    private void CheckAndLogFallback() {
+        if (isTrackingFallback) {
+            if (fallbackCount >= 5) {
+                float duration = FixedClock.GetTime() - fallbackStartTime;
+                Debug.LogWarning($"Used {fallbackCount} fallback inputs for {player.username} ({player.id}) over a time of {duration:F1}s");
+            }
+
+            isTrackingFallback = false;
+            fallbackCount = 0;
+        }
+    }
+
+    private void CheckAndLogRejected() {
+        if (isTrackingRejected) {
+            if (rejectedCount >= 5) {
+                float duration = latestReceiveTimestamp - rejectedStartTime;
+                Debug.LogWarning($"Rejected {rejectedCount} future inputs from {player.username} ({player.id}) over a time of {duration:F1}s");
+            }
+
+            isTrackingRejected = false;
+            rejectedCount = 0;
+        }
+    }
+
+    private void SampleJitter(float latency) {
         if (!hasLastLatency) {
             hasLastLatency = true;
-            smoothedLatency = currentLatency;
+            lastLatency = latency;
             return;
         }
 
-        float delta = Mathf.Abs(currentLatency - smoothedLatency);
-        smoothedLatency = currentLatency;
+        float delta = Mathf.Abs(latency - lastLatency);
+        lastLatency = latency;
 
         jitterSamples[jitterIndex] = delta;
         jitterIndex = (jitterIndex + 1) % jitterWindow;

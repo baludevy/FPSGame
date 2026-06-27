@@ -22,8 +22,8 @@ public static class ConnectionManager {
         CursorManager.EnableCursor();
         
         NetStatisticsManager.Reset();
-        NetworkTuner.Reset();
-        SnapshotManager.Instance.Reset();
+        AdaptiveNetcode.Reset();
+        UpdateManager.Instance.Reset();
         
         FixedClock.Reset();
 

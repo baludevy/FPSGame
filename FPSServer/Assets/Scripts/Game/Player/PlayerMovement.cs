@@ -1,5 +1,7 @@
 ﻿using UnityEngine;
 
+
+// server
 public class PlayerMovement : MonoBehaviour {
     public Transform orientation;
     public LayerMask whatIsGround;
@@ -236,16 +238,16 @@ public class PlayerMovement : MonoBehaviour {
             return;
         }
 
+        float wishSpeed = Mathf.Min(maxAirSpeed, airAcceleration);
+
         float currentSpeed = Vector3.Dot(vel, wishDir);
-        float addSpeed = maxAirSpeed - currentSpeed;
+        float addSpeed = wishSpeed - currentSpeed;
 
         if (addSpeed <= 0f) {
             return;
         }
 
-        float accelSpeed = airAcceleration * NetworkSettings.tickTime;
-        accelSpeed = Mathf.Min(accelSpeed, addSpeed);
-
+        float accelSpeed = Mathf.Min(airAcceleration * NetworkSettings.tickTime, addSpeed);
         rb.AddForce(wishDir * accelSpeed, ForceMode.VelocityChange);
     }
 
@@ -275,7 +277,7 @@ public class PlayerMovement : MonoBehaviour {
         }
 
         jumpedThisFrame = true;
-        
+
         Vector3 vel = rb.velocity;
         rb.AddForce(Vector3.up * (jumpForce - vel.y), ForceMode.VelocityChange);
     }
