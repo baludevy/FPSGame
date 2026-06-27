@@ -8,6 +8,8 @@ public static class NetStatisticsManager {
     private static float lastClientReceive = -1f;
     private static float lastServerSend = -1f;
 
+    private static float inputMarginSmooth = NetworkSettings.tickTime / 0.25f;
+    
     private static int jitterWindow = 128;
     private static readonly float[] jitterSamples = new float[jitterWindow];
     private static readonly float[] jitterSorted = new float[jitterWindow];
@@ -30,7 +32,7 @@ public static class NetStatisticsManager {
 
         NetStatistics.ping = Mathf.Max(0f, Mathf.Lerp(NetStatistics.ping, pingSample, pingSmooth));
 
-        NetStatistics.inputMargin = (0.0625f * timing.inputReceiveMargin) + ((1f - 0.0625f) * lastInputMargin);
+        NetStatistics.inputMargin = (inputMarginSmooth * timing.inputReceiveMargin) + ((1f - inputMarginSmooth) * lastInputMargin);
 
         UpdateJitter(timing.serverSendTime, clientReceive);
         UpdatePacketLoss(serverTick);

@@ -58,19 +58,17 @@ public class PlayerPrediction : MonoBehaviour {
             Quaternion.Euler(0f, serverState.orientation, 0f);
 
         uint lastSimulatedTick = FixedClock.tick - 1;
-        
+
         for (uint i = tick + 1; i <= lastSimulatedTick; i++) {
             uint index = i % NetworkSettings.inputHistorySize;
             InputData inputData = PlayerInput.inputHistory[index];
-
             if (inputData == null) {
-                // Debug.Log("fuck");
+                Debug.Log("fuck");
                 continue;
             }
 
             LocalPlayer.Instance.movement.SetInput(inputData);
             LocalPlayer.Instance.movement.AdvanceLogic();
-            
             Physics.Simulate(NetworkSettings.tickTime);
 
             positionHistory[index] = LocalPlayer.Instance.movement.transform.position;

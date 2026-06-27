@@ -5,7 +5,7 @@ public static class NetworkTuner {
     private static float baseInputMargin = 0.003f;
     private static float inputMarginRiseLerp = 0.2f;
     private static float inputMarginFallLerp = 0.02f;
-    private static float maxInputMarginTime = 0.050f;
+    private static float maxInputMarginTime = 0.1f;
 
     private static float baseReceiveMargin = 0.003f;
     private static float maxReceiveMargin = 0.090f;
@@ -14,7 +14,7 @@ public static class NetworkTuner {
     private static float committedReceiveMarginTarget;
     private static float receiveMarginLowerTimer;
 
-    private static float jitterMarginMult = 1.2f;
+    private static float jitterMarginMult = 1.5f;
     private static float frametimeMarginMult = 0.3f;
     private static float lossMarginScale = 0.08f;
     private static float maxLossMargin = 0.04f;
@@ -149,9 +149,9 @@ public static class NetworkTuner {
 
     private static int DesiredRedundancy(float loss) {
         if (loss > 0.10f) return 4;
-        if (loss > 0.05f) return 3;
-        if (loss > 0.01f) return 2;
-        return 0;
+        if (loss > 0.05f) return 4;
+        if (loss > 0.01f) return 3;
+        return 4;
     }
 
     public static void Reset() {

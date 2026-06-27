@@ -9,7 +9,7 @@ public class SnapshotManager : MonoBehaviour
 
     public float targetMargin = 0.024f;
     public float driftCorrectionGain = 0.1f;
-    public float marginSmoothingFactor = 0.02f;
+    private static float receiveMarginSmooth = 2f / (32f + 1f);
 
     private uint lastProcessedTick;
     private uint lastReconciledTick;
@@ -147,6 +147,16 @@ public class SnapshotManager : MonoBehaviour
         float deltaTime = Mathf.Clamp((now - lastFrameTime), 0f, 0.25f);
         lastFrameTime = now;
         
+        float maxAllowedMargin = 0.1f + NetStatistics.ping;
+        if (currentMargin > maxAllowedMargin)
+        {
+            float excessSeconds = currentMargin - targetMargin;
+            float excessTicks = excessSeconds * tickRate;
+            
+            renderTick = Mathf.Min(renderTick + excessTicks, newestQueuedTick);
+            currentMargin = targetMargin;
+        }
+
         float marginError = currentMargin - targetMargin;
         float playbackSpeedMultiplier = Mathf.Clamp(1f + (marginError / NetworkSettings.tickTime) * driftCorrectionGain, 0.9f, 1.1f);
 
@@ -183,7 +193,7 @@ public class SnapshotManager : MonoBehaviour
             }
             else
             {
-                currentMargin = (0.0625f * consumptionDelta) + ((1f - 0.0625f) * currentMargin);
+                currentMargin = (receiveMarginSmooth * consumptionDelta) + ((1f - receiveMarginSmooth) * currentMargin);
             }
         }
 

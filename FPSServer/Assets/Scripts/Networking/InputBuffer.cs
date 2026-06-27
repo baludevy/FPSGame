@@ -13,7 +13,7 @@ public class InputBuffer {
     private float latestReceiveTimestamp;
 
     private float inputReceiveMargin;
-    private static float maxInputMarginTime = 0.050f;
+    private static float maxInputMarginTime = 0.2f;
 
     private float clientUpstreamJitter;
     private float clientUpstreamPacketLoss;
@@ -60,6 +60,7 @@ public class InputBuffer {
             y = lastValidInputData.y,
             pitch = lastValidInputData.pitch,
             yaw = lastValidInputData.yaw,
+            buttons = lastValidInputData.buttons
         };
 
         Debug.Log($"{tick}: returning fallback input");
@@ -82,6 +83,7 @@ public class InputBuffer {
             float inputTimeLocation = input.tick * NetworkSettings.tickTime;
             if (FixedClock.tick < input.tick && (inputTimeLocation - (FixedClock.tick * NetworkSettings.tickTime)) > maxInputMarginTime) {
                 calculatedMargins[i] = inputTimeLocation - latestReceiveTimestamp;
+                Debug.Log("rejecting future input");
                 continue;
             }
 
