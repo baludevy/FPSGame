@@ -8,11 +8,13 @@ public class ClientHandle {
         int myId = packet.ReadInt();
 
         Client.Instance.myId = myId;
-        Client.IsConnected = true;
+        
+        byte[] token = packet.ReadBytes(NetProtocol.tokenLength);
+        Client.Instance.sessionToken = token;
 
         Client.Instance.udp.Connect(((IPEndPoint)Client.Instance.tcp.socket.Client.LocalEndPoint).Port);
 
-        ConnectionManager.OnConnect();
+        NetworkManager.Instance.NotifyConnected();
     }
 
     public static void SpawnPlayer(Packet packet) {
@@ -32,55 +34,7 @@ public class ClientHandle {
     }
 
     public static void GameUpdate(Packet packet) {
-        uint serverTick = packet.ReadUInt();
-
-        TimingInfo timingInfo = new TimingInfo {
-            inputReceiveMargin = FloatCompressor.ShortToFloat(packet.ReadShort()),
-            clientSendTimeAck = packet.ReadFloat(),
-            serverSendTime = packet.ReadFloat(),
-            serverReceiveTime = packet.ReadFloat(),
-        };
-
-        UpstreamStatistics upstreamStatistics = new UpstreamStatistics {
-            jitter = FloatCompressor.ShortToFloat(packet.ReadShort()),
-            packetLoss = packet.ReadByte() / 100f,
-        };
-
-        MovementState movementState = new MovementState() {
-            position = packet.ReadVector3(),
-            velocity = packet.ReadVector3(), 
-            orientation = packet.ReadFloat(),
-        };
-
-        byte playerStateCount = packet.ReadByte();
-        List<PlayerState> playerStates = new List<PlayerState>();
-
-        for (int i = 0; i < playerStateCount; i++) {
-            PlayerState state = new PlayerState {
-                id = packet.ReadByte(),
-                position = packet.ReadVector3(),
-            };
-
-            playerStates.Add(state);
-        }
-
-
-        WorldSnapshot snapshot = new WorldSnapshot {
-            serverTick = serverTick,
-            serverSendTime = timingInfo.serverSendTime,
-            clientReceiveTime = FixedClock.GetTime(),
-            playerStates = playerStates,
-        };
-
-        GameUpdate update = new GameUpdate {
-            serverTick = serverTick,
-            timingInfo = timingInfo,
-            upstreamStatistics = upstreamStatistics,
-            movementState = movementState,
-            worldSnapshot = snapshot,
-        };
-        
-        UpdateManager.Instance.OnUpdateReceived(update);
+        UpdateDeserializer.GameUpdate(packet);
     }
 
 

@@ -38,11 +38,10 @@ public class ClientSend {
         }
     }
 
-    private static uint playerInputSequence;
-    
-    public static void PlayerInput(List<InputData> inputs) {
+
+    public static void PlayerInput(uint sequence, List<InputData> inputs) {
         using (Packet packet = new Packet((int)ClientPackets.playerInput)) {
-            packet.Write(playerInputSequence);
+            packet.Write(sequence);
             packet.Write(FixedClock.GetTime());
 
             packet.Write((byte)inputs.Count);
@@ -58,8 +57,6 @@ public class ClientSend {
             }
 
             SendUDPData(packet);
-
-            playerInputSequence++;
         }
     }
 }

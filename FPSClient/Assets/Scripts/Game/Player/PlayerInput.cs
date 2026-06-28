@@ -5,6 +5,7 @@ using UnityEngine.InputSystem;
 public class PlayerInput : MonoBehaviour {
     public static InputData[] inputHistory = new InputData[NetworkSettings.inputHistorySize];
 
+    private uint inputSequence;
     public uint lastSentTick;
 
     private static List<InputData> playerInputs = new();
@@ -73,8 +74,6 @@ public class PlayerInput : MonoBehaviour {
     }
 
     public void SendPlayerInputs() {
-        if (LocalPlayer.Instance == null || !Client.IsConnected) return;
-
         int bufferSize = NetworkSettings.inputHistorySize;
 
         if (FixedClock.tick == 0) return;
@@ -105,8 +104,9 @@ public class PlayerInput : MonoBehaviour {
 
         playerInputs.Sort((a, b) => a.tick.CompareTo(b.tick));
 
-        ClientSend.PlayerInput(playerInputs);
+        ClientSend.PlayerInput(inputSequence, playerInputs);
 
+        inputSequence++;
         lastSentTick = lastCompletedTick;
     }
 }

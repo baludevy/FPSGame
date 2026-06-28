@@ -14,11 +14,11 @@ public class NetworkUIManager : MonoBehaviour {
     }
 
     public void ConnectToServer() {
-        if(Client.IsConnected) return;
+        if(NetworkManager.Instance.currentState != NetworkManager.State.disconnected) return;
         
         string ip = ipField.text == "" ? "127.0.0.1" : ipField.text;
         
-        Client.Instance.ConnectToServer(ip);
+        NetworkManager.Instance.Connect(ip);
     }
 
     public void EnableConnectUI() {

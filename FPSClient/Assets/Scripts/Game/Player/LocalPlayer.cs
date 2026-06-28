@@ -27,7 +27,7 @@ public class LocalPlayer : FixedBehaviour {
 
         currentInput = playerInput.GatherInput(tick);
         playerInput.ConsumeInput();
-        
+
         if ((currentInput.buttons & Buttons.Shoot) != 0) {
             weapon.Shoot();
         }
@@ -36,7 +36,7 @@ public class LocalPlayer : FixedBehaviour {
 
         Physics.SyncTransforms();
         Physics.Simulate(NetworkSettings.tickTime);
-        
+
         prediction.SaveState(tick);
     }
 
@@ -44,7 +44,8 @@ public class LocalPlayer : FixedBehaviour {
         prediction.Interpolate();
 
         // only send 1 input per frame
-        if (FixedClock.tick - 1 > playerInput.lastSentTick)
+        if (FixedClock.tick - 1 > playerInput.lastSentTick &&
+            NetworkManager.Instance.currentState == NetworkManager.State.connected)
             playerInput.SendPlayerInputs();
     }
 }

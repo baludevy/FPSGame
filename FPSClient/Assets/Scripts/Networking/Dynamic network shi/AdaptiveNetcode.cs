@@ -3,19 +3,19 @@
 public static class AdaptiveNetcode {
     // input margin settings
     private static float baseInputMargin = 0.005f; // 5ms base
-    private static float maxInputMarginTime = 0.2f; // 100ms max
+    private static float maxInputMarginTime = 0.2f; // 200ms max (server accepts 250 max)
     private static float inputMarginRiseLerp = 0.2f;
     private static float inputMarginFallLerp = 0.02f;
 
     // receive margin settings
-    private static float baseReceiveMargin = 0.003f; // 3m base
+    private static float baseReceiveMargin = 0.005f; // 3m base
     private static float maxReceiveMargin = 0.1f; // 100ms max
     private static float receiveMarginRiseLerp = 0.15f;
     private static float receiveMarginFallLerp = 0.01f;
 
     // network and frametime jitter
-    private static float jitterMarginMult = 1.5f;
-    private static float frametimeMarginMult = 0.3f;
+    private static float jitterMarginMult = 1.2f;
+    private static float frametimeMarginMult = 0.25f;
     private static float marginLowerHold = 5f;
 
     // packet loss

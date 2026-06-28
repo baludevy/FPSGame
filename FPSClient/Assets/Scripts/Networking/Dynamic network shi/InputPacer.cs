@@ -6,21 +6,16 @@ public static class InputPacer {
     // pacer settings
     private static float sensitivity = 0.02f;
     private static float catchUpGainMult = 3f;
-    private static float jitterDeadbandMult = 0.5f;
+    private static float jitterDeadbandMult = 0.25f;
+    private static float frametimeDeadbandMult = 0.25f;
 
     // timescale bounds
-    private static float maxSpeedUp = 0.4f;
-    private static float maxSlowDown = 0.2f;
+    private static float maxSpeedUp = 0.1f;
+    private static float maxSlowDown = 0.05f;
 
     // timescale smoothing
     private static float speedUpSmoothing = 0.6f;
     private static float slowDownSmoothing = 0.3f;
-
-    // hard snap settings
-    private static bool allowSnap = true;
-    private static float snapThreshold = 0.25f;
-    private static float maxSnapSeconds = 0.5f;
-    private static int stepConfirmSamples = 2;
 
     // state variables
     private static float currentMargin;
@@ -29,11 +24,21 @@ public static class InputPacer {
 
     private static float pendingCorrection;
 
-    // streak counters
-    private static int behindStreak;
-
-    public static void AdjustInputClock(float inputMargin) {
+    public static void AdjustInputClock(float inputMargin, uint serverTick) {
         currentMargin = inputMargin;
+
+        if (currentMargin > 0.23f || currentMargin < -0.23f) {
+            Debug.Log((uint)TickUtil.SecondsToTick(NetStatistics.ping + NetcodeState.targetInputMargin));
+
+            FixedClock.tick =
+                serverTick + (uint)TickUtil.SecondsToTick(NetStatistics.ping + NetcodeState.targetInputMargin);
+
+            targetTimescale = 1f;
+            FixedClock.timeScale = 1f;
+            pendingCorrection = 0f;
+
+            return;
+        }
 
         float now = FixedClock.GetTime();
         float deltaTime = now - lastSampleTime;
@@ -48,32 +53,11 @@ public static class InputPacer {
         float deviation = inputMargin - targetMargin;
         float effectiveDeviation = deviation + pendingCorrection;
 
-        float currentDeadband = Mathf.Clamp(NetStatistics.upstreamJitter * jitterDeadbandMult, 0.002f, 0.05f);
-
-        bool genuinelyBehind = deviation < -snapThreshold && pendingCorrection < snapThreshold;
-
-        if (genuinelyBehind) {
-            behindStreak = behindStreak + 1;
-        }
-        else {
-            behindStreak = 0;
-        }
-
-        // check if snap conditions are satisfied
-        if (allowSnap && behindStreak >= stepConfirmSamples) {
-            float wanted = -deviation - pendingCorrection;
-            float snap = Mathf.Clamp(wanted, -maxSnapSeconds, maxSnapSeconds);
-
-            if (Mathf.Abs(snap) > 0f) {
-                FixedClock.Nudge(snap);
-                pendingCorrection = Mathf.Clamp(pendingCorrection + snap, -maxSnapSeconds, maxSnapSeconds);
-            }
-
-            behindStreak = 0;
-            targetTimescale = 1f;
-            FixedClock.timeScale = Mathf.Lerp(FixedClock.timeScale, targetTimescale, slowDownSmoothing);
-            return;
-        }
+        float jitterDeadband = NetStatistics.upstreamJitter * jitterDeadbandMult;
+        float frametimeDeadband = (FrametimeMonitor.meanFrametime + 2f * FrametimeMonitor.frametimeStdDev) *
+            frametimeDeadbandMult;
+        
+        float currentDeadband = Mathf.Clamp(jitterDeadband + frametimeDeadband, 0.002f, 0.05f);
 
         // recalculate target timescale based on deadband
         if (Mathf.Abs(effectiveDeviation) <= currentDeadband) {
@@ -87,6 +71,7 @@ public static class InputPacer {
             else {
                 gain = sensitivity * 1f;
             }
+
             float pTerm = -(effectiveDeviation / NetworkSettings.tickTime) * gain;
             targetTimescale = Mathf.Clamp(1f + pTerm, 1f - maxSlowDown, 1f + maxSpeedUp);
         }
@@ -98,10 +83,11 @@ public static class InputPacer {
         else {
             smoothing = slowDownSmoothing;
         }
+
         float newScale = Mathf.Lerp(FixedClock.timeScale, targetTimescale, smoothing);
 
         pendingCorrection += (newScale - 1f) * deltaTime;
-        pendingCorrection = Mathf.Clamp(pendingCorrection, -maxSnapSeconds, maxSnapSeconds);
+        pendingCorrection = Mathf.Clamp(pendingCorrection, -0.5f, 0.5f);
 
         FixedClock.timeScale = newScale;
     }
@@ -115,7 +101,6 @@ public static class InputPacer {
         targetTimescale = 1f;
         lastSampleTime = 0f;
         pendingCorrection = 0f;
-        behindStreak = 0;
         FixedClock.timeScale = 1f;
     }
 }

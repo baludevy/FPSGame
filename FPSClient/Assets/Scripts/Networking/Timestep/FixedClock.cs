@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
 
 public class FixedClock : MonoBehaviour {
     public static float timeScale = 1f;
@@ -51,11 +50,6 @@ public class FixedClock : MonoBehaviour {
 
         foreach (FixedBehaviour behaviour in behaviours)
             behaviour.UpdateFixed();
-    }
-
-    public static void Nudge(float seconds) {
-        if (seconds <= 0f) return;
-        accumulator += seconds;
     }
 
     public static float GetTime() {

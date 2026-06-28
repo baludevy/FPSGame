@@ -47,7 +47,10 @@ public class ServerSend {
     public static void Welcome(int toClient) {
         using (Packet packet = new Packet((int)ServerPackets.welcome)) {
             packet.Write(toClient);
-
+            
+            byte[] token = Server.clients[toClient].IssueNewToken();
+            packet.Write(token);
+            
             SendTCPData(toClient, packet);
         }
     }
@@ -83,7 +86,7 @@ public class ServerSend {
             packet.Write(update.timingInfo.serverReceiveTime);
 
             packet.Write(FloatCompressor.FloatToShort(update.upstreamStatistics.jitter));
-            packet.Write((byte)Mathf.RoundToInt(update.upstreamStatistics.packetLoss * 100));
+            packet.Write(FloatCompressor.FloatToShort(update.upstreamStatistics.packetLoss));
             
             packet.Write(update.movementState.position);
             packet.Write(update.movementState.velocity);

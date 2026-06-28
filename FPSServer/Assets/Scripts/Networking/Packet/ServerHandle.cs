@@ -12,6 +12,7 @@ public class ServerHandle {
                 $"Player \"{username}\" (id: {fromClient}) has assumed the wrong client id ({clientIdCheck})!");
         }
 
+        Server.clients[fromClient].CompleteHandshake();
         Server.clients[fromClient].SendIntoGame(username);
     }
 
@@ -22,29 +23,6 @@ public class ServerHandle {
     }
 
     public static void PlayerInput(int fromClient, Packet packet) {
-        uint playerInputSequence = packet.ReadUInt();
-        float clientSendTime = packet.ReadFloat();
-
-        int inputCount = packet.ReadByte();
-
-        List<InputData> inputs = new List<InputData>();
-
-        for (int i = 0; i < inputCount; i++) {
-            InputData inputData = new InputData {
-                tick = packet.ReadUInt(),
-                renderTick = packet.ReadFloat(),
-                x = FloatCompressor.ShortToFloat(packet.ReadShort()),
-                y = FloatCompressor.ShortToFloat(packet.ReadShort()),
-                pitch = packet.ReadFloat(),
-                yaw = packet.ReadFloat(),
-                buttons = (Buttons)packet.ReadByte(),
-            };
-
-            inputs.Add(inputData);
-        }
-
-        Player player = Server.clients[fromClient].player;
-
-        player.inputBuffer.AddInputsToQueue(inputs, playerInputSequence, clientSendTime);
+        InputDeserializer.PlayerInput(fromClient, packet);
     }
 }

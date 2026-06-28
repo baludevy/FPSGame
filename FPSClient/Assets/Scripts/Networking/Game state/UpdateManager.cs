@@ -58,9 +58,6 @@ public class UpdateManager : MonoBehaviour {
 
         if (update.serverTick > serverTick) {
             serverTick = update.serverTick;
-            NetStatisticsManager.UpdateStatistics(update.serverTick, now, update.timingInfo, update.upstreamStatistics);
-            AdaptiveNetcode.Apply();
-            InputPacer.AdjustInputClock(NetStatistics.inputMargin);
         }
 
         if (update.serverTick > lastReconciledTick) {
@@ -118,7 +115,6 @@ public class UpdateManager : MonoBehaviour {
             float excessTicks = excessSeconds * tickRate;
 
             renderTick = Mathf.Min(renderTick + excessTicks, newestQueuedTick);
-            currentMargin = targetMargin;
         }
 
         float marginError = currentMargin - targetMargin;
@@ -175,26 +171,24 @@ public class UpdateManager : MonoBehaviour {
     }
 
     private void ApplyInterpolatedState(WorldSnapshot from, WorldSnapshot to, float alpha) {
-        foreach (PlayerState startState in from.playerStates) {
+        for (int i = 0; i < from.playerStates.Count; i++) {
+            PlayerState startState = from.playerStates[i];
             if (startState.id == Client.Instance.myId) {
                 continue;
             }
 
-            if (!GameManager.players.TryGetValue(startState.id, out PlayerManager player)) {
-                continue;
+            int endIndex = to.playerStates.FindIndex(s => s.id == startState.id);
+            if (GameManager.players.TryGetValue(startState.id, out PlayerManager player)) {
+                if (endIndex == -1) {
+                    player.transform.position = startState.position;
+                }
+                else {
+                    player.transform.position =
+                        Vector3.Lerp(startState.position, to.playerStates[endIndex].position, alpha);
+                }
             }
-
-            PlayerState endState = to.playerStates.Find(s => s.id == startState.id);
-
-            ProcessInterpolatedPlayerState(player, startState, endState, alpha);
         }
     }
-
-    private void ProcessInterpolatedPlayerState(PlayerManager player, PlayerState fromState, PlayerState toState,
-        float alpha) {
-        player.transform.position = Vector3.Lerp(fromState.position, toState.position, alpha);
-    }
-
 
     public static float GetCurrentReceiveMargin() {
         return currentMargin;

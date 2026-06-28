@@ -146,7 +146,7 @@ public class InputBuffer {
         if (isTrackingFallback) {
             if (fallbackCount >= 5) {
                 float duration = FixedClock.GetTime() - fallbackStartTime;
-                Debug.LogWarning($"Used {fallbackCount} fallback inputs for {player.username} ({player.id}) over a time of {duration:F1}s");
+                Debug.LogWarning($"Client lost {fallbackCount} inputs, fallback inputs for {player.username} ({player.id}) were used over a time of {duration:F1}s");
             }
 
             isTrackingFallback = false;
