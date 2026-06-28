@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using PimDeWitte.UnityMainThreadDispatcher;
 using UnityEngine;
 
 public class Client : MonoBehaviour {
@@ -24,9 +25,7 @@ public class Client : MonoBehaviour {
         { (byte)ServerPackets.syncTick, ClientHandle.SyncTick },
         { (byte)ServerPackets.spawnPlayer, ClientHandle.SpawnPlayer },
         { (byte)ServerPackets.gameUpdate, ClientHandle.GameUpdate },
-        { (byte)ServerPackets.lagCompVisual, ClientHandle.LagCompVisual },
     };
-
 
     private static readonly HashSet<byte> offMainThreadPackets = new() {
         (byte)ServerPackets.gameUpdate
@@ -43,8 +42,10 @@ public class Client : MonoBehaviour {
 
     public void ConnectToServer(string targetIp) {
         ip = targetIp;
+        
         tcp = new TcpConnection();
         udp = new UdpConnection();
+        
         tcp.Connect();
     }
 
@@ -172,14 +173,13 @@ public class Client : MonoBehaviour {
                     TriggerDisconnect();
                     return true;
                 },
-                dispatch: bytes =>
-                    PacketDispatch.Route(bytes, offMainThreadPackets, packetHandlers));
+                dispatch: bytes => PacketDispatch.Route(bytes, offMainThreadPackets, packetHandlers));
         }
 
         private void TriggerDisconnect() {
             if (disconnected) return;
             disconnected = true;
-            ThreadManager.ExecuteOnMainThread(() => Instance.Disconnect());
+            UnityMainThreadDispatcher.Instance().Enqueue(() => Instance.Disconnect());
         }
 
         public void Disconnect() {
@@ -292,7 +292,7 @@ public class Client : MonoBehaviour {
         private void TriggerDisconnect() {
             if (disconnected) return;
             disconnected = true;
-            ThreadManager.ExecuteOnMainThread(() => Instance.Disconnect());
+            UnityMainThreadDispatcher.Instance().Enqueue(() => Instance.Disconnect());
         }
 
         public void Disconnect() {
@@ -319,7 +319,7 @@ public class Client : MonoBehaviour {
             udp = null;
         }
 
-        ThreadManager.ExecuteOnMainThread(() => {
+        UnityMainThreadDispatcher.Instance().Enqueue(() => {
             if (NetworkManager.Instance != null) NetworkManager.Instance.NotifyDisconnected();
         });
     }

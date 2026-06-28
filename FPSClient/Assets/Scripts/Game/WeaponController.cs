@@ -7,12 +7,12 @@ public class WeaponController : MonoBehaviour {
     private bool canFire = true;
 
     public void Shoot() {
-        if (!canFire) return;
+        // if (!canFire) return;
 
         MoveWeapon.Instance.Recoil();
         PlayShootSound();
         
-        Debug.Log(LocalPlayer.Instance.movement.transform.position);
+        Debug.Log(LocalPlayer.Instance.playerCamera.transform.position);
 
         canFire = false;
         TickInvoker.Invoke(ResetFire, Mathf.RoundToInt(NetworkSettings.tickRate / data.fireRate));

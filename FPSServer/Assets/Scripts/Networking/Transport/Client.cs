@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using PimDeWitte.UnityMainThreadDispatcher;
 using UnityEngine;
 
 public class Client {
@@ -74,6 +75,7 @@ public class Client {
             // Slots are reused; clear any leftover state from the previous occupant.
             while (sendQueue.TryDequeue(out _)) {
             }
+
             Interlocked.Exchange(ref isSending, 0);
 
             if (Server.clients.TryGetValue(id, out Client owner)) owner.MarkActivity();
@@ -202,7 +204,7 @@ public class Client {
         private void TriggerDisconnect() {
             if (disconnected) return;
             disconnected = true;
-            ThreadManager.ExecuteOnMainThread(() => Server.clients[id]?.Disconnect());
+            UnityMainThreadDispatcher.Instance().Enqueue(() => Server.clients[id]?.Disconnect());
         }
 
         public void Disconnect() {
@@ -212,6 +214,7 @@ public class Client {
             }
             catch {
             }
+
             handshakeTimer = null;
 
             try {
@@ -229,6 +232,7 @@ public class Client {
 
             while (sendQueue.TryDequeue(out _)) {
             }
+
             Interlocked.Exchange(ref isSending, 0);
             stream = null;
             receivedData = null;
@@ -265,6 +269,7 @@ public class Client {
             lock (gate) {
                 ep = endPoint;
             }
+
             if (ep != null) Server.SendUdpData(ep, packet);
         }
 
@@ -307,7 +312,7 @@ public class Client {
         string label = player != null ? $"{player.username} ({player.id})" : $"Client {id}";
         Debug.Log($"{label} disconnected.");
 
-        ThreadManager.ExecuteOnMainThread(() => {
+        UnityMainThreadDispatcher.Instance().Enqueue(() => {
             if (player != null) {
                 UnityEngine.Object.Destroy(player.gameObject);
                 player = null;

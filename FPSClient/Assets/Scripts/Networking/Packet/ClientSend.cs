@@ -49,6 +49,7 @@ public class ClientSend {
             foreach (InputData input in inputs) {
                 packet.Write(input.tick);
                 packet.Write(input.renderTick);
+                packet.Write(FloatCompressor.FloatToShort(input.interpolationFactor));
                 packet.Write(FloatCompressor.FloatToShort(input.x));
                 packet.Write(FloatCompressor.FloatToShort(input.y));
                 packet.Write(input.pitch);

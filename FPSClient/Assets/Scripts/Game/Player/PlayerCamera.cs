@@ -52,7 +52,7 @@ public class PlayerCamera : MonoBehaviour {
         Look();
     }
 
-    private void LateUpdate() {
+    public void MoveCamera() {
         transform.position = player.position + bobOffset + offset;
 
         UpdateFov();

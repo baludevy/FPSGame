@@ -5719,6 +5719,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   visualPlayer: {fileID: 1335595927676222055}
+  errorDecay: 12
 --- !u!1 &8105574220913522081
 GameObject:
   m_ObjectHideFlags: 0

@@ -15,11 +15,13 @@ public class WeaponController : MonoBehaviour {
     }
 
     public void Shoot(InputData inputData) {
-        if (!canFire) return;
+        // if (!canFire) return;
         Vector3 origin = player.playerCam.position;
         Vector3 direction = player.playerCam.forward;
+        
+        Debug.Log(origin);
 
-        Debug.DrawRay(origin, direction * 1000f, Color.red, 1f);
+        /*Debug.DrawRay(origin, direction * 1000f, Color.red, 1f);
         List<(Player player, Vector3 originalPosition)> moved = new List<(Player, Vector3)>();
 
         if (enableLagComp) {
@@ -46,7 +48,7 @@ public class WeaponController : MonoBehaviour {
         }
 
         canFire = false;
-        player.invoker.Invoke(ResetFire, Mathf.RoundToInt(NetworkSettings.tickRate / data.fireRate));
+        player.invoker.Invoke(ResetFire, Mathf.RoundToInt(NetworkSettings.tickRate / data.fireRate)); */
     }
 
     private void ResetFire() => canFire = true;

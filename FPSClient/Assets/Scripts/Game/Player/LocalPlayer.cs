@@ -10,7 +10,9 @@ public class LocalPlayer : FixedBehaviour {
     public PlayerCamera playerCamera;
 
     private InputData currentInput;
-    private uint lastSimTick;
+    
+    private Vector3 prevTickPosition;
+    private Vector3 currTickPosition;
 
     private void Awake() {
         if (Instance == null) Instance = this;
@@ -23,25 +25,26 @@ public class LocalPlayer : FixedBehaviour {
 
     public override void UpdateFixed() {
         uint tick = FixedClock.tick;
-        lastSimTick = tick;
-
+        
         currentInput = playerInput.GatherInput(tick);
         playerInput.ConsumeInput();
-
-        if ((currentInput.buttons & Buttons.Shoot) != 0) {
-            weapon.Shoot();
-        }
-
+        
         prediction.PredictState(currentInput);
 
         Physics.SyncTransforms();
         Physics.Simulate(NetworkSettings.tickTime);
+
+        if ((currentInput.buttons & Buttons.Shoot) != 0) {
+            weapon.Shoot();
+        }
 
         prediction.SaveState(tick);
     }
 
     public override void UpdateAfterTick() {
         prediction.Interpolate();
+        
+        playerCamera.MoveCamera();
 
         // only send 1 input per frame
         if (FixedClock.tick - 1 > playerInput.lastSentTick &&

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using PimDeWitte.UnityMainThreadDispatcher;
 using UnityEngine;
 
 public static class PacketDispatch {
@@ -13,7 +14,7 @@ public static class PacketDispatch {
         }
         else {
             byte[] captured = packetBytes;
-            ThreadManager.ExecuteOnMainThread(() => Invoke(captured, handlers));
+            UnityMainThreadDispatcher.Instance().Enqueue(() => Invoke(captured, handlers));
         }
     }
 

@@ -101,12 +101,4 @@ public class ServerSend {
             SendUDPData(toClient, packet);
         }
     }
-
-    public static void LagCompVisual(int toClient, Vector3 pos) {
-        using (Packet packet = new Packet((int)ServerPackets.lagCompVisual)) {
-            packet.Write(pos);
-
-            SendUDPData(toClient, packet);
-        }
-    }
 }

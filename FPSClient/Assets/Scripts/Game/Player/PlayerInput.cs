@@ -15,6 +15,7 @@ public class PlayerInput : MonoBehaviour {
     [SerializeField] private InputActionReference crouchAction;
     [SerializeField] private InputActionReference shootAction;
 
+    private float interpolationFactor;
     private float x;
     private float y;
     private bool jumping;
@@ -36,6 +37,7 @@ public class PlayerInput : MonoBehaviour {
     }
 
     public void SampleInput() {
+        interpolationFactor = LocalPlayer.Instance.prediction.GetInterpolationFactor();
         Vector2 move = moveAction.action.ReadValue<Vector2>();
         x = move.x;
         y = move.y;
@@ -59,7 +61,8 @@ public class PlayerInput : MonoBehaviour {
 
         InputData inputData = new InputData {
             tick = tick,
-            renderTick = 0,
+            interpolationFactor = interpolationFactor,
+            renderTick = UpdateManager.GetRenderTick(),
             x = x,
             y = y,
             pitch = LocalPlayer.Instance.playerCamera.GetCameraRot().x,

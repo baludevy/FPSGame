@@ -24,7 +24,7 @@ public class GameManager : FixedBehaviour {
         foreach (Client client in Server.clients.Values) {
             if (client.player != null) {
                 InputData inputData = client.player.inputBuffer.GetInputFromQueue(FixedClock.tick);
-                client.player.HandleInput(inputData);
+                client.player.MoveInput(inputData);
             }
         }
 
@@ -35,6 +35,13 @@ public class GameManager : FixedBehaviour {
 
         lagCompensation.SaveSnapshot(currentSnapshot);
         lagCompensation.Update();
+        
+        foreach (Client client in Server.clients.Values) {
+            if (client.player != null) {
+                InputData inputData = client.player.inputBuffer.GetInputFromQueue(FixedClock.tick);
+                client.player.OtherInput(inputData);
+            }
+        }
 
         foreach (Client client in Server.clients.Values) {
             if (client.player != null) {

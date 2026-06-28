@@ -1,15 +1,14 @@
 ﻿using System.Collections.Generic;
+using PimDeWitte.UnityMainThreadDispatcher;
 using UnityEngine;
 
 public class UpdateManager : MonoBehaviour {
     public static UpdateManager Instance;
 
-    // receive margin settings
     private static float targetMargin => NetcodeState.targetReceiveMargin;
     private static float driftCorrectionGain = 0.1f;
     private static float receiveMarginSmooth = 2f / (32f + 1f);
 
-    // current state
     public static uint serverTick;
     private static float renderTick;
     private static float currentMargin;
@@ -22,6 +21,7 @@ public class UpdateManager : MonoBehaviour {
     private bool hasArrival;
 
     private bool isInterpInitialized;
+    private bool hasMargin;
 
     private float lastFrameTime;
 
@@ -63,7 +63,7 @@ public class UpdateManager : MonoBehaviour {
         if (update.serverTick > lastReconciledTick) {
             lastReconciledTick = update.serverTick;
             if (LocalPlayer.Instance.movement != null) {
-                ThreadManager.ExecuteOnMainThread(() => {
+                UnityMainThreadDispatcher.Instance().Enqueue(() => {
                     PlayerPrediction.CompareServerState(update.movementState, update.serverTick);
                 });
             }
@@ -110,11 +110,16 @@ public class UpdateManager : MonoBehaviour {
         float deltaTime = Mathf.Clamp((now - lastFrameTime), 0f, 0.25f);
         lastFrameTime = now;
 
-        if (currentMargin > 0.1f) {
+        if (!hasMargin) {
+            return;
+        }
+
+        if (currentMargin - targetMargin > 0.1f) {
             float excessSeconds = currentMargin - targetMargin;
             float excessTicks = excessSeconds * tickRate;
 
             renderTick = Mathf.Min(renderTick + excessTicks, newestQueuedTick);
+            return;
         }
 
         float marginError = currentMargin - targetMargin;
@@ -128,24 +133,26 @@ public class UpdateManager : MonoBehaviour {
         WorldSnapshot left = snapshots[snapshots.Length - 2];
         WorldSnapshot right = snapshots[snapshots.Length - 1];
 
-        for (int i = 0; i < snapshots.Length - 1; i++) {
-            if (renderTick >= snapshots[i].serverTick && renderTick <= snapshots[i + 1].serverTick) {
-                left = snapshots[i];
-                right = snapshots[i + 1];
-                break;
-            }
-        }
-
-        if (renderTick < snapshots[0].serverTick) {
+        if (renderTick <= snapshots[0].serverTick) {
             left = snapshots[0];
             right = snapshots[0];
+        }
+        else {
+            for (int i = 0; i < snapshots.Length - 1; i++) {
+                if (renderTick >= snapshots[i].serverTick && renderTick <= snapshots[i + 1].serverTick) {
+                    left = snapshots[i];
+                    right = snapshots[i + 1];
+                    break;
+                }
+            }
         }
 
         if (!right.consumed) {
             right.consumed = true;
             float consumptionDelta = Mathf.Max(0f, FixedClock.GetTime() - right.clientReceiveTime);
-            if (currentMargin <= 0f) {
+            if (!hasMargin) {
                 currentMargin = consumptionDelta;
+                hasMargin = true;
             }
             else {
                 currentMargin = (receiveMarginSmooth * consumptionDelta) + ((1f - receiveMarginSmooth) * currentMargin);
@@ -158,7 +165,6 @@ public class UpdateManager : MonoBehaviour {
             alpha = Mathf.Clamp01((renderTick - left.serverTick) / tickSpan);
         }
 
-        serverTick = left.serverTick;
         ApplyInterpolatedState(left, right, alpha);
     }
 
@@ -193,7 +199,11 @@ public class UpdateManager : MonoBehaviour {
     public static float GetCurrentReceiveMargin() {
         return currentMargin;
     }
-    
+
+    public static float GetRenderTick() {
+        return renderTick;
+    }
+
     public void Reset() {
         serverTick = 0;
         lastProcessedTick = 0;
@@ -201,6 +211,7 @@ public class UpdateManager : MonoBehaviour {
         isInterpInitialized = false;
         renderTick = 0f;
         currentMargin = 0f;
+        hasMargin = false;
         lastFrameTime = 0;
 
         lock (_lock) {

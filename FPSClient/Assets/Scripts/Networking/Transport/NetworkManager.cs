@@ -1,5 +1,4 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class NetworkManager : MonoBehaviour {
     public static NetworkManager Instance;
@@ -45,7 +44,7 @@ public class NetworkManager : MonoBehaviour {
 
     public void Disconnect() {
         if (currentState == State.disconnected) return;
-        
+
         Client.Instance.Disconnect();
     }
 
@@ -60,21 +59,23 @@ public class NetworkManager : MonoBehaviour {
     }
 
     private void OnDisconnected() {
-        foreach (PlayerManager player in GameManager.players.Values) {
-            Destroy(player.gameObject);
-        }
-
-        GameManager.players.Clear();
-
         NetworkUIManager.Instance.EnableConnectUI();
         CursorManager.EnableCursor();
 
         NetStatisticsManager.Reset();
         AdaptiveNetcode.Reset();
         UpdateManager.Instance.Reset();
-
+        UpdateDeserializer.Reset();
+        
+        InputPacer.Reset();
         FixedClock.Reset();
+        
+        foreach (PlayerManager player in GameManager.players.Values) {
+            Destroy(player.gameObject);
+        }
 
+        GameManager.players.Clear();
+        
         Debug.Log("Cleared state.");
         Debug.Log("Disconnected.");
     }

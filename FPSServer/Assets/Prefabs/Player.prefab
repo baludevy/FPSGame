@@ -82,6 +82,7 @@ MonoBehaviour:
   movement: {fileID: 7873954872763873855}
   weaponController: {fileID: 3718825833143043134}
   playerCam: {fileID: 5226728250084567810}
+  cameraOffset: {x: 0, y: 1.5, z: 0}
 --- !u!1 &3691992140519621472
 GameObject:
   m_ObjectHideFlags: 0

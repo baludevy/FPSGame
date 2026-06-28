@@ -3,12 +3,11 @@ using System.Net;
 using UnityEngine;
 
 public class ClientHandle {
-
     public static void Welcome(Packet packet) {
         int myId = packet.ReadInt();
 
         Client.Instance.myId = myId;
-        
+
         byte[] token = packet.ReadBytes(NetProtocol.tokenLength);
         Client.Instance.sessionToken = token;
 
@@ -35,12 +34,5 @@ public class ClientHandle {
 
     public static void GameUpdate(Packet packet) {
         UpdateDeserializer.GameUpdate(packet);
-    }
-
-
-    public static void LagCompVisual(Packet packet) {
-        Vector3 pos = packet.ReadVector3();
-
-        // Object.Instantiate(PrefabManager.Instance.lagCompHitbox, pos, Quaternion.identity);
     }
 }

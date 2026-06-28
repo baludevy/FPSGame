@@ -20,6 +20,7 @@ public static class InputDeserializer {
             inputs.Add(new InputData {
                 tick = packet.ReadUInt(),
                 renderTick = packet.ReadFloat(),
+                interpolationFactor = FloatCompressor.ShortToFloat(packet.ReadShort()),
                 x = FloatCompressor.ShortToFloat(packet.ReadShort()),
                 y = FloatCompressor.ShortToFloat(packet.ReadShort()),
                 pitch = packet.ReadFloat(),

@@ -123,6 +123,7 @@ public static class NetStatisticsManager {
     public static void Reset() {
         NetStatistics.ping = NetStatistics.downstreamPacketLoss =
             NetStatistics.downstreamJitter = NetStatistics.upstreamJitter = 0f;
+        NetStatistics.inputMargin = 0f;
         latestTick = 0;
         hasTick = false;
 

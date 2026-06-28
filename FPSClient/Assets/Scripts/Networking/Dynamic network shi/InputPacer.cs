@@ -6,8 +6,8 @@ public static class InputPacer {
     // pacer settings
     private static float sensitivity = 0.02f;
     private static float catchUpGainMult = 3f;
-    private static float jitterDeadbandMult = 0.25f;
-    private static float frametimeDeadbandMult = 0.25f;
+    private static float jitterDeadbandMult = 0.1f;
+    private static float frametimeDeadbandMult = 0.1f;
 
     // timescale bounds
     private static float maxSpeedUp = 0.1f;

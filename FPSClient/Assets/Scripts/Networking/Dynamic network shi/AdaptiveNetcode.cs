@@ -172,6 +172,8 @@ public static class AdaptiveNetcode {
         redundancyLowerTimer = 0f;
         inputMarginLowerTimer = 0f;
         receiveMarginLowerTimer = 0f;
+        NetcodeState.targetInputMargin = baseInputMargin;
+        NetcodeState.targetReceiveMargin = baseReceiveMargin;
         lastTime = -1f;
         initialized = false;
     }

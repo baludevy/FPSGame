@@ -1,5 +1,6 @@
 ﻿public class InputData {
     public uint tick;
+    public float interpolationFactor;
     public float renderTick;
 
     public float x;
