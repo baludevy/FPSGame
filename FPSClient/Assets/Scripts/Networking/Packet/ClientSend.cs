@@ -19,42 +19,39 @@ public class ClientSend {
         Client.Instance.udp.SendData(packet);
     }
 
+    private static string ResolveUsername() {
+        string typed = NetworkUIManager.Instance.usernameField.text;
+        if (typed != "") {
+            return typed;
+        }
+
+        return $"Player{Client.Instance.myId}";
+    }
+
     public static void WelcomeReceived() {
         using (Packet packet = new Packet((int)ClientPackets.welcomeReceived)) {
             packet.Write(Client.Instance.myId);
-
-            packet.Write(NetworkUIManager.Instance.usernameField.text != ""
-                ? NetworkUIManager.Instance.usernameField.text
-                : $"Player{Client.Instance.myId}");
+            packet.Write(ResolveUsername());
             SendTCPData(packet);
         }
     }
 
-    public static void SyncTick(float clientSendTime) {
-        using (Packet packet = new Packet((int)ClientPackets.syncTick)) {
-            packet.Write(clientSendTime);
-
-            SendUDPData(packet);
-        }
-    }
-
-
-    public static void PlayerInput(uint sequence, List<InputData> inputs) {
+    public static void PlayerInput(InputHeader header, List<InputData> inputs) {
         using (Packet packet = new Packet((int)ClientPackets.playerInput)) {
-            packet.Write(sequence);
-            packet.Write(FixedClock.GetTime());
+            packet.Write(header.inputSequence); // 4 bytes
+            
+            packet.Write(header.serverTickAck); // 4 bytes
+            packet.Write(header.clientSendTime); // 4 bytes
 
-            packet.Write((byte)inputs.Count);
+            packet.Write((byte)inputs.Count); // 1 byte
 
             foreach (InputData input in inputs) {
-                packet.Write(input.tick);
-                packet.Write(input.renderTick);
-                packet.Write(FloatCompressor.FloatToShort(input.interpolationFactor));
-                packet.Write(FloatCompressor.FloatToShort(input.x));
-                packet.Write(FloatCompressor.FloatToShort(input.y));
-                packet.Write(input.pitch);
-                packet.Write(input.yaw);
-                packet.Write((byte)input.buttons);
+                packet.Write(input.tick); // 4 bytes
+                packet.Write(FloatCompressor.FloatToShort(input.x)); // 2 bytes
+                packet.Write(FloatCompressor.FloatToShort(input.y)); // 2 bytes
+                packet.Write(input.pitch); // 4 bytes
+                packet.Write(input.yaw); // 4 bytes
+                packet.Write((byte)input.buttons); // 1 byte
             }
 
             SendUDPData(packet);

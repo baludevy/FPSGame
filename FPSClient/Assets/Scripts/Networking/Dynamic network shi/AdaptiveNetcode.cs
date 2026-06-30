@@ -8,7 +8,7 @@ public static class AdaptiveNetcode {
     private static float inputMarginFallLerp = 0.02f;
 
     // receive margin settings
-    private static float baseReceiveMargin = 0.005f; // 3m base
+    private static float baseReceiveMargin = 0.005f; // 5m base
     private static float maxReceiveMargin = 0.1f; // 100ms max
     private static float receiveMarginRiseLerp = 0.15f;
     private static float receiveMarginFallLerp = 0.01f;
@@ -23,7 +23,7 @@ public static class AdaptiveNetcode {
     private static float maxLossMargin = 0.04f;
 
     // input redundancy
-    private static int currentRedundancy;
+    private static uint currentRedundancy;
     private static float redundancyReleaseHold = 3f;
 
     //timers
@@ -132,7 +132,7 @@ public static class AdaptiveNetcode {
     }
 
     private static void UpdateRedundancy(float deltaTime) {
-        int desired = GetDesiredRedundancy(NetStatistics.upstreamPacketLoss);
+        uint desired = GetDesiredRedundancy(NetStatistics.upstreamPacketLoss);
 
         if (desired >= currentRedundancy) {
             currentRedundancy = desired;
@@ -149,10 +149,14 @@ public static class AdaptiveNetcode {
         NetcodeState.inputRedundancy = currentRedundancy;
     }
 
-    private static int GetDesiredRedundancy(float loss) {
-        if (loss > 0.10f) return 4;
-        if (loss > 0.05f) return 3;
-        return 2;
+    private static uint GetDesiredRedundancy(float loss) {
+        if (loss > 0.75f) return 17; // 0.75^17 = 0.0075 (99.2% delivery)
+        if (loss > 0.60f) return 10; // 0.60^10 = 0.0060 (99.4% delivery)
+        if (loss > 0.50f) return 7;  // 0.50^7  = 0.0078 (99.2% delivery)
+        if (loss > 0.40f) return 6;  // 0.40^6  = 0.0041 (99.6% delivery)
+        if (loss > 0.30f) return 4;  // 0.30^4  = 0.0081 (99.2% delivery)
+        if (loss > 0.20f) return 3;  // 0.20^3  = 0.0080 (99.2% delivery)
+        return 2;                    // 0.10^2  = 0.0100 (99.0% delivery)
     }
 
     private static float ComputeMarginPadding(float baseMargin, float jitter, float packetLoss) {

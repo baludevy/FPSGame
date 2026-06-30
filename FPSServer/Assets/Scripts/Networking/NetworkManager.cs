@@ -5,7 +5,6 @@ public class NetworkManager : MonoBehaviour {
 
     public int maxPlayers = 10;
     public int port = 42069;
-
     public float timeoutCheckInterval = 1f;
 
     private float timeoutTimer;
@@ -15,6 +14,7 @@ public class NetworkManager : MonoBehaviour {
             Destroy(gameObject);
             return;
         }
+
         Instance = this;
     }
 
@@ -23,6 +23,7 @@ public class NetworkManager : MonoBehaviour {
         Application.targetFrameRate = NetworkSettings.tickRate * 3;
 
         Server.Start(maxPlayers, port);
+        GameManager.Instance.Init();
     }
 
     private void Update() {
@@ -33,5 +34,26 @@ public class NetworkManager : MonoBehaviour {
         }
     }
 
-    private void OnApplicationQuit() => Server.Stop();
+    public void OnClientConnected(int clientId) {
+        if (Server.clients.TryGetValue(clientId, out Client client)) {
+            Debug.Log($"Client {clientId} connected");
+            
+            client.SendIntoGame(client.username);
+        }
+    }
+
+    public void OnClientDisconnected(int clientId) {
+        if (Server.clients.TryGetValue(clientId, out Client client)) {
+            Debug.Log($"Client {clientId} disconnected");
+
+            if (client.player != null) {
+                Destroy(client.player.gameObject);
+                client.player = null;
+            }
+        }
+    }
+
+    private void OnApplicationQuit() {
+        Server.Stop();
+    }
 }

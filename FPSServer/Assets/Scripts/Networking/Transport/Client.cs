@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
 using PimDeWitte.UnityMainThreadDispatcher;
 using UnityEngine;
 
@@ -12,13 +11,19 @@ public class Client {
     private const long timeoutTicks = 10 * TimeSpan.TicksPerSecond;
 
     public int id;
+    public string username;
     public Player player;
     public TcpConnection tcp;
     public UdpConnection udp;
-    public volatile bool handshakeComplete;
-    public byte[] sessionToken { get; private set; }
 
-    private long lastActivityTicks;
+    public SafeFlag welcomeAcked = new(); // got username with welcome packet sent over tcp
+    public SafeFlag udpBound = new(); // the first valid udp packet was received, endpoint was bound
+    public SafeFlag inGame = new(); // player was spawned
+
+    private SafeLatch spawnLatch = new();
+    private SafeLong lastActivityTicks = new();
+
+    public byte[] sessionToken { get; private set; }
 
     private static readonly HashSet<byte> offMainThreadPackets = new() {
         (byte)ClientPackets.playerInput
@@ -35,17 +40,55 @@ public class Client {
         return sessionToken;
     }
 
-    public void CompleteHandshake() {
-        handshakeComplete = true;
-        tcp.CancelHandshakeTimer();
+    // client acknowledged welcome over tcp. we have a username now, udp may not be proven yet
+    public void MarkWelcomeAcked() {
+        welcomeAcked.Set();
         MarkActivity();
+        TrySpawn();
     }
 
-    public void MarkActivity() => Interlocked.Exchange(ref lastActivityTicks, DateTime.UtcNow.Ticks);
+    public void MarkUdpBound() {
+        if (udpBound.IsSet()) {
+            return;
+        }
+
+        udpBound.Set();
+        MarkActivity();
+        ServerSend.UdpConfirmed(id);
+        TrySpawn();
+    }
+
+    private void TrySpawn() {
+        if (!welcomeAcked.IsSet() || !udpBound.IsSet()) {
+            return;
+        }
+
+        if (!spawnLatch.TrySet()) {
+            return;
+        }
+
+        inGame.Set();
+        tcp.CancelHandshakeTimer();
+
+        int clientId = id;
+        UnityMainThreadDispatcher.Instance().Enqueue(() => { NetworkManager.Instance.OnClientConnected(clientId); });
+    }
+
+    public void MarkActivity() {
+        lastActivityTicks.Set(DateTime.UtcNow.Ticks);
+    }
 
     public bool TimedOut(long nowTicks) {
-        long last = Interlocked.Read(ref lastActivityTicks);
-        return last != 0 && nowTicks - last > timeoutTicks;
+        if (!inGame.IsSet()) {
+            return false;
+        }
+
+        long last = lastActivityTicks.Get();
+        if (last == 0) {
+            return false;
+        }
+
+        return nowTicks - last > timeoutTicks;
     }
 
     public class TcpConnection {
@@ -55,9 +98,9 @@ public class Client {
         private Packet receivedData;
         private byte[] receiveBuffer;
         private readonly ConcurrentQueue<byte[]> sendQueue = new();
-        private int isSending;
-        private volatile bool disconnected;
-        private Timer handshakeTimer;
+        private SendGate sendGate = new();
+        private SafeFlag disconnected = new();
+        private System.Threading.Timer handshakeTimer;
 
         public TcpConnection(int id) {
             this.id = id;
@@ -70,22 +113,23 @@ public class Client {
             stream = socket.GetStream();
             receivedData = new Packet();
             receiveBuffer = new byte[dataBufferSize];
-            disconnected = false;
+            disconnected.Clear();
 
-            // Slots are reused; clear any leftover state from the previous occupant.
             while (sendQueue.TryDequeue(out _)) {
             }
 
-            Interlocked.Exchange(ref isSending, 0);
+            sendGate.Exit();
 
-            if (Server.clients.TryGetValue(id, out Client owner)) owner.MarkActivity();
+            if (Server.clients.TryGetValue(id, out Client owner)) {
+                owner.MarkActivity();
+            }
 
-            handshakeTimer = new Timer(_ => {
-                if (Server.clients.TryGetValue(id, out Client c) && c != null && !c.handshakeComplete) {
-                    Debug.Log($"[Server TCP] Client {id} handshake timed out.");
+            handshakeTimer = new System.Threading.Timer(_ => {
+                if (Server.clients.TryGetValue(id, out Client c) && c != null && !c.inGame.IsSet()) {
+                    Debug.Log($"Client {id} handshake timed out before entering game");
                     TriggerDisconnect();
                 }
-            }, null, 5000, Timeout.Infinite);
+            }, null, 5000, System.Threading.Timeout.Infinite);
 
             stream.BeginRead(receiveBuffer, 0, dataBufferSize, ReceiveCallback, null);
             ServerSend.Welcome(id);
@@ -93,30 +137,38 @@ public class Client {
 
         public void CancelHandshakeTimer() {
             try {
-                handshakeTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+                handshakeTimer?.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
             }
             catch {
             }
         }
 
         public void SendData(Packet packet) {
-            if (disconnected || socket == null) return;
+            if (disconnected.IsSet() || socket == null) {
+                return;
+            }
+
             sendQueue.Enqueue(packet.ToArray());
             TryFlushSendQueue();
         }
 
         private void TryFlushSendQueue() {
-            if (Interlocked.CompareExchange(ref isSending, 1, 0) != 0) return;
+            if (!sendGate.TryEnter()) {
+                return;
+            }
 
             if (!sendQueue.TryDequeue(out byte[] next)) {
-                Interlocked.Exchange(ref isSending, 0);
-                if (!sendQueue.IsEmpty) TryFlushSendQueue();
+                sendGate.Exit();
+                if (!sendQueue.IsEmpty) {
+                    TryFlushSendQueue();
+                }
+
                 return;
             }
 
             NetworkStream s = stream;
             if (s == null) {
-                Interlocked.Exchange(ref isSending, 0);
+                sendGate.Exit();
                 return;
             }
 
@@ -124,11 +176,12 @@ public class Client {
                 s.BeginWrite(next, 0, next.Length, SendCallback, null);
             }
             catch (ObjectDisposedException) {
-                Interlocked.Exchange(ref isSending, 0);
+                sendGate.Exit();
             }
             catch (Exception ex) {
                 Debug.LogException(ex);
-                Interlocked.Exchange(ref isSending, 0);
+                
+                sendGate.Exit();
                 TriggerDisconnect();
             }
         }
@@ -138,22 +191,25 @@ public class Client {
                 stream?.EndWrite(result);
             }
             catch (ObjectDisposedException) {
-                Interlocked.Exchange(ref isSending, 0);
+                sendGate.Exit();
                 return;
             }
             catch (Exception ex) {
                 Debug.LogException(ex);
-                Interlocked.Exchange(ref isSending, 0);
+                sendGate.Exit();
                 TriggerDisconnect();
                 return;
             }
 
-            Interlocked.Exchange(ref isSending, 0);
+            sendGate.Exit();
             TryFlushSendQueue();
         }
 
         private void ReceiveCallback(IAsyncResult result) {
-            if (disconnected) return;
+            if (disconnected.IsSet()) {
+                return;
+            }
+
             try {
                 int byteLength = stream.EndRead(result);
                 if (byteLength <= 0) {
@@ -161,7 +217,9 @@ public class Client {
                     return;
                 }
 
-                if (Server.clients.TryGetValue(id, out Client c)) c.MarkActivity();
+                if (Server.clients.TryGetValue(id, out Client c)) {
+                    c.MarkActivity();
+                }
 
                 byte[] data = new byte[byteLength];
                 Buffer.BlockCopy(receiveBuffer, 0, data, 0, byteLength);
@@ -182,7 +240,7 @@ public class Client {
                 receivedData,
                 data,
                 onOverflow: () => {
-                    Debug.LogWarning($"[Server TCP] Client {id} buffer cap / oversized packet.");
+                    Debug.LogWarning($"Client {id} sent oversized packet");
                     TriggerDisconnect();
                     return true;
                 },
@@ -190,25 +248,32 @@ public class Client {
         }
 
         private void DispatchPacket(byte[] packetBytes) {
-            if (packetBytes == null || packetBytes.Length < 1) return;
+            if (packetBytes == null || packetBytes.Length < 1) {
+                return;
+            }
+
             byte packetId = packetBytes[0];
 
-            // Gate everything except welcomeReceived until the handshake is done.
             if (packetId != (byte)ClientPackets.welcomeReceived &&
-                Server.clients.TryGetValue(id, out Client c) && c != null && !c.handshakeComplete)
+                Server.clients.TryGetValue(id, out Client client) && client != null && !client.welcomeAcked.IsSet()) {
                 return;
+            }
 
             PacketDispatch.Route(id, packetBytes, offMainThreadPackets, Server.packetHandlers);
         }
 
         private void TriggerDisconnect() {
-            if (disconnected) return;
-            disconnected = true;
-            UnityMainThreadDispatcher.Instance().Enqueue(() => Server.clients[id]?.Disconnect());
+            if (disconnected.IsSet()) {
+                return;
+            }
+
+            disconnected.Set();
+            UnityMainThreadDispatcher.Instance().Enqueue(() => { Server.clients[id]?.Disconnect(); });
         }
 
         public void Disconnect() {
-            disconnected = true;
+            disconnected.Set();
+
             try {
                 handshakeTimer?.Dispose();
             }
@@ -224,6 +289,7 @@ public class Client {
             }
 
             receiveBuffer = null;
+
             try {
                 receivedData?.Dispose();
             }
@@ -233,7 +299,7 @@ public class Client {
             while (sendQueue.TryDequeue(out _)) {
             }
 
-            Interlocked.Exchange(ref isSending, 0);
+            sendGate.Exit();
             stream = null;
             receivedData = null;
             socket = null;
@@ -255,10 +321,12 @@ public class Client {
             }
         }
 
-        // Pin the endpoint on first valid contact. Returns false if already bound.
         public bool TryBind(IPEndPoint ep) {
             lock (gate) {
-                if (endPoint != null) return false;
+                if (endPoint != null) {
+                    return false;
+                }
+
                 endPoint = ep;
                 return true;
             }
@@ -270,20 +338,27 @@ public class Client {
                 ep = endPoint;
             }
 
-            if (ep != null) Server.SendUdpData(ep, packet);
+            if (ep != null) {
+                Server.SendUdpData(ep, packet);
+            }
         }
 
         public void HandleData(Packet packetData) {
             int packetLength = packetData.ReadInt();
             if (packetLength <= 0 || packetLength > NetProtocol.maxPacketSize ||
-                packetLength > packetData.UnreadLength()) return;
+                packetLength > packetData.UnreadLength()) {
+                return;
+            }
 
             byte[] packetBytes = packetData.ReadBytes(packetLength);
-            if (packetBytes.Length < 1) return;
-
-            byte packetId = packetBytes[0];
-            if (Server.clients.TryGetValue(id, out Client c) && c != null && !c.handshakeComplete)
+            if (packetBytes.Length < 1) {
                 return;
+            }
+
+            // gameplay udp is only processed once the client is fully in-game
+            if (Server.clients.TryGetValue(id, out Client client) && client != null && !client.inGame.IsSet()) {
+                return;
+            }
 
             PacketDispatch.Route(id, packetBytes, offMainThreadPackets, Server.packetHandlers);
         }
@@ -298,29 +373,32 @@ public class Client {
     public void SendIntoGame(string playerName) {
         player = GameManager.Instance.InstantiatePlayer();
         player.Initialize(id, playerName);
-        Debug.Log($"Spawned player {player.id}.");
+        Debug.Log($"Spawned Player {player.id} ({playerName})");
 
-        foreach (Client client in Server.clients.Values)
-            if (client.player != null && client.id != id)
+        foreach (Client client in Server.clients.Values) {
+            if (client.player != null && client.id != id) {
                 ServerSend.SpawnPlayer(id, client.player);
-        foreach (Client client in Server.clients.Values)
-            if (client.player != null)
+            }
+        }
+
+        foreach (Client client in Server.clients.Values) {
+            if (client.player != null && client.inGame.IsSet()) {
                 ServerSend.SpawnPlayer(client.id, player);
+            }
+        }
     }
 
     public void Disconnect() {
-        string label = player != null ? $"{player.username} ({player.id})" : $"Client {id}";
-        Debug.Log($"{label} disconnected.");
+        UnityMainThreadDispatcher.Instance().Enqueue(() => { NetworkManager.Instance.OnClientDisconnected(id); });
 
-        UnityMainThreadDispatcher.Instance().Enqueue(() => {
-            if (player != null) {
-                UnityEngine.Object.Destroy(player.gameObject);
-                player = null;
-            }
-        });
+        welcomeAcked.Clear();
+        udpBound.Clear();
+        inGame.Clear();
+        spawnLatch.Reset();
 
-        handshakeComplete = false;
-        Interlocked.Exchange(ref lastActivityTicks, 0);
+        username = null;
+        lastActivityTicks.Set(0);
+
         tcp.Disconnect();
         udp.Disconnect();
     }

@@ -1,9 +1,9 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
 using PimDeWitte.UnityMainThreadDispatcher;
 using UnityEngine;
 
@@ -13,16 +13,17 @@ public class Client : MonoBehaviour {
     private static int dataBufferSize = 4096;
 
     private string ip = "0.0.0.0";
-    private int port = 42069;
+    private int tcpPort = 42069;
+    private int udpPort = 42069;
     public int myId;
     public byte[] sessionToken;
 
-    public TcpConnection tcp;
-    public UdpConnection udp;
+    [NonSerialized] public TcpConnection tcp;
+    [NonSerialized] public UdpConnection udp;
 
     private static readonly Dictionary<byte, Action<Packet>> packetHandlers = new() {
         { (byte)ServerPackets.welcome, ClientHandle.Welcome },
-        { (byte)ServerPackets.syncTick, ClientHandle.SyncTick },
+        { (byte)ServerPackets.udpConfirmed, ClientHandle.UdpConfirmed },
         { (byte)ServerPackets.spawnPlayer, ClientHandle.SpawnPlayer },
         { (byte)ServerPackets.gameUpdate, ClientHandle.GameUpdate },
     };
@@ -40,12 +41,12 @@ public class Client : MonoBehaviour {
         Instance = this;
     }
 
-    public void ConnectToServer(string targetIp) {
+    public void ConnectToServer(string targetIp, int targetTcpPort, int targetUdpPort) {
         ip = targetIp;
-        
+        tcpPort = targetTcpPort;
+        udpPort = targetUdpPort;
         tcp = new TcpConnection();
         udp = new UdpConnection();
-        
         tcp.Connect();
     }
 
@@ -55,8 +56,8 @@ public class Client : MonoBehaviour {
         private Packet receivedData;
         private byte[] receiveBuffer;
         private readonly ConcurrentQueue<byte[]> sendQueue = new();
-        private int isSending;
-        private volatile bool disconnected;
+        private SendGate sendGate = new();
+        private SafeFlag disconnected = new();
 
         public void Connect() {
             socket = new TcpClient {
@@ -64,8 +65,8 @@ public class Client : MonoBehaviour {
                 SendBufferSize = dataBufferSize
             };
             receiveBuffer = new byte[dataBufferSize];
-            disconnected = false;
-            socket.BeginConnect(Instance.ip, Instance.port, ConnectCallback, null);
+            disconnected.Clear();
+            socket.BeginConnect(Instance.ip, Instance.tcpPort, ConnectCallback, null);
         }
 
         private void ConnectCallback(IAsyncResult result) {
@@ -89,23 +90,31 @@ public class Client : MonoBehaviour {
         }
 
         public void SendData(Packet packet) {
-            if (disconnected || socket == null) return;
+            if (disconnected.IsSet() || socket == null) {
+                return;
+            }
+
             sendQueue.Enqueue(packet.ToArray());
             TryFlushSendQueue();
         }
 
         private void TryFlushSendQueue() {
-            if (Interlocked.CompareExchange(ref isSending, 1, 0) != 0) return;
+            if (!sendGate.TryEnter()) {
+                return;
+            }
 
             if (!sendQueue.TryDequeue(out byte[] next)) {
-                Interlocked.Exchange(ref isSending, 0);
-                if (!sendQueue.IsEmpty) TryFlushSendQueue();
+                sendGate.Exit();
+                if (!sendQueue.IsEmpty) {
+                    TryFlushSendQueue();
+                }
+
                 return;
             }
 
             NetworkStream s = stream;
             if (s == null) {
-                Interlocked.Exchange(ref isSending, 0);
+                sendGate.Exit();
                 return;
             }
 
@@ -113,11 +122,11 @@ public class Client : MonoBehaviour {
                 s.BeginWrite(next, 0, next.Length, SendCallback, null);
             }
             catch (ObjectDisposedException) {
-                Interlocked.Exchange(ref isSending, 0);
+                sendGate.Exit();
             }
             catch (Exception ex) {
                 Debug.LogException(ex);
-                Interlocked.Exchange(ref isSending, 0);
+                sendGate.Exit();
                 TriggerDisconnect();
             }
         }
@@ -127,22 +136,25 @@ public class Client : MonoBehaviour {
                 stream?.EndWrite(result);
             }
             catch (ObjectDisposedException) {
-                Interlocked.Exchange(ref isSending, 0);
+                sendGate.Exit();
                 return;
             }
             catch (Exception ex) {
                 Debug.LogException(ex);
-                Interlocked.Exchange(ref isSending, 0);
+                sendGate.Exit();
                 TriggerDisconnect();
                 return;
             }
 
-            Interlocked.Exchange(ref isSending, 0);
+            sendGate.Exit();
             TryFlushSendQueue();
         }
 
         private void ReceiveCallback(IAsyncResult result) {
-            if (disconnected) return;
+            if (disconnected.IsSet()) {
+                return;
+            }
+
             try {
                 int byteLength = stream.EndRead(result);
                 if (byteLength <= 0) {
@@ -169,7 +181,7 @@ public class Client : MonoBehaviour {
                 receivedData,
                 data,
                 onOverflow: () => {
-                    Debug.LogWarning("Buffer cap or oversized packet; disconnecting.");
+                    Debug.LogWarning("Oversized TCP packet, disconnecting");
                     TriggerDisconnect();
                     return true;
                 },
@@ -177,13 +189,17 @@ public class Client : MonoBehaviour {
         }
 
         private void TriggerDisconnect() {
-            if (disconnected) return;
-            disconnected = true;
-            UnityMainThreadDispatcher.Instance().Enqueue(() => Instance.Disconnect());
+            if (disconnected.IsSet()) {
+                return;
+            }
+
+            disconnected.Set();
+            UnityMainThreadDispatcher.Instance().Enqueue(() => { Instance.Disconnect(); });
         }
 
         public void Disconnect() {
-            disconnected = true;
+            disconnected.Set();
+
             try {
                 socket?.Close();
             }
@@ -191,6 +207,7 @@ public class Client : MonoBehaviour {
             }
 
             receiveBuffer = null;
+
             try {
                 receivedData?.Dispose();
             }
@@ -206,35 +223,59 @@ public class Client : MonoBehaviour {
     public class UdpConnection {
         public UdpClient socket;
         public IPEndPoint endPoint;
-        private volatile bool disconnected;
+        private SafeFlag disconnected = new();
+        private Coroutine pingCoroutine;
 
         public UdpConnection() {
-            endPoint = new IPEndPoint(IPAddress.Parse(Instance.ip), Instance.port);
+            endPoint = new IPEndPoint(IPAddress.Parse(Instance.ip), Instance.udpPort);
         }
 
         public void Connect(int localPort) {
             socket = new UdpClient(localPort);
             socket.Connect(endPoint);
-            disconnected = false;
+            disconnected.Clear();
             socket.BeginReceive(ReceiveCallback, null);
 
-            // First datagram carries the token so the server can pin our endpoint.
-            byte[] datagram = new byte[8 + NetProtocol.tokenLength];
-            try {
-                NetProtocol.WriteInt32LE(datagram, 0, Instance.myId);
-                NetProtocol.WriteUInt32LE(datagram, 4, NetProtocol.magic);
-                Buffer.BlockCopy(Instance.sessionToken, 0, datagram, 8, NetProtocol.tokenLength);
-                socket.Send(datagram, datagram.Length);
+            if (pingCoroutine != null) {
+                Instance.StopCoroutine(pingCoroutine);
             }
-            catch (Exception ex) {
-                Debug.LogException(ex);
+
+            pingCoroutine = Instance.StartCoroutine(KeepSendingPing());
+        }
+
+
+        private IEnumerator KeepSendingPing() {
+            byte[] datagram = new byte[8];
+            NetProtocol.WriteInt32LE(datagram, 0, Instance.myId);
+            NetProtocol.WriteUInt32LE(datagram, 4, NetProtocol.magic);
+
+            while (!disconnected.IsSet()) {
+                try {
+                    socket.Send(datagram, datagram.Length);
+                }
+                catch (Exception ex) {
+                    Debug.LogException(ex);
+                }
+
+                yield return new WaitForSecondsRealtime(0.2f);
+            }
+        }
+
+        public void StopPingRetry() {
+            if (pingCoroutine != null) {
+                Instance.StopCoroutine(pingCoroutine);
+                pingCoroutine = null;
             }
         }
 
         public void SendData(Packet packet) {
-            if (disconnected || socket == null) return;
+            if (disconnected.IsSet() || socket == null) {
+                return;
+            }
+
             byte[] payload = packet.ToArray();
             byte[] datagram = new byte[payload.Length + 8];
+
             try {
                 NetProtocol.WriteInt32LE(datagram, 0, Instance.myId);
                 NetProtocol.WriteUInt32LE(datagram, 4, NetProtocol.magic);
@@ -250,7 +291,10 @@ public class Client : MonoBehaviour {
         }
 
         private void ReceiveCallback(IAsyncResult result) {
-            if (disconnected) return;
+            if (disconnected.IsSet()) {
+                return;
+            }
+
             byte[] data = null;
             try {
                 IPEndPoint from = new IPEndPoint(IPAddress.Any, 0);
@@ -263,7 +307,7 @@ public class Client : MonoBehaviour {
                 Debug.LogException(ex);
             }
 
-            if (!disconnected) {
+            if (!disconnected.IsSet()) {
                 try {
                     socket.BeginReceive(ReceiveCallback, null);
                 }
@@ -271,18 +315,26 @@ public class Client : MonoBehaviour {
                 }
             }
 
-            if (data == null || data.Length < 4 || data.Length > NetProtocol.maxPacketSize + 4)
+            if (data == null || data.Length < 4 || data.Length > NetProtocol.maxPacketSize + 4) {
                 return;
+            }
+
             HandleData(data);
         }
 
         private void HandleData(byte[] data) {
             byte[] packetBytes;
             using (Packet wrapper = new Packet(data, data.Length)) {
-                if (wrapper.UnreadLength() < 4) return;
+                if (wrapper.UnreadLength() < 4) {
+                    return;
+                }
+
                 int packetLength = wrapper.ReadInt();
                 if (packetLength <= 0 || packetLength > NetProtocol.maxPacketSize ||
-                    packetLength > wrapper.UnreadLength()) return;
+                    packetLength > wrapper.UnreadLength()) {
+                    return;
+                }
+
                 packetBytes = wrapper.ReadBytes(packetLength);
             }
 
@@ -290,13 +342,22 @@ public class Client : MonoBehaviour {
         }
 
         private void TriggerDisconnect() {
-            if (disconnected) return;
-            disconnected = true;
-            UnityMainThreadDispatcher.Instance().Enqueue(() => Instance.Disconnect());
+            if (disconnected.IsSet()) {
+                return;
+            }
+
+            disconnected.Set();
+            UnityMainThreadDispatcher.Instance().Enqueue(() => { Instance.Disconnect(); });
         }
 
         public void Disconnect() {
-            disconnected = true;
+            disconnected.Set();
+
+            if (pingCoroutine != null) {
+                Instance.StopCoroutine(pingCoroutine);
+                pingCoroutine = null;
+            }
+
             try {
                 socket?.Close();
             }
@@ -320,7 +381,9 @@ public class Client : MonoBehaviour {
         }
 
         UnityMainThreadDispatcher.Instance().Enqueue(() => {
-            if (NetworkManager.Instance != null) NetworkManager.Instance.NotifyDisconnected();
+            if (NetworkManager.Instance != null) {
+                NetworkManager.Instance.NotifyDisconnected();
+            }
         });
     }
 }

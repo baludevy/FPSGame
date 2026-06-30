@@ -1,10 +1,9 @@
-﻿using System.Collections.Generic;
-
-public class WorldSnapshot {
+﻿public struct WorldSnapshot {
     public uint serverTick;
     public float serverSendTime;
     public float clientReceiveTime;
     public bool consumed;
     
-    public List<PlayerState> playerStates = new List<PlayerState>();
+    public int playerStatesCount;
+    public PlayerState[] playerStates;
 }

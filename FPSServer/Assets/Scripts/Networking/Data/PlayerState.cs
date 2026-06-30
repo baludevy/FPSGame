@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-public class PlayerState {
+public struct PlayerState {
     public int id;
     public Vector3 position;
 

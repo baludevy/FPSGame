@@ -47,16 +47,16 @@ public class TelemetryUI : MonoBehaviour {
         float msec = Time.deltaTime * 1000.0f;
 
         string str = $"{fps} fps ({msec:F1} ms) ping: {NetStatistics.ping * 1000f:F0} ms\n" +
-                     $"jitter: {Mathf.FloorToInt(NetStatistics.upstreamJitter * 1000f)}/{Mathf.FloorToInt(NetStatistics.downstreamJitter * 1000f)} ms  loss: {NetStatistics.upstreamPacketLoss * 100:F0}/{NetStatistics.downstreamPacketLoss * 100:F0}\n" +
+                     $"jitter: {Mathf.FloorToInt(NetStatistics.upstreamJitter * 1000f)}/{Mathf.FloorToInt(NetStatistics.downstreamJitter * 1000f)} ms  loss: {NetStatistics.upstreamPacketLoss * 100:F0}/{Mathf.RoundToInt(NetStatistics.downstreamPacketLoss * 100):F0}\n" +
                      $"up: {FormatBytes(bytesSentPerSecond)}/s  down: {FormatBytes(bytesReceivedPerSecond)}/s\n" +
                      $"up: {packetsSentPerSecond}/s  down: {packetsReceivedPerSecond}/s\n" +
                      $"tick: {FixedClock.tick}  rate: {NetworkSettings.tickRate * FixedClock.timeScale:F2}\n" +
                      $"cl margin: {UpdateManager.GetCurrentReceiveMargin() * 1000f:F1} ms  target: {NetcodeState.targetReceiveMargin * 1000:F1} ms\n" +
-                     $"srv margin: {InputPacer.GetCurrentInputMargin() * 1000F:F1} ms  target: {NetcodeState.targetInputMargin * 1000:F1} ms";
+                     $"srv margin: {NetStatistics.inputMargin * 1000F:F1} ms  target: {NetcodeState.targetInputMargin * 1000:F1} ms";
 
-        if (LocalPlayer.Instance != null)
+        if (Player.Instance != null)
             str +=
-                $"\npos: {LocalPlayer.Instance.movement.transform.position:F1} vel: {LocalPlayer.Instance.movement.GetRb().velocity.magnitude:F1} u/s";
+                $"\npos: {Player.Instance.movement.transform.position:F1} vel: {Player.Instance.movement.GetRb().linearVelocity.magnitude:F1} u/s";
 
         telemetryText.text = str;
     }

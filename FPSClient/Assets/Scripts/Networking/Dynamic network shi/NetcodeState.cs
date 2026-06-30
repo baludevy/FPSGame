@@ -5,5 +5,5 @@
     // snapshot arrival time to consumption time (client)
     public static float targetReceiveMargin; 
 
-    public static int inputRedundancy;
+    public static uint inputRedundancy;
 }

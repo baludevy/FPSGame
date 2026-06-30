@@ -34,8 +34,8 @@ public class PlayerCamera : MonoBehaviour {
     [Header("Fov")] [SerializeField] private float fovSmoothTime = 0.12f;
     [SerializeField] private float maxFovOffset = 15f;
     private float fovVelocity;
-    
-    [SerializeField] private InputActionReference lookAction; 
+
+    [SerializeField] private InputActionReference lookAction;
 
     private float baseFov;
     private float targetFov;
@@ -44,25 +44,30 @@ public class PlayerCamera : MonoBehaviour {
     private float basePitch;
     private float baseRoll;
 
+    private Vector2 lookDelta;
+
     private void Start() {
         if (cam != null) baseFov = cam.fieldOfView;
     }
 
-    private void Update() {
+    public void MouseMovement() {
         Look();
+        UpdateBob();
+        UpdateBobRot();
+        UpdateFov();
     }
 
     public void MoveCamera() {
         transform.position = player.position + bobOffset + offset;
+    }
 
-        UpdateFov();
-        UpdateBob();
-        UpdateBobRot();
+    private void OnLook(InputAction.CallbackContext ctx) {
+        lookDelta = ctx.ReadValue<Vector2>();
     }
 
     public void Look() {
-        Vector2 look = lookAction.action.ReadValue<Vector2>() * sensitivity;
-        
+        Vector2 look = lookDelta * sensitivity;
+
         float mouseX = look.x;
         float mouseY = look.y;
 
@@ -81,7 +86,8 @@ public class PlayerCamera : MonoBehaviour {
         float fovOffset = 0;
 
         if (playerMovement.IsSliding()) {
-            float speedT = Mathf.InverseLerp(0f, playerMovement.maxSlideSpeed, playerMovement.GetRb().velocity.magnitude);
+            float speedT = Mathf.InverseLerp(0f, playerMovement.maxSlideSpeed,
+                playerMovement.GetRb().linearVelocity.magnitude);
             fovOffset = Mathf.Lerp(0f, maxFovOffset, speedT);
         }
 
@@ -102,13 +108,13 @@ public class PlayerCamera : MonoBehaviour {
     }
 
     private void UpdateBob() {
-        desiredBob = Vector3.Lerp(desiredBob, Vector3.zero, Time.deltaTime * bobSpeed);
-        bobOffset = Vector3.Lerp(bobOffset, desiredBob, Time.deltaTime * bobSpeed);
+        desiredBob = Vector3.Lerp(desiredBob, Vector3.zero, 1f - Mathf.Exp(-bobSpeed * Time.deltaTime));
+        bobOffset = Vector3.Lerp(bobOffset, desiredBob, 1f - Mathf.Exp(-bobSpeed * Time.deltaTime));
     }
 
     private void UpdateBobRot() {
-        desiredBobRot = Vector3.Lerp(desiredBobRot, Vector3.zero, Time.deltaTime * bobRotSpeed);
-        bobRotOffset = Vector3.Lerp(bobRotOffset, desiredBobRot, Time.deltaTime * bobRotSpeed);
+        desiredBobRot = Vector3.Lerp(desiredBobRot, Vector3.zero, 1f - Mathf.Exp(-bobRotSpeed * Time.deltaTime));
+        bobRotOffset = Vector3.Lerp(bobRotOffset, desiredBobRot, 1f - Mathf.Exp(-bobRotSpeed * Time.deltaTime));
 
         ApplyFinalRotation();
     }
@@ -135,12 +141,16 @@ public class PlayerCamera : MonoBehaviour {
     private Vector3 ClampVector(Vector3 vec, float min, float max) {
         return new Vector3(Mathf.Clamp(vec.x, min, max), Mathf.Clamp(vec.y, min, max), Mathf.Clamp(vec.z, min, max));
     }
-    
+
     private void OnEnable() {
         lookAction.action.Enable();
+        lookAction.action.performed += OnLook;
+        lookAction.action.canceled += OnLook;
     }
 
     private void OnDisable() {
+        lookAction.action.performed -= OnLook;
+        lookAction.action.canceled -= OnLook;
         lookAction.action.Disable();
     }
 }

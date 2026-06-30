@@ -3,24 +3,117 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class PlayerInput : MonoBehaviour {
-    public static InputData[] inputHistory = new InputData[NetworkSettings.inputHistorySize];
-
-    private uint inputSequence;
-    public uint lastSentTick;
-
-    private static List<InputData> playerInputs = new();
-
     [SerializeField] private InputActionReference moveAction;
     [SerializeField] private InputActionReference jumpAction;
     [SerializeField] private InputActionReference crouchAction;
     [SerializeField] private InputActionReference shootAction;
 
-    private float interpolationFactor;
+    private static InputData[] inputHistory;
+
+    private uint inputSequence;
+    private uint lastSentTick;
+
+    private static List<InputData> playerInputs = new();
+
     private float x;
     private float y;
     private bool jumping;
     private bool crouching;
-    private bool shoot;
+
+    private void Awake() {
+        inputHistory = new InputData[NetworkSettings.inputHistorySize];
+        
+        for (int i = 0; i < inputHistory.Length; i++) {
+            inputHistory[i].tick = uint.MaxValue;
+        }
+    }
+
+    public void SampleInput() {
+        Vector2 move = moveAction.action.ReadValue<Vector2>();
+        x = move.x;
+        y = move.y;
+
+        jumping |= jumpAction.action.IsPressed();
+        crouching |= crouchAction.action.IsPressed();
+    }
+
+    public void ConsumeInput() {
+        jumping = jumpAction.action.IsPressed();
+        crouching = crouchAction.action.IsPressed();
+    }
+
+    public InputData GatherInput(uint tick) {
+        Buttons buttons = Buttons.None;
+
+        if (jumping) buttons |= Buttons.Jump;
+        if (crouching) buttons |= Buttons.Crouch;
+
+        Vector2 look = Player.Instance.camera.GetCameraRot();
+
+        InputData inputData = new InputData {
+            tick = tick,
+            x = x,
+            y = y,
+            pitch = look.x,
+            yaw = look.y,
+            buttons = buttons
+        };
+
+        uint i = inputData.tick % NetworkSettings.inputHistorySize;
+        inputHistory[i] = inputData;
+
+        return inputData;
+    }
+
+    public void SendPlayerInputs() {
+        if (FixedClock.tick == 0) {
+            return;
+        }
+
+        uint bufferSize = NetworkSettings.inputHistorySize;
+        uint lastCompletedTick = FixedClock.tick - 1;
+        uint redundancy = NetcodeState.inputRedundancy;
+
+        uint start;
+        if (lastCompletedTick >= redundancy) {
+            start = lastCompletedTick - redundancy;
+        }
+        else {
+            start = 0;
+        }
+
+        playerInputs.Clear();
+
+        for (uint t = start; t <= lastCompletedTick; t++) {
+            ref InputData inputData = ref inputHistory[t % bufferSize];
+            if (inputData.tick == t) {
+                playerInputs.Add(inputData);
+            }
+        }
+
+        if (playerInputs.Count == 0) {
+            return;
+        }
+
+        InputHeader header = new InputHeader {
+            inputSequence = inputSequence,
+            serverTickAck = UpdateDeserializer.latestTick,
+            clientSendTime = FixedClock.GetTime(),
+        };
+
+        ClientSend.PlayerInput(header, playerInputs);
+
+        inputSequence++;
+        lastSentTick = lastCompletedTick;
+    }
+
+    public static InputData[] GetInputHistory() {
+        return inputHistory;
+    }
+
+    public uint GetLastSentTick() {
+        return lastSentTick;
+    }
 
     private void OnEnable() {
         moveAction.action.Enable();
@@ -34,82 +127,5 @@ public class PlayerInput : MonoBehaviour {
         jumpAction.action.Disable();
         crouchAction.action.Disable();
         shootAction.action.Disable();
-    }
-
-    public void SampleInput() {
-        interpolationFactor = LocalPlayer.Instance.prediction.GetInterpolationFactor();
-        Vector2 move = moveAction.action.ReadValue<Vector2>();
-        x = move.x;
-        y = move.y;
-        jumping |= jumpAction.action.IsPressed();
-        crouching |= crouchAction.action.IsPressed();
-        shoot |= shootAction.action.IsPressed();
-    }
-
-    public void ConsumeInput() {
-        jumping = jumpAction.action.IsPressed();
-        crouching = crouchAction.action.IsPressed();
-        shoot = shootAction.action.IsPressed();
-    }
-
-    public InputData GatherInput(uint tick) {
-        Buttons buttons = Buttons.None;
-
-        if (jumping) buttons |= Buttons.Jump;
-        if (crouching) buttons |= Buttons.Crouch;
-        if (shoot) buttons |= Buttons.Shoot;
-
-        InputData inputData = new InputData {
-            tick = tick,
-            interpolationFactor = interpolationFactor,
-            renderTick = UpdateManager.GetRenderTick(),
-            x = x,
-            y = y,
-            pitch = LocalPlayer.Instance.playerCamera.GetCameraRot().x,
-            yaw = LocalPlayer.Instance.playerCamera.GetCameraRot().y,
-            buttons = buttons,
-        };
-
-        uint i = inputData.tick % NetworkSettings.inputHistorySize;
-        inputHistory[i] = inputData;
-
-        return inputData;
-    }
-
-    public void SendPlayerInputs() {
-        int bufferSize = NetworkSettings.inputHistorySize;
-
-        if (FixedClock.tick == 0) return;
-        uint lastCompletedTick = FixedClock.tick - 1;
-
-        uint firstUnsent = lastSentTick + 1;
-
-        playerInputs.Clear();
-
-        if (firstUnsent <= lastCompletedTick)
-            for (uint t = firstUnsent; t <= lastCompletedTick; t++) {
-                InputData inputData = inputHistory[t % bufferSize];
-                if (inputData != null && inputData.tick == t)
-                    playerInputs.Add(inputData);
-            }
-
-        for (uint i = 0; i < NetcodeState.inputRedundancy; i++) {
-            uint inputTick = lastCompletedTick - i;
-
-            if (inputTick >= firstUnsent) continue;
-
-            InputData inputData = inputHistory[inputTick % bufferSize];
-            if (inputData != null && inputData.tick == inputTick)
-                playerInputs.Add(inputData);
-        }
-
-        if (playerInputs.Count == 0) return;
-
-        playerInputs.Sort((a, b) => a.tick.CompareTo(b.tick));
-
-        ClientSend.PlayerInput(inputSequence, playerInputs);
-
-        inputSequence++;
-        lastSentTick = lastCompletedTick;
     }
 }

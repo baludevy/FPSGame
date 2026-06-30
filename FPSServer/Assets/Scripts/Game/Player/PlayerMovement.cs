@@ -100,14 +100,14 @@ public class PlayerMovement : MonoBehaviour {
         Movement();
 
         wasGrounded = grounded;
-        lastFallSpeed = rb.velocity.y;
+        lastFallSpeed = rb.linearVelocity.y;
     }
 
     private void Movement() {
         jumpedThisFrame = false;
 
         // stop sliding if no longer crouching or too slow
-        float groundVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z).magnitude;
+        float groundVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z).magnitude;
         if (sliding && (!crouching || groundVel < slideEndSpeed)) {
             sliding = false;
         }
@@ -199,9 +199,9 @@ public class PlayerMovement : MonoBehaviour {
         rb.AddForce(counterForce * counterMovement, ForceMode.VelocityChange);
 
         if (!sliding) {
-            Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+            Vector3 flatVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
             if (flatVel.sqrMagnitude < 0.05f * 0.05f) {
-                rb.AddForce(new Vector3(-rb.velocity.x, 0f, -rb.velocity.z), ForceMode.VelocityChange);
+                rb.AddForce(new Vector3(-rb.linearVelocity.x, 0f, -rb.linearVelocity.z), ForceMode.VelocityChange);
             }
         }
 
@@ -217,7 +217,7 @@ public class PlayerMovement : MonoBehaviour {
     private void LimitSpeed() {
         if (sliding) return;
 
-        Vector3 vel = rb.velocity;
+        Vector3 vel = rb.linearVelocity;
         Vector3 flatVel = new Vector3(vel.x, 0f, vel.z);
 
         if (flatVel.sqrMagnitude > maxSpeed * maxSpeed) {
@@ -227,7 +227,7 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void AirMovement() {
-        Vector3 vel = rb.velocity;
+        Vector3 vel = rb.linearVelocity;
         Vector3 wishDir = orientation.right * x + orientation.forward * y;
         wishDir.y = 0f;
 
@@ -254,7 +254,7 @@ public class PlayerMovement : MonoBehaviour {
     private void OnLanding() {
         ResetWallRun();
 
-        float speed = new Vector3(rb.velocity.x, 0f, rb.velocity.z).magnitude;
+        float speed = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z).magnitude;
 
         if (airSlide) {
             airSlide = false;
@@ -278,12 +278,12 @@ public class PlayerMovement : MonoBehaviour {
 
         jumpedThisFrame = true;
 
-        Vector3 vel = rb.velocity;
+        Vector3 vel = rb.linearVelocity;
         rb.AddForce(Vector3.up * (jumpForce - vel.y), ForceMode.VelocityChange);
     }
 
     private void StartCrouch() {
-        float groundVel = new Vector3(rb.velocity.x, 0, rb.velocity.z).magnitude;
+        float groundVel = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z).magnitude;
 
         if (groundVel > slideMinSpeed && grounded) {
             Slide();
@@ -319,7 +319,7 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void Slide() {
-        Vector3 slopeVel = Vector3.ProjectOnPlane(rb.velocity, normalVector);
+        Vector3 slopeVel = Vector3.ProjectOnPlane(rb.linearVelocity, normalVector);
         float speed = slopeVel.magnitude;
 
         if (speed < 0.01f || slideCooldownActive) {
@@ -346,7 +346,7 @@ public class PlayerMovement : MonoBehaviour {
         Vector3 gravityAlongSlope = Vector3.ProjectOnPlane(Physics.gravity, normalVector);
         rb.AddForce(gravityAlongSlope * slideSlopeAccel, ForceMode.Acceleration);
 
-        Vector3 vel = rb.velocity;
+        Vector3 vel = rb.linearVelocity;
         Vector3 slopeDir = Vector3.ProjectOnPlane(vel, normalVector);
         float speed = slopeDir.magnitude;
 
@@ -360,15 +360,15 @@ public class PlayerMovement : MonoBehaviour {
 
         Vector3 newVel = slopeDir.normalized * newSpeed;
         newVel.y = vel.y;
-        rb.velocity = newVel;
+        rb.linearVelocity = newVel;
     }
 
     private void StartWallRun() {
         startingWallRun = true;
         // cancelWallRunAction = player.invoker.Invoke(ForceExitWallRun, TickUtil.SecondsToTick(wallRunMaxTime));
 
-        Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-        rb.velocity = flatVel;
+        Vector3 flatVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+        rb.linearVelocity = flatVel;
 
         if (!jumping) {
             rb.AddForce(Vector3.up * initialWallBoost, ForceMode.Impulse);
@@ -376,7 +376,7 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     private void WallRunning() {
-        Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+        Vector3 flatVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
         float currentSpeed = flatVel.magnitude;
 
         Vector3 rawForwardFlat = Vector3.ProjectOnPlane(orientation.forward, Vector3.up);
@@ -410,7 +410,7 @@ public class PlayerMovement : MonoBehaviour {
         if (!jumping) {
             float targetFall = IsPressingTowardWall(wallNormalVector) ? wallRunMaxFallSpeed : wallRunIdleMaxFallSpeed;
 
-            float currentFall = rb.velocity.y;
+            float currentFall = rb.linearVelocity.y;
             if (currentFall < targetFall) {
                 rb.AddForce(Vector3.up * (targetFall - currentFall), ForceMode.VelocityChange);
             }
@@ -420,14 +420,14 @@ public class PlayerMovement : MonoBehaviour {
     private void WallKick() {
         Vector3 impulse = wallNormalVector * wallKickImpulse + Vector3.up * jumpForce;
 
-        rb.velocity = new Vector3(rb.velocity.x, Mathf.Min(rb.velocity.y, 0f), rb.velocity.z);
+        rb.linearVelocity = new Vector3(rb.linearVelocity.x, Mathf.Min(rb.linearVelocity.y, 0f), rb.linearVelocity.z);
         rb.AddForce(impulse, ForceMode.Impulse);
 
         ResetWallRun();
     }
 
     private void ForceExitWallRun() {
-        float downVel = Mathf.Min(rb.velocity.y, 0f);
+        float downVel = Mathf.Min(rb.linearVelocity.y, 0f);
         if (downVel < 0f) {
             rb.AddForce(Vector3.up * -downVel, ForceMode.VelocityChange);
         }
@@ -490,7 +490,7 @@ public class PlayerMovement : MonoBehaviour {
             Bounds bounds = playerCollider.bounds;
 
             wallNormalVector = hit.normal;
-            Vector3 flatVel = Vector3.ProjectOnPlane(rb.velocity, normalVector);
+            Vector3 flatVel = Vector3.ProjectOnPlane(rb.linearVelocity, normalVector);
 
             if (flatVel.magnitude > 1f) {
                 if (hit.distance > bounds.extents.x + 0.1f && !startingWallRun && !wallRunning) {
@@ -516,10 +516,10 @@ public class PlayerMovement : MonoBehaviour {
 
     private Vector2 FindVelRelativeToLook() {
         float lookAngle = orientation.eulerAngles.y;
-        float moveAngle = Mathf.Atan2(rb.velocity.x, rb.velocity.z) * Mathf.Rad2Deg;
+        float moveAngle = Mathf.Atan2(rb.linearVelocity.x, rb.linearVelocity.z) * Mathf.Rad2Deg;
         float u = Mathf.DeltaAngle(lookAngle, moveAngle);
         float v = 90f - u;
-        float mag = new Vector2(rb.velocity.x, rb.velocity.z).magnitude;
+        float mag = new Vector2(rb.linearVelocity.x, rb.linearVelocity.z).magnitude;
 
         return new Vector2(mag * Mathf.Cos(v * Mathf.Deg2Rad), mag * Mathf.Cos(u * Mathf.Deg2Rad));
     }
@@ -558,7 +558,7 @@ public class PlayerMovement : MonoBehaviour {
     }
 
     public float GetFallSpeed() {
-        return rb.velocity.y;
+        return rb.linearVelocity.y;
     }
 
     public bool IsGrounded() {

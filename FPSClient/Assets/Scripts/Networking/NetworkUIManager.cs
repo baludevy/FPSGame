@@ -17,7 +17,7 @@ public class NetworkUIManager : MonoBehaviour {
         if(NetworkManager.Instance.currentState != NetworkManager.State.disconnected) return;
         
         string ip = ipField.text == "" ? "127.0.0.1" : ipField.text;
-        
+
         NetworkManager.Instance.Connect(ip);
     }
 

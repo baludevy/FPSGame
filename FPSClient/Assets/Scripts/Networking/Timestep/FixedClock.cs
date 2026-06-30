@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class FixedClock : MonoBehaviour {
     public static float timeScale = 1f;
@@ -12,6 +13,9 @@ public class FixedClock : MonoBehaviour {
     private static Stopwatch stopwatch = Stopwatch.StartNew();
     private static float accumulator;
     private static float currentTime;
+    
+    // Track the render alpha explicitly
+    private static float renderInterpolationAlpha;
 
     public static void Register(FixedBehaviour behaviour) {
         if (!behaviours.Contains(behaviour))
@@ -23,6 +27,8 @@ public class FixedClock : MonoBehaviour {
     }
 
     private void Update() {
+        InputSystem.Update();
+        
         foreach (FixedBehaviour behaviour in behaviours)
             behaviour.UpdateBeforeTick();
         
@@ -40,12 +46,13 @@ public class FixedClock : MonoBehaviour {
             tick++;
         }
         
+        renderInterpolationAlpha = accumulator / tickInterval;
+
         foreach (FixedBehaviour behaviour in behaviours)
             behaviour.UpdateAfterTick();
     }
 
     private static void Advance() {
-        TickSync.Update();
         TickInvoker.Step();
 
         foreach (FixedBehaviour behaviour in behaviours)
@@ -56,15 +63,15 @@ public class FixedClock : MonoBehaviour {
         return (float)stopwatch.Elapsed.TotalSeconds;
     }
 
-    public static float GetAccumulatedTime() {
-        return accumulator;
+    public static float GetInterpolationAlpha() {
+        return renderInterpolationAlpha;
     }
-
 
     public static void Reset() {
         accumulator = 0f;
         tick = 0;
         timeScale = 1f;
         currentTime = GetTime();
+        renderInterpolationAlpha = 0f;
     }
 }

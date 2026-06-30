@@ -4,15 +4,13 @@ using UnityEngine;
 
 public enum ServerPackets {
     welcome = 1,
-    syncTick,
+    udpConfirmed,
     spawnPlayer,
     gameUpdate,
-    lagCompVisual
 }
 
 public enum ClientPackets {
     welcomeReceived = 1,
-    syncTick,
     playerInput
 }
 

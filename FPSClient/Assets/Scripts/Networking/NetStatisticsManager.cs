@@ -26,17 +26,19 @@ public static class NetStatisticsManager {
 
     private static float lastInputMargin;
 
-    public static void UpdateStatistics(uint serverTick, float clientReceive, TimingInfo timing,
+    public static void UpdateStatistics(uint serverTick, TimingInfo timing,
         UpstreamStatistics upstream) {
         float serverProcessTime = timing.serverSendTime - timing.serverReceiveTime;
-        float pingSample = clientReceive - timing.clientSendTimeAck - serverProcessTime;
+        float pingSample = timing.clientReceiveTime - timing.clientSendTimeAck - serverProcessTime;
 
         NetStatistics.ping = Mathf.Max(0f, Mathf.Lerp(NetStatistics.ping, pingSample, pingSmooth));
 
-        NetStatistics.inputMargin = (inputMarginSmooth * timing.inputReceiveMargin) +
-                                    ((1f - inputMarginSmooth) * lastInputMargin);
+        
+        NetStatistics.inputMargin = inputMarginSmooth * timing.inputReceiveMargin +
+                                    (1f - inputMarginSmooth) * lastInputMargin;
+        
 
-        UpdateJitter(timing.serverSendTime, clientReceive);
+        UpdateJitter(timing.serverSendTime, timing.clientReceiveTime);
         UpdatePacketLoss(serverTick);
 
         NetStatistics.upstreamJitter = upstream.jitter;
@@ -145,4 +147,5 @@ public static class NetStatistics {
     public static int packetsSent;
     public static int packetsReceived;
     public static float inputMargin;
+    public static uint inputSequenceAck;
 }

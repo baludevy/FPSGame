@@ -5,51 +5,58 @@ using System.Net.Sockets;
 using UnityEngine;
 
 public class Server {
-    public static int MaxPlayers { get; private set; }
-    public static int Port { get; private set; }
+    public static int maxPlayers { get; private set; }
+    public static int port { get; private set; }
     public static Dictionary<int, Client> clients = new();
 
     public delegate void PacketHandler(int fromClient, Packet packet);
 
     public static readonly Dictionary<byte, PacketHandler> packetHandlers = new() {
         { (byte)ClientPackets.welcomeReceived, ServerHandle.WelcomeReceived },
-        { (byte)ClientPackets.syncTick, ServerHandle.SyncTick },
         { (byte)ClientPackets.playerInput, ServerHandle.PlayerInput },
     };
 
     private static TcpListener tcpListener;
     private static UdpClient udpListener;
-    private static volatile bool running;
+    private static SafeFlag running = new();
 
     private static readonly object acceptLock = new();
 
     public static void Start(int maxPlayers, int port) {
-        MaxPlayers = maxPlayers;
-        Port = port;
-        running = true;
+        Server.maxPlayers = maxPlayers;
+        Server.port = port;
+        running.Set();
 
-        for (int i = 1; i <= MaxPlayers; i++)
-            if (!clients.ContainsKey(i))
+        for (int i = 1; i <= Server.maxPlayers; i++) {
+            if (!clients.ContainsKey(i)) {
                 clients.Add(i, new Client(i));
+            }
+        }
 
-        tcpListener = new TcpListener(IPAddress.Any, Port);
+        tcpListener = new TcpListener(IPAddress.Any, Server.port);
         tcpListener.Start();
         tcpListener.BeginAcceptTcpClient(TcpConnectCallback, null);
 
-        udpListener = new UdpClient(Port);
+        udpListener = new UdpClient(Server.port);
         udpListener.BeginReceive(UdpReceiveCallback, null);
 
-        Debug.Log($"Server started on port {Port}.");
+        Debug.Log($"Started on port {Server.port}");
     }
 
     public static void CheckTimeouts() {
-        if (!running) return;
+        if (!running.IsSet()) {
+            return;
+        }
+
         long now = DateTime.UtcNow.Ticks;
-        for (int i = 1; i <= MaxPlayers; i++) {
+        for (int i = 1; i <= maxPlayers; i++) {
             Client c = clients[i];
-            if (c.tcp.socket == null) continue;
+            if (c.tcp.socket == null) {
+                continue;
+            }
+
             if (c.TimedOut(now)) {
-                Debug.Log($"Client {i} timed out.");
+                Debug.Log($"Client {i} timed out");
                 c.Disconnect();
             }
         }
@@ -67,7 +74,7 @@ public class Server {
             Debug.LogException(ex);
         }
 
-        if (running) {
+        if (running.IsSet()) {
             try {
                 tcpListener.BeginAcceptTcpClient(TcpConnectCallback, null);
             }
@@ -80,11 +87,12 @@ public class Server {
             }
         }
 
-        if (incoming == null) return;
+        if (incoming == null) {
+            return;
+        }
 
-        // Locked so two concurrent accepts can't grab the same free slot.
         lock (acceptLock) {
-            for (int i = 1; i <= MaxPlayers; i++) {
+            for (int i = 1; i <= maxPlayers; i++) {
                 if (clients[i].tcp.socket == null) {
                     clients[i].tcp.Connect(incoming);
                     return;
@@ -92,11 +100,13 @@ public class Server {
             }
         }
 
+        Debug.Log(
+            $"Server full, refusing connection from {IPAddress.Parse(((IPEndPoint)incoming.Client.RemoteEndPoint).Address.ToString())}");
         try {
             incoming.Close();
         }
         catch {
-        } // server full
+        }
     }
 
     private static void UdpReceiveCallback(IAsyncResult result) {
@@ -110,13 +120,15 @@ public class Server {
             return;
         }
         catch (SocketException ex) {
-            if (ex.SocketErrorCode != SocketError.ConnectionReset) Debug.LogException(ex);
+            if (ex.SocketErrorCode != SocketError.ConnectionReset) {
+                Debug.LogException(ex);
+            }
         }
         catch (Exception ex) {
             Debug.LogException(ex);
         }
         finally {
-            if (running) {
+            if (running.IsSet()) {
                 try {
                     udpListener.BeginReceive(UdpReceiveCallback, null);
                 }
@@ -128,38 +140,48 @@ public class Server {
             }
         }
 
-        if (data == null) return;
+        if (data == null) {
+            return;
+        }
+
         int length = data.Length;
 
         try {
-            if (length < 8 || length > NetProtocol.maxPacketSize + 8) return;
-
-            int clientId = BitConverter.ToInt32(data, 0);
-            uint magic = BitConverter.ToUInt32(data, 4);
-            if (clientId < 1 || clientId > MaxPlayers || magic != NetProtocol.magic ||
-                !clients.TryGetValue(clientId, out Client c))
-                return;
-
-            IPEndPoint bound = c.udp.GetEndPoint();
-
-            if (bound == null) {
-                // First contact must carry a valid token before we pin the endpoint.
-                if (length < 8 + NetProtocol.tokenLength) return;
-                byte[] token = new byte[NetProtocol.tokenLength];
-                Buffer.BlockCopy(data, 8, token, 0, NetProtocol.tokenLength);
-                if (!NetProtocol.TokensEqual(c.sessionToken, token)) return;
-                c.udp.TryBind(remoteEp); // atomic; a concurrent dup just no-ops
-                c.MarkActivity();
+            if (length < 8 || length > NetProtocol.maxPacketSize + 8) {
                 return;
             }
 
-            if (!bound.Equals(remoteEp)) return; // spoofed source endpoint
+            int clientId = BitConverter.ToInt32(data, 0);
+            uint magic = BitConverter.ToUInt32(data, 4);
+            if (clientId < 1 || clientId > maxPlayers || magic != NetProtocol.magic ||
+                !clients.TryGetValue(clientId, out Client client)) {
+                return;
+            }
 
-            c.MarkActivity();
+            IPEndPoint bound = client.udp.GetEndPoint();
+
+            if (bound == null) {
+                if (client.tcp.socket == null) {
+                    return;
+                }
+
+                if (client.udp.TryBind(remoteEp)) {
+                    client.MarkUdpBound();
+                    Debug.Log($"Client {clientId} UDP endpoint bound");
+                }
+
+                return;
+            }
+
+            if (!bound.Equals(remoteEp)) {
+                return;
+            }
+
+            client.MarkActivity();
             using Packet packet = new Packet(data, length);
-            packet.ReadInt();  // clientId
-            packet.ReadUInt(); // magic
-            c.udp.HandleData(packet);
+            packet.ReadInt();
+            packet.ReadUInt();
+            client.udp.HandleData(packet);
         }
         catch (Exception ex) {
             Debug.LogException(ex);
@@ -167,7 +189,10 @@ public class Server {
     }
 
     public static void SendUdpData(IPEndPoint endPoint, Packet packet) {
-        if (endPoint == null) return;
+        if (endPoint == null) {
+            return;
+        }
+
         try {
             byte[] data = packet.ToArray();
             udpListener.Send(data, data.Length, endPoint);
@@ -180,13 +205,15 @@ public class Server {
     }
 
     public static void Stop() {
-        running = false;
+        running.Clear();
+
         foreach (Client client in clients.Values) {
             try {
                 client?.tcp?.Disconnect();
             }
             catch {
             }
+
             try {
                 client?.udp?.Disconnect();
             }
@@ -199,10 +226,13 @@ public class Server {
         }
         catch {
         }
+
         try {
             udpListener?.Close();
         }
         catch {
         }
+
+        Debug.Log("[Server] Stopped");
     }
 }

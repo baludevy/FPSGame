@@ -1,7 +1,5 @@
-﻿using System.Collections.Generic;
-
-public static class UpdateDeserializer {
-    private static uint lastProcessedTick;
+﻿public static class UpdateDeserializer {
+    public static volatile uint latestTick;
 
     public static void GameUpdate(Packet packet) {
         uint serverTick = packet.ReadUInt();
@@ -9,6 +7,7 @@ public static class UpdateDeserializer {
         TimingInfo timingInfo = new TimingInfo {
             inputReceiveMargin = FloatCompressor.ShortToFloat(packet.ReadShort()),
             clientSendTimeAck = packet.ReadFloat(),
+            clientReceiveTime = FixedClock.GetTime(),
             serverSendTime = packet.ReadFloat(),
             serverReceiveTime = packet.ReadFloat(),
         };
@@ -18,24 +17,29 @@ public static class UpdateDeserializer {
             packetLoss = FloatCompressor.ShortToFloat(packet.ReadShort()),
         };
 
-        NetStatisticsManager.UpdateStatistics(serverTick, FixedClock.GetTime(), timingInfo, upstreamStatistics);
+        NetStatisticsManager.UpdateStatistics(serverTick, timingInfo, upstreamStatistics);
         AdaptiveNetcode.Apply();
-        InputPacer.AdjustInputClock(NetStatistics.inputMargin, serverTick);
+        if (InputPacer.Instance != null) {
+            InputPacer.Instance.AdjustInputClock(NetStatistics.inputMargin, serverTick);
+        }
 
-        if (serverTick <= lastProcessedTick && lastProcessedTick != 0) {
+        // dont do anything
+        if (serverTick <= latestTick && latestTick != 0) {
             packet.ReadVector3();
             packet.ReadVector3();
             packet.ReadFloat();
 
             byte count = packet.ReadByte();
+
             for (int i = 0; i < count; i++) {
                 packet.ReadByte();
                 packet.ReadVector3();
             }
+
             return;
         }
 
-        lastProcessedTick = serverTick;
+        latestTick = serverTick;
 
         MovementState movementState = new MovementState {
             position = packet.ReadVector3(),
@@ -44,19 +48,20 @@ public static class UpdateDeserializer {
         };
 
         byte playerStateCount = packet.ReadByte();
-        List<PlayerState> playerStates = new List<PlayerState>(playerStateCount);
+        PlayerState[] playerStates = new PlayerState[playerStateCount];
 
         for (int i = 0; i < playerStateCount; i++) {
-            playerStates.Add(new PlayerState {
+            playerStates[i] = new PlayerState {
                 id = packet.ReadByte(),
                 position = packet.ReadVector3(),
-            });
+            };
         }
 
         WorldSnapshot snapshot = new WorldSnapshot {
             serverTick = serverTick,
             serverSendTime = timingInfo.serverSendTime,
-            clientReceiveTime = FixedClock.GetTime(),
+            clientReceiveTime = timingInfo.clientReceiveTime,
+            playerStatesCount = playerStateCount,
             playerStates = playerStates
         };
 
@@ -70,6 +75,6 @@ public static class UpdateDeserializer {
     }
 
     public static void Reset() {
-        lastProcessedTick = 0;
+        latestTick = 0;
     }
 }

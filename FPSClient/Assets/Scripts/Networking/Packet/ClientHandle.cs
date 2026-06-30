@@ -1,18 +1,28 @@
-﻿using System.Collections.Generic;
-using System.Net;
+﻿using System.Net;
 using UnityEngine;
 
 public class ClientHandle {
     public static void Welcome(Packet packet) {
         int myId = packet.ReadInt();
-
         Client.Instance.myId = myId;
 
         byte[] token = packet.ReadBytes(NetProtocol.tokenLength);
         Client.Instance.sessionToken = token;
 
-        Client.Instance.udp.Connect(((IPEndPoint)Client.Instance.tcp.socket.Client.LocalEndPoint).Port);
+        Debug.Log($"Welcome received, assigned id {myId}");
 
+        int localPort = ((IPEndPoint)Client.Instance.tcp.socket.Client.LocalEndPoint).Port;
+        Client.Instance.udp.Connect(localPort);
+
+        ClientSend.WelcomeReceived();
+    }
+    
+    public static void UdpConfirmed(Packet packet) {
+        packet.ReadInt();
+
+        Debug.Log("UDP bind confirmed by server");
+
+        Client.Instance.udp.StopPingRetry();
         NetworkManager.Instance.NotifyConnected();
     }
 
@@ -23,13 +33,6 @@ public class ClientHandle {
         Quaternion rotation = packet.ReadQuaternion();
 
         GameManager.Instance.SpawnPlayer(id, username, position, rotation);
-    }
-
-    public static void SyncTick(Packet packet) {
-        float clientSendTime = packet.ReadFloat();
-        uint serverTick = packet.ReadUInt();
-
-        TickSync.OnPong(clientSendTime, serverTick);
     }
 
     public static void GameUpdate(Packet packet) {

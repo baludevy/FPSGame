@@ -1,35 +1,44 @@
 ﻿using UnityEngine;
 
-public static class InputPacer {
-    private static float targetMargin => NetcodeState.targetInputMargin;
+public class InputPacer : MonoBehaviour {
+    private float targetMargin => NetcodeState.targetInputMargin;
 
     // pacer settings
-    private static float sensitivity = 0.02f;
-    private static float catchUpGainMult = 3f;
-    private static float jitterDeadbandMult = 0.1f;
-    private static float frametimeDeadbandMult = 0.1f;
+    private float sensitivity = 0.02f;
+    private float catchUpGainMult = 3f;
+    private float jitterDeadbandMult = 0.1f;
+    private float frametimeDeadbandMult = 0.1f;
 
     // timescale bounds
-    private static float maxSpeedUp = 0.1f;
-    private static float maxSlowDown = 0.05f;
+    private float maxSpeedUp = 0.1f;
+    private float maxSlowDown = 0.05f;
 
     // timescale smoothing
-    private static float speedUpSmoothing = 0.6f;
-    private static float slowDownSmoothing = 0.3f;
+    private float speedUpSmoothing = 0.6f;
+    private float slowDownSmoothing = 0.3f;
 
     // state variables
-    private static float currentMargin;
-    private static float targetTimescale = 1f;
-    private static float lastSampleTime;
+    private float currentMargin;
+    private float targetTimescale = 1f;
+    private float lastSampleTime;
 
-    private static float pendingCorrection;
+    private float pendingCorrection;
 
-    public static void AdjustInputClock(float inputMargin, uint serverTick) {
+    public static InputPacer Instance;
+
+    private void Awake() {
+        if (Instance == null) {
+            Instance = this;
+        }
+        else {
+            Destroy(this);
+        }
+    }
+
+    public void AdjustInputClock(float inputMargin, uint serverTick) {
         currentMargin = inputMargin;
 
-        if (currentMargin > 0.23f || currentMargin < -0.23f) {
-            Debug.Log((uint)TickUtil.SecondsToTick(NetStatistics.ping + NetcodeState.targetInputMargin));
-
+        if (currentMargin > 0.23f || currentMargin < 0f) {
             FixedClock.tick =
                 serverTick + (uint)TickUtil.SecondsToTick(NetStatistics.ping + NetcodeState.targetInputMargin);
 
@@ -55,8 +64,8 @@ public static class InputPacer {
 
         float jitterDeadband = NetStatistics.upstreamJitter * jitterDeadbandMult;
         float frametimeDeadband = (FrametimeMonitor.meanFrametime + 2f * FrametimeMonitor.frametimeStdDev) *
-            frametimeDeadbandMult;
-        
+                                  frametimeDeadbandMult;
+
         float currentDeadband = Mathf.Clamp(jitterDeadband + frametimeDeadband, 0.002f, 0.05f);
 
         // recalculate target timescale based on deadband
@@ -92,15 +101,19 @@ public static class InputPacer {
         FixedClock.timeScale = newScale;
     }
 
-    public static float GetCurrentInputMargin() {
+    public float GetCurrentInputMargin() {
         return currentMargin;
     }
 
-    public static void Reset() {
+    private void Reset() {
         currentMargin = 0f;
         targetTimescale = 1f;
         lastSampleTime = 0f;
         pendingCorrection = 0f;
         FixedClock.timeScale = 1f;
+    }
+
+    private void OnDestroy() {
+        Reset();
     }
 }

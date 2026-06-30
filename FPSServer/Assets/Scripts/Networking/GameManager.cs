@@ -1,11 +1,14 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 public class GameManager : FixedBehaviour {
     public static GameManager Instance;
 
     public GameObject playerPrefab;
 
-    public LagCompensation lagCompensation = new LagCompensation();
+    [NonSerialized] public LagCompensation lagCompensation;
+
+    private PlayerState[] snapshotBuffer;
     private WorldSnapshot currentSnapshot;
 
     private void Awake() {
@@ -15,6 +18,11 @@ public class GameManager : FixedBehaviour {
         else {
             Destroy(gameObject);
         }
+    }
+
+    public void Init() {
+        snapshotBuffer = new PlayerState[Server.maxPlayers];
+        lagCompensation = new LagCompensation();
     }
 
     public override void UpdateBeforeTick() {
@@ -35,7 +43,7 @@ public class GameManager : FixedBehaviour {
 
         lagCompensation.SaveSnapshot(currentSnapshot);
         lagCompensation.Update();
-        
+
         foreach (Client client in Server.clients.Values) {
             if (client.player != null) {
                 InputData inputData = client.player.inputBuffer.GetInputFromQueue(FixedClock.tick);
@@ -58,14 +66,12 @@ public class GameManager : FixedBehaviour {
         Player toPlayer = Server.clients[toClient].player;
 
         update.serverTick = FixedClock.tick;
-
         update.timingInfo = toPlayer.inputBuffer.GetTimingInfo();
+        update.upstreamStatistics = toPlayer.monitor.GetUpstreamStatistics();
 
-        update.upstreamStatistics = toPlayer.inputBuffer.GetUpstreamStatistics();
-
-        update.movementState = new MovementState() {
+        update.movementState = new MovementState {
             position = toPlayer.GetState().position,
-            velocity = toPlayer.movement.GetRb().velocity,
+            velocity = toPlayer.movement.GetRb().linearVelocity,
             orientation = toPlayer.movement.orientation.eulerAngles.y,
         };
 
@@ -74,37 +80,22 @@ public class GameManager : FixedBehaviour {
         ServerSend.GameUpdate(toClient, update);
     }
 
-
     private WorldSnapshot GetWorldSnapshot() {
-        WorldSnapshot snapshot = new WorldSnapshot() {
-            tick = FixedClock.tick,
-        };
+        int count = 0;
 
         foreach (Client client in Server.clients.Values) {
             Player player = client.player;
-
             if (player != null) {
-                snapshot.playerStates.Add(player.GetState());
+                snapshotBuffer[count] = player.GetState();
+                count++;
             }
         }
 
-        return snapshot;
-    }
-
-    private WorldSnapshot GetWorldSnapshotForPlayer(int forPlayer) {
-        WorldSnapshot snapshot = new WorldSnapshot {
-            tick = FixedClock.tick,
+        return new WorldSnapshot {
+            serverTick = FixedClock.tick,
+            playerStates = snapshotBuffer,
+            playerStatesCount = count,
         };
-
-        foreach (Client client in Server.clients.Values) {
-            Player player = client.player;
-
-            if (player != null || player.id != forPlayer) {
-                snapshot.playerStates.Add(player.GetState());
-            }
-        }
-
-        return snapshot;
     }
 
     public Player InstantiatePlayer() {

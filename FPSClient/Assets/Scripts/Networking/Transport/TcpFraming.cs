@@ -10,6 +10,7 @@ public static class TcpFraming {
         if (receivedData.UnreadLength() < 4) return true;
 
         int packetLength = receivedData.ReadInt();
+        
         if (packetLength <= 0) return true;
         if (packetLength > NetProtocol.maxPacketSize) return onOverflow();
 

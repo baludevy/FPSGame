@@ -1,98 +1,164 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class LagCompensation {
-    private List<WorldSnapshot> snapshotHistory = new List<WorldSnapshot>();
+    private WorldSnapshot[] history;
+    private int capacity;
+    private int count;
+    private int head;
+
+    public LagCompensation() {
+        capacity = NetworkSettings.tickRate;
+        
+        history = new WorldSnapshot[capacity];
+        for (int i = 0; i < capacity; i++) {
+            history[i].playerStates = new PlayerState[Server.maxPlayers];
+        }
+        
+        count = 0;
+        head = 0;
+    }
 
     public void SaveSnapshot(WorldSnapshot snapshot) {
-        int index = snapshotHistory.FindIndex(s => s.tick >= snapshot.tick);
-        if (index == -1) {
-            snapshotHistory.Add(snapshot);
+        int slot = head;
+        PlayerState[] dest = history[slot].playerStates;
+
+        int n = snapshot.playerStatesCount;
+        for (int i = 0; i < n; i++) {
+            dest[i] = snapshot.playerStates[i];
         }
-        else if (snapshotHistory[index].tick == snapshot.tick) {
-            snapshotHistory[index] = snapshot;
-        }
-        else {
-            snapshotHistory.Insert(index, snapshot);
+
+        history[slot].serverTick = snapshot.serverTick;
+        history[slot].serverSendTime = snapshot.serverSendTime;
+        history[slot].playerStatesCount = n;
+        history[slot].playerStates = dest;
+
+        head = (head + 1) % capacity;
+        if (count < capacity) {
+            count++;
         }
     }
 
-    public PlayerState GetRewoundState(float renderTick, int playerId) {
-        WorldSnapshot interpolated = GetRewoundSnapshot(renderTick);
-        if (interpolated == null) {
-            return null;
+    private int OldestIndex() {
+        if (count < capacity) {
+            return 0;
         }
-        return interpolated.playerStates.FirstOrDefault(p => p.id == playerId);
+        return head;
     }
 
-    public WorldSnapshot GetRewoundSnapshot(float renderTick) {
-        if (snapshotHistory.Count == 0) {
-            return null;
+    private int IndexAt(int offset) {
+        return (OldestIndex() + offset) % capacity;
+    }
+
+    public bool GetRewoundState(float renderTick, int playerId, out PlayerState result) {
+        result = default;
+
+        if (count == 0) {
+            return false;
         }
 
-        uint oldestTick = snapshotHistory[0].tick;
-        uint newestTick = snapshotHistory[snapshotHistory.Count - 1].tick;
+        if (!GetRewoundSnapshot(renderTick, out WorldSnapshot interpolated)) {
+            return false;
+        }
+
+        for (int i = 0; i < interpolated.playerStatesCount; i++) {
+            if (interpolated.playerStates[i].id == playerId) {
+                result = interpolated.playerStates[i];
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private PlayerState[] scratch = new PlayerState[Server.maxPlayers];
+
+    public bool GetRewoundSnapshot(float renderTick, out WorldSnapshot result) {
+        result = default;
+
+        if (count == 0) {
+            return false;
+        }
+
+        uint oldestTick = history[IndexAt(0)].serverTick;
+        uint newestTick = history[IndexAt(count - 1)].serverTick;
 
         float clampedTick = Mathf.Clamp(renderTick, oldestTick, newestTick);
 
-        if (snapshotHistory.Count == 1) {
-            return InterpolateSnapshot(snapshotHistory[0], snapshotHistory[0], 0f);
+        if (count == 1) {
+            result = history[IndexAt(0)];
+            return true;
         }
 
-        WorldSnapshot from = snapshotHistory[0];
-        WorldSnapshot to = snapshotHistory[snapshotHistory.Count - 1];
+        int fromIdx = IndexAt(0);
+        int toIdx = IndexAt(count - 1);
 
-        for (int i = 0; i < snapshotHistory.Count - 1; i++) {
-            if (clampedTick >= snapshotHistory[i].tick && clampedTick <= snapshotHistory[i + 1].tick) {
-                from = snapshotHistory[i];
-                to = snapshotHistory[i + 1];
+        for (int i = 0; i < count - 1; i++) {
+            int a = IndexAt(i);
+            int b = IndexAt(i + 1);
+            if (clampedTick >= history[a].serverTick && clampedTick <= history[b].serverTick) {
+                fromIdx = a;
+                toIdx = b;
                 break;
             }
         }
 
-        float span = to.tick - from.tick;
-        float t = span > 0f ? Mathf.Clamp01((clampedTick - from.tick) / span) : 0f;
+        WorldSnapshot from = history[fromIdx];
+        WorldSnapshot to = history[toIdx];
 
-        return InterpolateSnapshot(from, to, t);
+        float span = to.serverTick - from.serverTick;
+        float t = span > 0f ? Mathf.Clamp01((clampedTick - from.serverTick) / span) : 0f;
+
+        result = InterpolateSnapshot(from, to, t);
+        return true;
     }
 
     private WorldSnapshot InterpolateSnapshot(WorldSnapshot from, WorldSnapshot to, float t) {
-        WorldSnapshot interpolated = new WorldSnapshot {
-            tick = from.tick,
-            playerStates = new List<PlayerState>()
-        };
+        int count = 0;
 
-        foreach (PlayerState fromState in from.playerStates) {
-            PlayerState toState = to.playerStates.FirstOrDefault(p => p.id == fromState.id);
+        for (int i = 0; i < from.playerStatesCount; i++) {
+            PlayerState fromState = from.playerStates[i];
+            bool found = false;
+            PlayerState toState = default;
 
-            PlayerState interpolatedState = new PlayerState {
+            for (int j = 0; j < to.playerStatesCount; j++) {
+                if (to.playerStates[j].id == fromState.id) {
+                    toState = to.playerStates[j];
+                    found = true;
+                    break;
+                }
+            }
+
+            scratch[count] = new PlayerState {
                 id = fromState.id,
-                position = toState != null
+                crouching = fromState.crouching,
+                position = found
                     ? Vector3.Lerp(fromState.position, toState.position, t)
-                    : fromState.position
+                    : fromState.position,
             };
-
-            interpolated.playerStates.Add(interpolatedState);
+            count++;
         }
 
-        foreach (PlayerState toState in to.playerStates) {
-            if (interpolated.playerStates.All(p => p.id != toState.id)) {
-                interpolated.playerStates.Add(new PlayerState {
-                    id = toState.id,
-                    position = toState.position
-                });
+        for (int i = 0; i < to.playerStatesCount; i++) {
+            PlayerState toState = to.playerStates[i];
+            bool exists = false;
+            for (int j = 0; j < count; j++) {
+                if (scratch[j].id == toState.id) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                scratch[count] = toState;
+                count++;
             }
         }
 
-        return interpolated;
+        return new WorldSnapshot {
+            serverTick = from.serverTick,
+            playerStates = scratch,
+            playerStatesCount = count,
+        };
     }
 
     public void Update() {
-        int maxSnapshots = (int)NetworkSettings.tickRate;
-        if (snapshotHistory.Count > maxSnapshots) {
-            snapshotHistory.RemoveRange(0, snapshotHistory.Count - maxSnapshots);
-        }
     }
 }
